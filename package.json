@@ -5,13 +5,19 @@
   "main": "./index.html",
   "scripts": {
     "fix": "standard --fix",
-    "serve": "live-server --port=3000 --host=localhost --no-css-inject"
+    "serve": "live-server --port=3000 --host=localhost --no-css-inject",
+    "build": "npx parcel ./index.html"
   },
   "author": "edx.mgb@gmail.com, weedshaker@gmail.com",
   "license": "MIT",
   "devDependencies": {
     "five-server": "*",
-    "standard": "*"
+    "parcel": "*",
+    "standard": "*",
+    "y-indexeddb": "*",
+    "y-webrtc": "*",
+    "y-websocket": "*",
+    "yjs": "*"
   },
   "standard": {
     "ignore": [
