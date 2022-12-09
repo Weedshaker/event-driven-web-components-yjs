@@ -1,0 +1,3 @@
+[submodule "src/yjs"]
+	path = src/yjs
+	url = https://github.com/yjs/yjs.git
