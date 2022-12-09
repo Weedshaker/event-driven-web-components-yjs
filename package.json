@@ -2,17 +2,22 @@
   "name": "event-driven-web-components-yjs",
   "version": "0.0.1",
   "description": "yjs web component wrapper",
-  "main": "./index.html",
   "scripts": {
     "fix": "standard --fix",
     "serve": "live-server --port=3000 --host=localhost --no-css-inject",
-    "build": "npx parcel ./index.html"
+    "build": "echo TODO: execute each build separate and build-yjs copy-paste it directly into the cli and save something... LOL... some issue here.",
+    "build-y-indexeddb": "npx parcel build ./node_modules/y-indexeddb/src/y-indexeddb.js --no-source-maps --dist-dir ./dist/y-indexeddb/",
+    "build-y-webrtc": "npx parcel build ./node_modules/y-webrtc/src/y-webrtc.js --no-source-maps --dist-dir ./dist/y-webrtc/",
+    "build-y-websocket": "npx parcel build ./node_modules/y-websocket/src/y-websocket.js --no-source-maps --dist-dir ./dist/y-websocket/",
+    "build-yjs": "npx parcel ./node_modules/yjs/src/index.js --no-source-maps --dist-dir ./dist/yjs/"
   },
   "author": "edx.mgb@gmail.com, weedshaker@gmail.com",
   "license": "MIT",
   "devDependencies": {
+    "buffer": "*",
     "five-server": "*",
     "parcel": "*",
+    "process": "*",
     "standard": "*",
     "y-indexeddb": "*",
     "y-webrtc": "*",
