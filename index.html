@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>yjs test</title>
-</head>
-<body>
-  <script type=module>
-    import('https://cdn.jsdelivr.net/npm/yjs@13.5.43/dist/yjs.mjs').then(module => console.log('module', module))
-    //import('./dist/y-websocket/y-websocket.js').then(module => console.log('module', module))
-    // import * as Y from 'yjs'
-    // import { WebrtcProvider } from 'y-webrtc'
-    // import { WebsocketProvider } from 'y-websocket'
-    // import { IndexeddbPersistence } from 'y-indexeddb'
-    
-    // const ydoc = new Y.Doc()
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yjs test</title>
+  </head>
+
+  <body>
+    <script type=module>
+    Promise.all([
+      import('https://cdn.jsdelivr.net/npm/yjs@*/dist/y.js'),
+      import('https://cdn.jsdelivr.net/npm/y-array@*/dist/y-array.js')]).then(module => {
+      console.log('module', module)
+      console.log(window.Y);
+      //const ydoc = new Y()
+    })
+   
     
     // // Sync clients with the y-webrtc provider.
     // const webrtcProvider = new WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
@@ -48,5 +50,6 @@
         // // add 1 to the sum
         // button.addEventListener('click', event => yarray.push([1])) // => "new sum: 1"
       </script>
-    </body>
-    </html>
+  </body>
+
+</html>
