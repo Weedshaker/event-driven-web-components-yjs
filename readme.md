@@ -12,6 +12,9 @@
 
 Everything, just started...
 
+### Rough Roadmap
+
+Dezentral Chat, Dezentral Chat with Video, Dezentral Game (voxel.js, or other stuff) with Chat + Video
 
 ## Implementation
 
