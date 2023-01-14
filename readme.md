@@ -16,6 +16,10 @@ Everything, just started...
 
 Dezentral Chat, Dezentral Chat with Video, Dezentral Game (voxel.js, or other stuff) with Chat + Video
 
+### License Idea for resulting App
+
+at forks, clones or any reuse of code the right to place three links on each slide/frame/image in any form or shape
+
 ## Implementation
 
 Frontend Event Driven Architecture works basically like the DOM itself...
