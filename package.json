@@ -13,12 +13,15 @@
     "five-server": "*",
     "rollup": "*",
     "@rollup/plugin-node-resolve": "*",
+    "@rollup/plugin-commonjs": "*",
+    "@rollup/plugin-replace": "*",
     "standard": "*"
   },
   "standard": {
     "ignore": [
       "/src/es/dependencies/",
-      "/src/yjs/"
+      "/src/yjs/",
+      "/src/y-*/"
     ]
   }
 }
