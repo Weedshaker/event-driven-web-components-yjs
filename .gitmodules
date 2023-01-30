@@ -1,3 +1,12 @@
 [submodule "src/yjs"]
 	path = src/yjs
 	url = https://github.com/yjs/yjs.git
+[submodule "src/y-webrtc"]
+	path = src/y-webrtc
+	url = https://github.com/yjs/y-webrtc.git
+[submodule "src/y-websocket"]
+	path = src/y-websocket
+	url = https://github.com/yjs/y-websocket.git
+[submodule "src/y-indexeddb"]
+	path = src/y-indexeddb
+	url = https://github.com/yjs/y-indexeddb.git
