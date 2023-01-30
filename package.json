@@ -5,18 +5,20 @@
   "scripts": {
     "fix": "standard --fix",
     "serve": "five-server --port=3000 --host=localhost --no-css-inject",
-    "build-yjs": "npx parcel ./src/yjs/dist/yjs.cjs --no-source-maps --dist-dir ./dist/yjs/"
+    "build-yjs": "rm -rf ./src/es/dependencies && rollup -c"
   },
   "author": "edx.mgb@gmail.com, weedshaker@gmail.com",
   "license": "MIT",
   "devDependencies": {
     "five-server": "*",
     "rollup": "*",
+    "@rollup/plugin-node-resolve": "*",
     "standard": "*"
   },
   "standard": {
     "ignore": [
-      "/src/es/components/web-components-*/"
+      "/src/es/dependencies/",
+      "/src/yjs/"
     ]
   }
 }

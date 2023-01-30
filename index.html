@@ -8,48 +8,54 @@
   </head>
 
   <body>
+    Test
     <script type=module>
-    Promise.all([
-      import('https://cdn.jsdelivr.net/npm/yjs@*/dist/y.js'),
-      import('https://cdn.jsdelivr.net/npm/y-array@*/dist/y-array.js')]).then(module => {
-      console.log('module', module)
-      console.log(window.Y);
-      //const ydoc = new Y()
-    })
-   
-    
-    // // Sync clients with the y-webrtc provider.
-    // const webrtcProvider = new WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
-    
-    // // Sync clients with the y-websocket provider
-    // const websocketProvider = new WebsocketProvider('wss://demos.yjs.dev', 'weedo-count-demo', ydoc)
-    
-    // // this allows you to instantly get the (cached) documents data
-    // const div = document.createElement('div')
-    // document.body.appendChild(div)
-    // const indexeddbProvider = new IndexeddbPersistence('weedo-count-demo', ydoc)
-    //     indexeddbProvider.whenSynced.then(() => {
-      //     console.log('loaded data from indexed db')
-      //     div.textContent += ' / loaded data from indexed db'
-      // })
-      
-      // // array of numbers which produce a sum
-      // const yarray = ydoc.getArray('count')
-      
-      // // observe changes of the sum
-      // yarray.observe(event => {
-        // // print updates when the data changes
-        // const text = 'new sum: ' + yarray.toArray().reduce((a,b) => a + b)
-        //     console.log(text)
-        //     div.textContent += ' / ' + text
-        // })
+
+      import('./src/es/dependencies/yjs.js').then(module => {
+        console.log('module', module)
+
+        const div = document.createElement('div')
+        document.body.appendChild(div)
         
-        // const button = document.createElement('button')
-        // document.body.appendChild(button)
-        // button.textContent = 'yarray.push([1])'
-        // // add 1 to the sum
-        // button.addEventListener('click', event => yarray.push([1])) // => "new sum: 1"
-      </script>
+        const ydoc = new module.Doc()
+
+        // // Sync clients with the y-webrtc provider.
+        // const webrtcProvider = new WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+
+        // // Sync clients with the y-websocket provider
+        // const websocketProvider = new WebsocketProvider('wss://demos.yjs.dev', 'weedo-count-demo', ydoc)
+
+        // // this allows you to instantly get the (cached) documents data
+        // const div = document.createElement('div')
+        // document.body.appendChild(div)
+        // const indexeddbProvider = new IndexeddbPersistence('weedo-count-demo', ydoc)
+        //     indexeddbProvider.whenSynced.then(() => {
+        //     console.log('loaded data from indexed db')
+        //     div.textContent += ' / loaded data from indexed db'
+        // })
+
+        const yarray = ydoc.getArray('count')
+        // observe changes of the sum
+        yarray.observe(event => {
+          // print updates when the data changes
+          const text = 'new sum: ' + yarray.toArray().reduce((a,b) => a + b)
+          console.log(text)
+          div.textContent += ' / ' + text
+        })
+
+        const button = document.createElement('button')
+        document.body.appendChild(button)
+        button.textContent = 'yarray.push([1])'
+        // add 1 to the sum
+        button.addEventListener('click', event => yarray.push([1])) // => "new sum: 1"
+
+        const buttonTwo = document.createElement('button')
+        document.body.appendChild(buttonTwo)
+        buttonTwo.textContent = 'yarray.delete(-1)'
+        // add 1 to the sum
+        buttonTwo.addEventListener('click', event => yarray.delete(-1)) // => "new sum: 1"
+      })
+    </script>
   </body>
 
 </html>

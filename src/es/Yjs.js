@@ -27,8 +27,6 @@ export const Yjs = (ChosenHTMLElement = HTMLElement) => class Yjs extends Chosen
   constructor (...args) {
     // @ts-ignore
     super(...args)
-
-    
   }
 
   /**
