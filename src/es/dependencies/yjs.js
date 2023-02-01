@@ -1934,7 +1934,7 @@ const generateNewClientId = uint32;
  */
 class Doc extends Observable {
   /**
-   * @param {DocOpts} [opts] configuration
+   * @param {DocOpts} opts configuration
    */
   constructor ({ guid = uuidv4(), collectionid = null, gc = true, gcFilter = () => true, meta = null, autoLoad = false, shouldLoad = true } = {}) {
     super();
@@ -1968,13 +1968,57 @@ class Doc extends Observable {
     this.shouldLoad = shouldLoad;
     this.autoLoad = autoLoad;
     this.meta = meta;
+    /**
+     * This is set to true when the persistence provider loaded the document from the database or when the `sync` event fires.
+     * Note that not all providers implement this feature. Provider authors are encouraged to fire the `load` event when the doc content is loaded from the database.
+     *
+     * @type {boolean}
+     */
     this.isLoaded = false;
+    /**
+     * This is set to true when the connection provider has successfully synced with a backend.
+     * Note that when using peer-to-peer providers this event may not provide very useful.
+     * Also note that not all providers implement this feature. Provider authors are encouraged to fire
+     * the `sync` event when the doc has been synced (with `true` as a parameter) or if connection is
+     * lost (with false as a parameter).
+     */
+    this.isSynced = false;
+    /**
+     * Promise that resolves once the document has been loaded from a presistence provider.
+     */
     this.whenLoaded = create$3(resolve => {
       this.on('load', () => {
         this.isLoaded = true;
         resolve(this);
       });
     });
+    const provideSyncedPromise = () => create$3(resolve => {
+      /**
+       * @param {boolean} isSynced
+       */
+      const eventHandler = (isSynced) => {
+        if (isSynced === undefined || isSynced === true) {
+          this.off('sync', eventHandler);
+          resolve();
+        }
+      };
+      this.on('sync', eventHandler);
+    });
+    this.on('sync', isSynced => {
+      if (isSynced === false && this.isSynced) {
+        this.whenSynced = provideSyncedPromise();
+      }
+      this.isSynced = isSynced === undefined || isSynced === true;
+      if (!this.isLoaded) {
+        this.emit('load', []);
+      }
+    });
+    /**
+     * Promise that resolves once the document has been synced with a backend.
+     * This promise is recreated when the connection is lost.
+     * Note the documentation about the `isSynced` property.
+     */
+    this.whenSynced = provideSyncedPromise();
   }
 
   /**
@@ -3730,7 +3774,7 @@ class PermanentUserData {
    * @param {Doc} doc
    * @param {number} clientid
    * @param {string} userDescription
-   * @param {Object} [conf]
+   * @param {Object} conf
    * @param {function(Transaction, DeleteSet):boolean} [conf.filter]
    */
   setUserMapping (doc, clientid, userDescription, { filter = () => true } = {}) {
@@ -3743,7 +3787,7 @@ class PermanentUserData {
       users.set(userDescription, user);
     }
     user.get('ids').push([clientid]);
-    users.observe(event => {
+    users.observe(_event => {
       setTimeout(() => {
         const userOverwrite = users.get(userDescription);
         if (userOverwrite !== user) {
@@ -6649,9 +6693,9 @@ class AbstractType {
   }
 
   /**
-   * @param {UpdateEncoderV1 | UpdateEncoderV2} encoder
+   * @param {UpdateEncoderV1 | UpdateEncoderV2} _encoder
    */
-  _write (encoder) { }
+  _write (_encoder) { }
 
   /**
    * The first non-deleted item
@@ -6669,9 +6713,9 @@ class AbstractType {
    * Must be implemented by each type.
    *
    * @param {Transaction} transaction
-   * @param {Set<null|string>} parentSubs Keys changed on this type. `null` if list was modified.
+   * @param {Set<null|string>} _parentSubs Keys changed on this type. `null` if list was modified.
    */
-  _callObserver (transaction, parentSubs) {
+  _callObserver (transaction, _parentSubs) {
     if (!transaction.local && this._searchMarker) {
       this._searchMarker.length = 0;
     }
@@ -7276,11 +7320,14 @@ class YArray extends AbstractType {
 
   /**
    * Construct a new YArray containing the specified items.
-   * @template T
+   * @template {Object<string,any>|Array<any>|number|null|string|Uint8Array} T
    * @param {Array<T>} items
    * @return {YArray<T>}
    */
   static from (items) {
+    /**
+     * @type {YArray<T>}
+     */
     const a = new YArray();
     a.push(items);
     return a
@@ -7302,6 +7349,9 @@ class YArray extends AbstractType {
     this._prelimContent = null;
   }
 
+  /**
+   * @return {YArray<T>}
+   */
   _copy () {
     return new YArray()
   }
@@ -7310,9 +7360,12 @@ class YArray extends AbstractType {
    * @return {YArray<T>}
    */
   clone () {
+    /**
+     * @type {YArray<T>}
+     */
     const arr = new YArray();
     arr.insert(0, this.toArray().map(el =>
-      el instanceof AbstractType ? el.clone() : el
+      el instanceof AbstractType ? /** @type {typeof el} */ (el.clone()) : el
     ));
     return arr
   }
@@ -7351,7 +7404,7 @@ class YArray extends AbstractType {
   insert (index, content) {
     if (this.doc !== null) {
       transact(this.doc, transaction => {
-        typeListInsertGenerics(transaction, this, index, content);
+        typeListInsertGenerics(transaction, this, index, /** @type {any} */ (content));
       });
     } else {
       /** @type {Array<any>} */ (this._prelimContent).splice(index, 0, ...content);
@@ -7368,7 +7421,7 @@ class YArray extends AbstractType {
   push (content) {
     if (this.doc !== null) {
       transact(this.doc, transaction => {
-        typeListPushGenerics(transaction, this, content);
+        typeListPushGenerics(transaction, this, /** @type {any} */ (content));
       });
     } else {
       /** @type {Array<any>} */ (this._prelimContent).push(...content);
@@ -7477,12 +7530,12 @@ class YArray extends AbstractType {
 }
 
 /**
- * @param {UpdateDecoderV1 | UpdateDecoderV2} decoder
+ * @param {UpdateDecoderV1 | UpdateDecoderV2} _decoder
  *
  * @private
  * @function
  */
-const readYArray = decoder => new YArray();
+const readYArray = _decoder => new YArray();
 
 /**
  * @template T
@@ -7546,6 +7599,9 @@ class YMap extends AbstractType {
     this._prelimContent = null;
   }
 
+  /**
+   * @return {YMap<MapType>}
+   */
   _copy () {
     return new YMap()
   }
@@ -7554,9 +7610,12 @@ class YMap extends AbstractType {
    * @return {YMap<MapType>}
    */
   clone () {
+    /**
+     * @type {YMap<MapType>}
+     */
     const map = new YMap();
     this.forEach((value, key) => {
-      map.set(key, value instanceof AbstractType ? value.clone() : value);
+      map.set(key, value instanceof AbstractType ? /** @type {typeof value} */ (value.clone()) : value);
     });
     return map
   }
@@ -7672,7 +7731,7 @@ class YMap extends AbstractType {
   set (key, value) {
     if (this.doc !== null) {
       transact(this.doc, transaction => {
-        typeMapSet(transaction, this, key, value);
+        typeMapSet(transaction, this, key, /** @type {any} */ (value));
       });
     } else {
       /** @type {Map<string, any>} */ (this._prelimContent).set(key, value);
@@ -7706,7 +7765,7 @@ class YMap extends AbstractType {
   clear () {
     if (this.doc !== null) {
       transact(this.doc, transaction => {
-        this.forEach(function (value, key, map) {
+        this.forEach(function (_value, key, map) {
           typeMapDelete(transaction, map, key);
         });
       });
@@ -7724,12 +7783,12 @@ class YMap extends AbstractType {
 }
 
 /**
- * @param {UpdateDecoderV1 | UpdateDecoderV2} decoder
+ * @param {UpdateDecoderV1 | UpdateDecoderV2} _decoder
  *
  * @private
  * @function
  */
-const readYMap = decoder => new YMap();
+const readYMap = _decoder => new YMap();
 
 /**
  * @param {any} a
@@ -7946,7 +8005,7 @@ const insertAttributes = (transaction, parent, currPos, attributes) => {
  * @function
  **/
 const insertText = (transaction, parent, currPos, text, attributes) => {
-  currPos.currentAttributes.forEach((val, key) => {
+  currPos.currentAttributes.forEach((_val, key) => {
     if (attributes[key] === undefined) {
       attributes[key] = null;
     }
@@ -8622,7 +8681,7 @@ class YText extends AbstractType {
    * Apply a {@link Delta} on this shared YText type.
    *
    * @param {any} delta The changes to apply on this element.
-   * @param {object}  [opts]
+   * @param {object}  opts
    * @param {boolean} [opts.sanitize] Sanitize input delta. Removes ending newlines if set to true.
    *
    *
@@ -8924,12 +8983,11 @@ class YText extends AbstractType {
    *
    * @note Xml-Text nodes don't have attributes. You can use this feature to assign properties to complete text-blocks.
    *
-   * @param {Snapshot} [snapshot]
    * @return {Object<string, any>} A JSON Object that describes the attributes.
    *
    * @public
    */
-  getAttributes (snapshot) {
+  getAttributes () {
     return typeMapGetAll(this)
   }
 
@@ -8942,13 +9000,13 @@ class YText extends AbstractType {
 }
 
 /**
- * @param {UpdateDecoderV1 | UpdateDecoderV2} decoder
+ * @param {UpdateDecoderV1 | UpdateDecoderV2} _decoder
  * @return {YText}
  *
  * @private
  * @function
  */
-const readYText = decoder => new YText();
+const readYText = _decoder => new YText();
 
 /**
  * @module YXml
@@ -9339,7 +9397,7 @@ class YXmlFragment extends AbstractType {
   /**
    * Executes a provided function on once on overy child element.
    *
-   * @param {function(YXmlElement|YXmlText,number, typeof this):void} f A function to execute on every element of this YArray.
+   * @param {function(YXmlElement|YXmlText,number, typeof self):void} f A function to execute on every element of this YArray.
    */
   forEach (f) {
     typeListForEach(this, f);
@@ -9359,13 +9417,13 @@ class YXmlFragment extends AbstractType {
 }
 
 /**
- * @param {UpdateDecoderV1 | UpdateDecoderV2} decoder
+ * @param {UpdateDecoderV1 | UpdateDecoderV2} _decoder
  * @return {YXmlFragment}
  *
  * @private
  * @function
  */
-const readYXmlFragment = decoder => new YXmlFragment();
+const readYXmlFragment = _decoder => new YXmlFragment();
 
 /**
  * An YXmlElement imitates the behavior of a

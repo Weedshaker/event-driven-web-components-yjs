@@ -1,5 +1,7 @@
 // @ts-check
 
+import * as Y from './dependencies/yjs.js'
+
 /* global HTMLElement */
 /* global document */
 /* global self */
@@ -27,6 +29,9 @@ export const Yjs = (ChosenHTMLElement = HTMLElement) => class Yjs extends Chosen
   constructor (...args) {
     // @ts-ignore
     super(...args)
+
+    this.Y = Y
+    this.ydoc = new Y.Doc()
   }
 
   /**
