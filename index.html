@@ -30,21 +30,39 @@
 
         // Sync clients with the y-webrtc provider.
         const webrtcProvider = new webrtc.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+        const awareness = webrtcProvider.awareness;
+        console.log(awareness);
 
+        awareness.setLocalStateField("user", {
+          name: new Date().getUTCMilliseconds()
+        });
+
+        // You can observe when a user updates their awareness information
+        awareness.on('change', changes => {
+          // Whenever somebody updates their awareness information,
+          // we log all awareness information from all users.
+          console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
+        })
+
+        awareness.on('update', ({ added, updated, removed }) => {
+          console.log("awareness UPDATE", added, updated, removed);
+        })
+ 
         // Sync clients with the y-websocket provider
-        const websocketProvider = new websocket.WebsocketProvider('wss://demos.yjs.dev', 'weedo-count-demo', ydoc)
+        //const websocketProvider = new websocket.WebsocketProvider('wss://demos.yjs.dev', 'weedo-count-demo', ydoc)
 
         // this allows you to instantly get the (cached) documents data
         document.body.appendChild(div)
         const indexeddbProvider = new indexeddb.IndexeddbPersistence('weedo-count-demo', ydoc)
-            indexeddbProvider.whenSynced.then(() => {
-            console.log('loaded data from indexed db')
+            indexeddbProvider.whenSynced.then((data) => {
+            console.log('loaded data from indexed db',data)
             div.textContent += ' / loaded data from indexed db'
         })
 
         const yarray = ydoc.getArray('count')
         // observe changes of the sum
         yarray.observe(event => {
+          console.log(event.changes.delta)
           // print updates when the data changes
           const text = 'new sum: ' + yarray.toArray().reduce((a,b) => a + b)
           console.log(text)
