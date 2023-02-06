@@ -36,7 +36,7 @@
         // console.log(awareness);
 
         console.log('p2pt', p2pt)
-        const p2ptProvider = new p2pt.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+        const p2ptProvider = new p2pt.WebrtcProvider('weedo-count-demo', ydoc, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']})
         const awareness = p2ptProvider.awareness;
 
         awareness.setLocalStateField("user", {

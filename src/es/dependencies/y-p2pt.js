@@ -12116,12 +12116,54 @@ var P2PT = /*@__PURE__*/getDefaultExportFromCjs(p2ptExports);
  * @param {any} init
  * @return {any}
  */
-class Peer {
-  send (...args) {
-    console.log('send args: ', {args, 'this': this, P2PT});
+class Peer extends P2PT {
+  // https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L183 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#new-p2ptannounceurls---identifierstring--
+  constructor (...args) {
+    super([
+      "wss://tracker.openwebtorrent.com",
+      "wss://tracker.sloppyta.co:443/",
+      "wss://tracker.novage.com.ua:443/",
+      "wss://tracker.btorrent.xyz:443/",
+    ], 'weedo-test');
+    
+    console.log('constructor', args);
+    this.peers = [];
+    this.on('peerconnect', peer => {
+      this.peers.push(peer)
+      console.log('peers', this.peers);
+    });
+    this.on('peerclose', peer => this.peers.splice(this.peers.indexOf(peer, 1)));
   }
-  on (...args) {
-    console.log('on args: ', {args, 'this': this, P2PT});
+  // https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L149 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#sendpeer-msg-msgid--
+  send (message) {
+    console.log('send: ', message);
+    this.peers.forEach(peer => super.send(peer, message));
+  }
+  // destroy 1:1 https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L219 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#destroy
+  // https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L519 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#sendpeer-msg-msgid--
+  signal (message) {
+    console.log('signal: ', message);
+    this.send(message);
+  }
+  on (key, func) {
+    switch (key) {
+      // https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L184 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#event-msg
+      case 'signal':
+        key = 'msg';
+        break
+      // https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L187 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#event-peerconnect
+      case 'connect':
+        key = 'peerconnect';
+        break
+      // https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L206 to https://github.com/subins2000/p2pt/blob/master/api-docs.md#event-peerclose
+      case 'close':
+        key = 'peerclose';
+        break
+      // no on error handling at p2pt https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L223
+      // on data is 1:1 https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L227
+
+    }
+    super.on(key, func);
   }
 }
 
