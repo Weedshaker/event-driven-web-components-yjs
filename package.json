@@ -5,7 +5,7 @@
   "scripts": {
     "fix": "standard --fix",
     "serve": "five-server --port=3000 --host=localhost --no-css-inject",
-    "build-yjs": "rm -rf ./src/es/dependencies && rollup -c && echo !!!regarding files src/es/dependencies/* replace \"import * as Y from 'yjs.js'\" with \"import * as Y from './yjs.js'\" manually!!!"
+    "build": "rm -rf ./src/es/dependencies && rollup -c && echo !!!regarding files src/es/dependencies/* replace \"import * as Y from 'yjs.js'\" with \"import * as Y from './yjs.js'\" manually!!!"
   },
   "author": "edx.mgb@gmail.com, weedshaker@gmail.com",
   "license": "MIT",

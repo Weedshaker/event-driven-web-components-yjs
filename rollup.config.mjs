@@ -40,6 +40,25 @@ export default [{
   ]
 },
 {
+  input: './src/y-p2pt/src/es/y-p2pt.js',
+  external: id => /^(yjs)/.test(id),
+  output: {
+    name: 'Y-P2PT',
+    file: './src/es/dependencies/y-p2pt.js',
+    format: 'es',
+    sourcemap: false
+  },
+  plugins: [
+    commonjs(),
+    nodeResolve(),
+    replace({
+      values: {
+        'yjs': 'yjs.js'
+      }
+    })
+  ]
+},
+{
   input: './src/y-websocket/src/y-websocket.js',
   external: id => /^(yjs)/.test(id),
   output: {
