@@ -12103,7 +12103,27 @@ var p2pt = {
 	});
 } (p2pt));
 
-var Peer = /*@__PURE__*/getDefaultExportFromCjs(p2ptExports);
+var P2PT = /*@__PURE__*/getDefaultExportFromCjs(p2ptExports);
+
+// @ts-check
+
+/**
+ * Peer is a recognized by https://github.com/yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L16 as a https://github.com/feross/simple-peer
+ * this class acts as a shim between https://github.com/subins2000/p2pt and https://github.com/feross/simple-peer
+ *
+ * @export
+ * @function Peer
+ * @param {any} init
+ * @return {any}
+ */
+class Peer {
+  send (...args) {
+    console.log('send args: ', {args, 'this': this, P2PT});
+  }
+  on (...args) {
+    console.log('on args: ', {args, 'this': this, P2PT});
+  }
+}
 
 /**
  * @module sync-protocol
