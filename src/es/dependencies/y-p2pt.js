@@ -2044,6 +2044,10 @@ const createMutex = () => {
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+}
+
 function commonjsRequire(path) {
 	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
 }
@@ -12099,33 +12103,7 @@ var p2pt = {
 	});
 } (p2pt));
 
-// @ts-check
-
-/* global HTMLElement */
-/* global document */
-/* global self */
-/* global fetch */
-/* global CustomEvent */
-
-/**
- * Acts as a shim between y-webrtc which tries to talk to https://github.com/feross/simple-peer but forwarding those function calls to https://github.com/subins2000/p2pt
- *
- * @export
- * @function Peer
- * @return {any}
- */
-class Peer {
-  /**
-   * Creates an instance of Yjs. The constructor will be called for every custom element using this class when initially created.
-   *
-   * @param {*} args
-   */
-  constructor (...args) {
-    // @ts-ignore
-    console.log('Peer runs', P2PT);
-
-  }
-}
+var Peer = /*@__PURE__*/getDefaultExportFromCjs(p2ptExports);
 
 /**
  * @module sync-protocol
