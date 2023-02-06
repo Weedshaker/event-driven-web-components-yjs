@@ -10,3 +10,6 @@
 [submodule "src/y-indexeddb"]
 	path = src/y-indexeddb
 	url = https://github.com/yjs/y-indexeddb.git
+[submodule "src/y-p2pt"]
+	path = src/y-p2pt
+	url = https://github.com/Weedshaker/y-p2pt.git
