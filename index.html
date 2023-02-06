@@ -13,11 +13,13 @@
       Promise.all([
         import('./src/es/dependencies/y-indexeddb.js'),
         import('./src/es/dependencies/y-webrtc.js'),
+        import('./src/es/dependencies/y-p2pt.js'),
         import('./src/es/dependencies/y-websocket.js'),
         import('./src/es/dependencies/yjs.js'),
       ]).then(([
         indexeddb,
         webrtc,
+        p2pt,
         websocket,
         Y
       ]) => {
@@ -29,9 +31,13 @@
         const ydoc = new Y.Doc()
 
         // Sync clients with the y-webrtc provider.
-        const webrtcProvider = new webrtc.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
-        const awareness = webrtcProvider.awareness;
-        console.log(awareness);
+        // const webrtcProvider = new webrtc.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+        // const awareness = webrtcProvider.awareness;
+        // console.log(awareness);
+
+        console.log('p2pt', p2pt)
+        const p2ptProvider = new p2pt.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+        const awareness = p2ptProvider.awareness;
 
         awareness.setLocalStateField("user", {
           name: new Date().getUTCMilliseconds()
