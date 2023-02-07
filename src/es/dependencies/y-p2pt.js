@@ -10549,8 +10549,10 @@ class P2ptProvider {
       peerOpts = {} // simple-peer options. See https://github.com/feross/simple-peer#peer--new-peeropts
     } = {}
   ) {
-      console.log('constructor', {roomName, doc, signaling, password, awareness, P2PT, Y});
-      this.awareness = awareness;
+    this.awareness = awareness;
+    this.p2pt = new P2PT(signaling, roomName);
+    console.log('constructor', {roomName, doc, signaling, password, awareness, P2PT: this.p2pt, Y});
+
       
     // https://github.com/subins2000/p2pt/blob/master/api-docs.md#new-p2ptannounceurls---identifierstring--
     // TODO: start p2pt
