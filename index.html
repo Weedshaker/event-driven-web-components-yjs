@@ -31,13 +31,13 @@
         const ydoc = new Y.Doc()
 
         // Sync clients with the y-webrtc provider.
-        // const webrtcProvider = new webrtc.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
-        // const awareness = webrtcProvider.awareness;
-        // console.log(awareness);
+        const webrtcProvider = new webrtc.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+        const awareness = webrtcProvider.awareness;
+        console.log(awareness);
 
-        console.log('p2pt', p2pt)
-        const p2ptProvider = new p2pt.P2ptProvider('weedo-count-demo', ydoc, {signaling: ['wss://tracker.openwebtorrent.com', 'wss://tracker.sloppyta.co:443/', 'wss://tracker.novage.com.ua:443/', 'wss://tracker.btorrent.xyz:443/']})
-        const awareness = p2ptProvider.awareness;
+        // console.log('p2pt', p2pt)
+        // const p2ptProvider = new p2pt.P2ptProvider('weedo-count-demo', ydoc, {signaling: ['wss://tracker.openwebtorrent.com', 'wss://tracker.sloppyta.co:443/', 'wss://tracker.novage.com.ua:443/', 'wss://tracker.btorrent.xyz:443/']})
+        // const awareness = p2ptProvider.awareness;
 
         awareness.setLocalStateField("user", {
           name: new Date().getUTCMilliseconds()
