@@ -12398,7 +12398,17 @@ var syncProtocol = /*#__PURE__*/Object.freeze({
 // @ts-check
 
 /**
+ * stats
+ *
+ * @typedef {{
+      connected: number,
+      total: number
+    }} stats
+ */
+
+/**
  * P2ptProvider
+ * https://github.com/subins2000/p2pt/blob/master/api-docs.md
  *
  * @export
  * @function Peer
@@ -12417,6 +12427,11 @@ class P2ptProvider {
     this.doc = doc
     this.awareness = awareness
     this._peers = []
+    /** @type {stats} */
+    this._trackerStats = {
+      'connected': 2,
+      'total': 4
+    }
 
     console.log('constructor', {roomName, doc, signaling, awareness, Y, syncProtocol, decoding, encoding})
     // https://github.com/subins2000/p2pt/blob/master/api-docs.md#new-p2ptannounceurls---identifierstring--
@@ -12424,8 +12439,7 @@ class P2ptProvider {
     // https://github.com/yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L564
     // TODO: catch all awareness events and handle them through p2pt
 
-    this.init(signaling, roomName)
-    this.connect()
+    this.init(signaling, roomName).then(() => this.connect())
   }
 
   /**
@@ -12433,11 +12447,29 @@ class P2ptProvider {
    *
    * @param {string[]} signaling
    * @param {string} roomName
-   * @return {void}
+   * @return {Promise<void>}
    */
-  init (signaling, roomName) {
-    // https://github.com/subins2000/p2pt/blob/master/api-docs.md
-    this.p2pt = new P2PT(signaling, roomName)
+  async init (signaling, roomName) {
+    const signalingTrackers = []
+    await Promise.all(signaling.map(address => {
+      if (address.includes('http')) {
+        return fetch(address).then(response => {
+          if (response.status >= 200 && response.status <= 299) return response.text()
+          throw new Error(response.statusText)
+        }).then(text => {
+          const trackers = text.split('\n').filter(text => text)
+          if (trackers.length) {
+            trackers.reverse().forEach(tracker => {
+              if (tracker.length && !signalingTrackers.includes(tracker)) signalingTrackers.unshift(tracker)
+            })
+          }
+        })
+      } else {
+        signalingTrackers.push(address)
+        return address
+      }
+    }))
+    this.p2pt = new P2PT(signalingTrackers, roomName)
     this.p2pt.on('trackerconnect', (WebSocketTracker, stats) => this.onTrackerconnect(WebSocketTracker, stats))
     this.p2pt.on('trackerwarning', (Error, stats) => this.onTrackerwarning(Error, stats))
     this.p2pt.on('peerconnect', peer => this.onPeerconnect(peer))
@@ -12449,6 +12481,7 @@ class P2ptProvider {
     })
     //self.addEventListener('blur', () => this.disconnect())
     self.addEventListener('beforeunload', () => this.disconnect(), {once: true})
+    return this.p2pt
   }
 
   /**
@@ -12473,22 +12506,22 @@ class P2ptProvider {
    * This event is emitted when a successful connection to tracker is made.
    *
    * @param {*} WebSocketTracker
-   * @param {*} stats
+   * @param {stats} stats
    * @return {void}
    */
   onTrackerconnect (WebSocketTracker, stats) {
-    console.log('trackerconnect', WebSocketTracker, stats)
+    this._trackerStats = stats
   }
 
   /**
    * This event is emitted when some error happens with connection to tracker.
    *
    * @param {*} Error
-   * @param {*} stats
+   * @param {stats} stats
    * @return {void}
    */
   onTrackerwarning (Error, stats) {
-    //console.log('trackerwarning', Error, stats)
+    this._trackerStats = stats
   }
   
   /**
@@ -12499,7 +12532,6 @@ class P2ptProvider {
    */
   onPeerconnect (peer) {
     this._peers.push(peer)
-    console.log('peerconnect', peer)
   }
 
   /**
@@ -12510,7 +12542,6 @@ class P2ptProvider {
    */
   onPeerclose (peer) {
     this._peers.splice(this._peers.indexOf(peer), 1)
-    console.log('peerclose', peer)
   }
 
   /**
