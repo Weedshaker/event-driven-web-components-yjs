@@ -12410,25 +12410,175 @@ class P2ptProvider {
     roomName,
     doc,
     {
-      // TODO: fetch fresh signaling list
       signaling = ['wss://tracker.openwebtorrent.com', 'wss://tracker.sloppyta.co:443/', 'wss://tracker.novage.com.ua:443/', 'wss://tracker.btorrent.xyz:443/'],
-      password = null,
       awareness = new Awareness(doc),
-      maxConns = 20 + floor(rand() * 15), // the random factor reduces the chance that n clients form a cluster
-      filterBcConns = true,
-      peerOpts = {} // simple-peer options. See https://github.com/feross/simple-peer#peer--new-peeropts
     } = {}
   ) {
-    this.awareness = awareness;
-    this.p2pt = new P2PT(signaling, roomName);
-    console.log('constructor', {roomName, doc, signaling, password, awareness, P2PT: this.p2pt, Y, syncProtocol, decoding, encoding});
+    this.doc = doc
+    this.awareness = awareness
+    this._peers = []
 
-      
+    console.log('constructor', {roomName, doc, signaling, awareness, Y, syncProtocol, decoding, encoding})
     // https://github.com/subins2000/p2pt/blob/master/api-docs.md#new-p2ptannounceurls---identifierstring--
     // TODO: start p2pt
-
     // https://github.com/yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L564
     // TODO: catch all awareness events and handle them through p2pt
+
+    this.init(signaling, roomName)
+    this.connect()
+  }
+
+  /**
+   * initialize P2PT
+   *
+   * @param {string[]} signaling
+   * @param {string} roomName
+   * @return {void}
+   */
+  init (signaling, roomName) {
+    // https://github.com/subins2000/p2pt/blob/master/api-docs.md
+    this.p2pt = new P2PT(signaling, roomName)
+    this.p2pt.on('trackerconnect', (WebSocketTracker, stats) => this.onTrackerconnect(WebSocketTracker, stats))
+    this.p2pt.on('trackerwarning', (Error, stats) => this.onTrackerwarning(Error, stats))
+    this.p2pt.on('peerconnect', peer => this.onPeerconnect(peer))
+    this.p2pt.on('peerclose', peer => this.onPeerclose(peer))
+    this.p2pt.on('msg', (peer, msg) => this.onMsg(peer, msg))
+    self.addEventListener('focus', () => {
+      this.connect()
+      this.requestMorePeers()
+    })
+    //self.addEventListener('blur', () => this.disconnect())
+    self.addEventListener('beforeunload', () => this.disconnect(), {once: true})
+  }
+
+  /**
+   * start P2ptProvider
+   *
+   * @return {void}
+   */
+  connect () {
+    return this.p2pt.start()
+  }
+
+  /**
+   * destroy P2ptProvider
+   *
+   * @return {void}
+   */
+  disconnect () {
+    return this.p2pt.destroy()
+  }
+
+  /**
+   * This event is emitted when a successful connection to tracker is made.
+   *
+   * @param {*} WebSocketTracker
+   * @param {*} stats
+   * @return {void}
+   */
+  onTrackerconnect (WebSocketTracker, stats) {
+    console.log('trackerconnect', WebSocketTracker, stats)
+  }
+
+  /**
+   * This event is emitted when some error happens with connection to tracker.
+   *
+   * @param {*} Error
+   * @param {*} stats
+   * @return {void}
+   */
+  onTrackerwarning (Error, stats) {
+    //console.log('trackerwarning', Error, stats)
+  }
+  
+  /**
+   * This event is emitted when a new peer connects.
+   *
+   * @param {*} peer
+   * @return {void}
+   */
+  onPeerconnect (peer) {
+    this._peers.push(peer)
+    console.log('peerconnect', peer)
+  }
+
+  /**
+   * This event is emitted when a peer disconnects.
+   *
+   * @param {*} peer
+   * @return {void}
+   */
+  onPeerclose (peer) {
+    this._peers.splice(this._peers.indexOf(peer), 1)
+    console.log('peerclose', peer)
+  }
+
+  /**
+   * This event is emitted once all the chunks are received for a message.
+   *
+   * @param {*} peer
+   * @param {string} msg
+   * @return {void}
+   */
+  onMsg (peer, msg) {
+    console.log('msg', peer, msg)
+  }
+
+  /**
+   * send message
+   *
+   * @param {string} msg
+   * @param {*} [peer=this.peers]
+   * @param {string} [msgID='']
+   * @return {Promise<[*, *]> | Promise<[*, *]>[]}
+   */
+  async send (msg, peer = this.peers, msgID = '') {
+    peer = await Promise.resolve(peer)
+    if (Array.isArray(peer)) return peer.map(peer => this.send(msg, peer, msgID))
+    return this.p2pt.send(peer, msg, msgID)
+  }
+
+  /**
+   * Sets the identifier string used to discover peers in the network
+   *
+   * @param {string} roomName
+   * @return {void}
+   */
+  changeRoom (roomName) {
+    return this.p2pt.setIdentifier(roomName)
+  }
+
+  /**
+   * Request More Peers
+   *
+   * @return {Promise<*[]>}
+   */
+  async requestMorePeers () {
+    const trackers = await this.p2pt.requestMorePeers()
+    const peers = this._peers
+    for (const key in trackers) {
+      if (Object.hasOwnProperty.call(trackers, key)) {
+        const tracker = trackers[key]
+        for (const key in tracker) {
+          if (Object.hasOwnProperty.call(tracker, key)) peers.push(tracker[key])
+        }
+      }
+    }
+    const ids = []
+    return peers.filter(peer => {
+      const isDouble = ids.includes(peer.id)
+      ids.push(peer.id)
+      return !isDouble
+    })
+  }
+
+  /**
+   * Peers
+   *
+   * @return {Promise<*[]>}
+   */
+  get peers () {
+    return this.requestMorePeers()
   }
 }
 
