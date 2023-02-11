@@ -36,7 +36,7 @@
         // console.log(awareness);
 
         console.log('p2pt', p2pt)
-        const p2ptProvider = new p2pt.P2ptProvider('weedo-count-demo', ydoc, {signaling: ['wss://tracker.openwebtorrent.com', 'wss://tracker.sloppyta.co:443/', 'wss://tracker.novage.com.ua:443/', 'wss://tracker.btorrent.xyz:443/', 'https://cdn.jsdelivr.net/gh/ngosang/trackerslist@master/trackers_all_ws.txt']})
+        const p2ptProvider = new p2pt.P2ptProvider('weedo-count-demo', ydoc)
         const awareness = p2ptProvider.awareness;
         self.p2ptProvider = p2ptProvider
 

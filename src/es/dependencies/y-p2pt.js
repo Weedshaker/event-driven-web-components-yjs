@@ -12420,7 +12420,7 @@ class P2ptProvider {
     roomName,
     doc,
     {
-      signaling = ['wss://tracker.openwebtorrent.com', 'wss://tracker.sloppyta.co:443/', 'wss://tracker.novage.com.ua:443/', 'wss://tracker.btorrent.xyz:443/'],
+      signaling = ['https://cdn.jsdelivr.net/gh/ngosang/trackerslist@master/trackers_all_ws.txt', 'wss://tracker.openwebtorrent.com', 'wss://tracker.sloppyta.co:443/', 'wss://tracker.novage.com.ua:443/', 'wss://tracker.btorrent.xyz:443/'],
       awareness = new Awareness(doc),
     } = {}
   ) {
@@ -12429,8 +12429,8 @@ class P2ptProvider {
     this._peers = []
     /** @type {stats} */
     this._trackerStats = {
-      'connected': 2,
-      'total': 4
+      'connected': 0,
+      'total': 0
     }
 
     console.log('constructor', {roomName, doc, signaling, awareness, Y, syncProtocol, decoding, encoding})
@@ -12450,26 +12450,19 @@ class P2ptProvider {
    * @return {Promise<void>}
    */
   async init (signaling, roomName) {
-    const signalingTrackers = []
-    await Promise.all(signaling.map(address => {
-      if (address.includes('http')) {
-        return fetch(address).then(response => {
+    const signalingTrackers = await Promise.all(signaling.map((address, i) => {
+      // fetch signaling servers if there is an address to a text list supplied (only supports text yet, if json is need here TODO)
+      if (address.includes('http')) return fetch(address).then(response => {
           if (response.status >= 200 && response.status <= 299) return response.text()
           throw new Error(response.statusText)
         }).then(text => {
           const trackers = text.split('\n').filter(text => text)
-          if (trackers.length) {
-            trackers.reverse().forEach(tracker => {
-              if (tracker.length && !signalingTrackers.includes(tracker)) signalingTrackers.unshift(tracker)
-            })
-          }
-        })
-      } else {
-        signalingTrackers.push(address)
-        return address
-      }
+          if (trackers.length) return trackers
+          throw new Error('all entries are epmty')
+        }).catch(error => '')
+      return address
     }))
-    this.p2pt = new P2PT(signalingTrackers, roomName)
+    this.p2pt = new P2PT(signalingTrackers.flat().filter(text => text), roomName)
     this.p2pt.on('trackerconnect', (WebSocketTracker, stats) => this.onTrackerconnect(WebSocketTracker, stats))
     this.p2pt.on('trackerwarning', (Error, stats) => this.onTrackerwarning(Error, stats))
     this.p2pt.on('peerconnect', peer => this.onPeerconnect(peer))
@@ -12479,6 +12472,7 @@ class P2ptProvider {
       this.connect()
       this.requestMorePeers()
     })
+    // don't disconnect on blur
     //self.addEventListener('blur', () => this.disconnect())
     self.addEventListener('beforeunload', () => this.disconnect(), {once: true})
     return this.p2pt
@@ -12566,6 +12560,7 @@ class P2ptProvider {
   async send (msg, peer = this.peers, msgID = '') {
     peer = await Promise.resolve(peer)
     if (Array.isArray(peer)) return peer.map(peer => this.send(msg, peer, msgID))
+    console.log('send', msg, peer)
     return this.p2pt.send(peer, msg, msgID)
   }
 
@@ -12610,6 +12605,15 @@ class P2ptProvider {
    */
   get peers () {
     return this.requestMorePeers()
+  }
+
+  /**
+   * Peers
+   *
+   * @return {stats}
+   */
+  get trackerStats () {
+    return this._trackerStats
   }
 }
 
