@@ -48,11 +48,11 @@
         awareness.on('change', changes => {
           // Whenever somebody updates their awareness information,
           // we log all awareness information from all users.
-          console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
+          //console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
         })
 
         awareness.on('update', ({ added, updated, removed }) => {
-          console.log("awareness UPDATE", added, updated, removed);
+          //console.log("awareness UPDATE", added, updated, removed);
         })
  
         // Sync clients with the y-websocket provider

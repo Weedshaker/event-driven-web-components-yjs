@@ -10291,13 +10291,19 @@ const equalityDeep = (a, b) => {
 /* eslint-env browser */
 const BIT7 = 64;
 const BIT8 = 128;
+const BIT22 = 1 << 21;
 const BITS6 = 63;
 const BITS7 = 127;
 const BITS8 = 255;
+const BITS21 = BIT22 - 1;
 /**
  * @type {number}
  */
 const BITS31 = 0x7FFFFFFF;
+/**
+ * @type {number}
+ */
+const BITS32 = 0xFFFFFFFF;
 
 /**
  * Common Math expressions.
@@ -10306,7 +10312,22 @@ const BITS31 = 0x7FFFFFFF;
  */
 
 const floor = Math.floor;
+const ceil = Math.ceil;
 const abs = Math.abs;
+const imul = Math.imul;
+const round = Math.round;
+const log10 = Math.log10;
+const log2 = Math.log2;
+const log = Math.log;
+const sqrt = Math.sqrt;
+
+/**
+ * @function
+ * @param {number} a
+ * @param {number} b
+ * @return {number} The sum of a and b
+ */
+const add = (a, b) => a + b;
 
 /**
  * @function
@@ -10324,11 +10345,45 @@ const min = (a, b) => a < b ? a : b;
  */
 const max = (a, b) => a > b ? a : b;
 
+const isNaN$1 = Number.isNaN;
+
+const pow = Math.pow;
+/**
+ * Base 10 exponential function. Returns the value of 10 raised to the power of pow.
+ *
+ * @param {number} exp
+ * @return {number}
+ */
+const exp10 = exp => Math.pow(10, exp);
+
+const sign = Math.sign;
+
 /**
  * @param {number} n
  * @return {boolean} Wether n is negative. This function also differentiates between -0 and +0
  */
 const isNegativeZero = n => n !== 0 ? n < 0 : 1 / n < 0;
+
+var math = /*#__PURE__*/Object.freeze({
+	__proto__: null,
+	abs: abs,
+	add: add,
+	ceil: ceil,
+	exp10: exp10,
+	floor: floor,
+	imul: imul,
+	isNaN: isNaN$1,
+	isNegativeZero: isNegativeZero,
+	log: log,
+	log10: log10,
+	log2: log2,
+	max: max,
+	min: min,
+	pow: pow,
+	round: round,
+	sign: sign,
+	sqrt: sqrt
+});
 
 /**
  * Utility helpers for working with numbers.
@@ -11975,7 +12030,61 @@ var encoding = /*#__PURE__*/Object.freeze({
 	writeVarUint8Array: writeVarUint8Array
 });
 
+/* eslint-env browser */
+
+const isoCrypto = typeof crypto === 'undefined' ? null : crypto;
+
+/**
+ * @type {function(number):ArrayBuffer}
+ */
+const cryptoRandomBuffer = isoCrypto !== null
+  ? len => {
+    // browser
+    const buf = new ArrayBuffer(len);
+    const arr = new Uint8Array(buf);
+    isoCrypto.getRandomValues(arr);
+    return buf
+  }
+  : len => {
+    // polyfill
+    const buf = new ArrayBuffer(len);
+    const arr = new Uint8Array(buf);
+    for (let i = 0; i < len; i++) {
+      arr[i] = Math.ceil((Math.random() * 0xFFFFFFFF) >>> 0);
+    }
+    return buf
+  };
+
 const rand = Math.random;
+
+const uint32 = () => new Uint32Array(cryptoRandomBuffer(4))[0];
+
+const uint53 = () => {
+  const arr = new Uint32Array(cryptoRandomBuffer(8));
+  return (arr[0] & BITS21) * (BITS32 + 1) + (arr[1] >>> 0)
+};
+
+/**
+ * @template T
+ * @param {Array<T>} arr
+ * @return {T}
+ */
+const oneOf = arr => arr[floor(rand() * arr.length)];
+
+// @ts-ignore
+const uuidv4Template = [1e7] + -1e3 + -4e3 + -8e3 + -1e11;
+const uuidv4 = () => uuidv4Template.replace(/[018]/g, /** @param {number} c */ c =>
+  (c ^ uint32() & 15 >> c / 4).toString(16)
+);
+
+var random = /*#__PURE__*/Object.freeze({
+	__proto__: null,
+	oneOf: oneOf,
+	rand: rand,
+	uint32: uint32,
+	uint53: uint53,
+	uuidv4: uuidv4
+});
 
 /**
  * Utility module to work with time.
@@ -12255,6 +12364,124 @@ const removeAwarenessStates = (awareness, clients, origin) => {
 };
 
 /**
+ * @param {Awareness} awareness
+ * @param {Array<number>} clients
+ * @return {Uint8Array}
+ */
+const encodeAwarenessUpdate = (awareness, clients, states = awareness.states) => {
+  const len = clients.length;
+  const encoder = createEncoder();
+  writeVarUint(encoder, len);
+  for (let i = 0; i < len; i++) {
+    const clientID = clients[i];
+    const state = states.get(clientID) || null;
+    const clock = /** @type {MetaClientState} */ (awareness.meta.get(clientID)).clock;
+    writeVarUint(encoder, clientID);
+    writeVarUint(encoder, clock);
+    writeVarString(encoder, JSON.stringify(state));
+  }
+  return toUint8Array(encoder)
+};
+
+/**
+ * Modify the content of an awareness update before re-encoding it to an awareness update.
+ *
+ * This might be useful when you have a central server that wants to ensure that clients
+ * cant hijack somebody elses identity.
+ *
+ * @param {Uint8Array} update
+ * @param {function(any):any} modify
+ * @return {Uint8Array}
+ */
+const modifyAwarenessUpdate = (update, modify) => {
+  const decoder = createDecoder(update);
+  const encoder = createEncoder();
+  const len = readVarUint(decoder);
+  writeVarUint(encoder, len);
+  for (let i = 0; i < len; i++) {
+    const clientID = readVarUint(decoder);
+    const clock = readVarUint(decoder);
+    const state = JSON.parse(readVarString(decoder));
+    const modifiedState = modify(state);
+    writeVarUint(encoder, clientID);
+    writeVarUint(encoder, clock);
+    writeVarString(encoder, JSON.stringify(modifiedState));
+  }
+  return toUint8Array(encoder)
+};
+
+/**
+ * @param {Awareness} awareness
+ * @param {Uint8Array} update
+ * @param {any} origin This will be added to the emitted change event
+ */
+const applyAwarenessUpdate = (awareness, update, origin) => {
+  const decoder = createDecoder(update);
+  const timestamp = getUnixTime();
+  const added = [];
+  const updated = [];
+  const filteredUpdated = [];
+  const removed = [];
+  const len = readVarUint(decoder);
+  for (let i = 0; i < len; i++) {
+    const clientID = readVarUint(decoder);
+    let clock = readVarUint(decoder);
+    const state = JSON.parse(readVarString(decoder));
+    const clientMeta = awareness.meta.get(clientID);
+    const prevState = awareness.states.get(clientID);
+    const currClock = clientMeta === undefined ? 0 : clientMeta.clock;
+    if (currClock < clock || (currClock === clock && state === null && awareness.states.has(clientID))) {
+      if (state === null) {
+        // never let a remote client remove this local state
+        if (clientID === awareness.clientID && awareness.getLocalState() != null) {
+          // remote client removed the local state. Do not remote state. Broadcast a message indicating
+          // that this client still exists by increasing the clock
+          clock++;
+        } else {
+          awareness.states.delete(clientID);
+        }
+      } else {
+        awareness.states.set(clientID, state);
+      }
+      awareness.meta.set(clientID, {
+        clock,
+        lastUpdated: timestamp
+      });
+      if (clientMeta === undefined && state !== null) {
+        added.push(clientID);
+      } else if (clientMeta !== undefined && state === null) {
+        removed.push(clientID);
+      } else if (state !== null) {
+        if (!equalityDeep(state, prevState)) {
+          filteredUpdated.push(clientID);
+        }
+        updated.push(clientID);
+      }
+    }
+  }
+  if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) {
+    awareness.emit('change', [{
+      added, updated: filteredUpdated, removed
+    }, origin]);
+  }
+  if (added.length > 0 || updated.length > 0 || removed.length > 0) {
+    awareness.emit('update', [{
+      added, updated, removed
+    }, origin]);
+  }
+};
+
+var awarenessProtocol = /*#__PURE__*/Object.freeze({
+	__proto__: null,
+	Awareness: Awareness,
+	applyAwarenessUpdate: applyAwarenessUpdate,
+	encodeAwarenessUpdate: encodeAwarenessUpdate,
+	modifyAwarenessUpdate: modifyAwarenessUpdate,
+	outdatedTimeout: outdatedTimeout,
+	removeAwarenessStates: removeAwarenessStates
+});
+
+/**
  * @module sync-protocol
  */
 
@@ -12407,6 +12634,12 @@ var syncProtocol = /*#__PURE__*/Object.freeze({
  */
 
 /**
+ * messageType
+ *
+ * @typedef {0|1|3|4|false} messageType
+ */
+
+/**
  * P2ptProvider
  * https://github.com/subins2000/p2pt/blob/master/api-docs.md
  *
@@ -12424,22 +12657,22 @@ class P2ptProvider {
       awareness = new Awareness(doc),
     } = {}
   ) {
-    this.doc = doc
-    this.awareness = awareness
-    this._peers = []
+    this.doc = doc;
+    this.awareness = awareness;
+    this._peers = [];
     /** @type {stats} */
     this._trackerStats = {
       'connected': 0,
       'total': 0
-    }
+    };
 
-    console.log('constructor', {roomName, doc, signaling, awareness, Y, syncProtocol, decoding, encoding})
+    console.log('constructor', {roomName, doc, signaling, awarenessProtocol, Y, syncProtocol, decoding, encoding, math, random});
     // https://github.com/subins2000/p2pt/blob/master/api-docs.md#new-p2ptannounceurls---identifierstring--
     // TODO: start p2pt
     // https://github.com/yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L564
     // TODO: catch all awareness events and handle them through p2pt
 
-    this.init(signaling, roomName).then(() => this.connect())
+    this.init(signaling, roomName).then(() => this.connect());
   }
 
   /**
@@ -12456,25 +12689,29 @@ class P2ptProvider {
           if (response.status >= 200 && response.status <= 299) return response.text()
           throw new Error(response.statusText)
         }).then(text => {
-          const trackers = text.split('\n').filter(text => text)
+          const trackers = text.split('\n').filter(text => text);
           if (trackers.length) return trackers
           throw new Error('all entries are epmty')
         }).catch(error => '')
       return address
-    }))
-    this.p2pt = new P2PT(signalingTrackers.flat().filter(text => text), roomName)
-    this.p2pt.on('trackerconnect', (WebSocketTracker, stats) => this.onTrackerconnect(WebSocketTracker, stats))
-    this.p2pt.on('trackerwarning', (Error, stats) => this.onTrackerwarning(Error, stats))
-    this.p2pt.on('peerconnect', peer => this.onPeerconnect(peer))
-    this.p2pt.on('peerclose', peer => this.onPeerclose(peer))
-    this.p2pt.on('msg', (peer, msg) => this.onMsg(peer, msg))
+    }));
+    this.p2pt = new P2PT(signalingTrackers.flat().filter(text => text), roomName);
+    // p2pt events
+    this.p2pt.on('trackerconnect', (WebSocketTracker, stats) => this.onTrackerconnect(WebSocketTracker, stats));
+    this.p2pt.on('trackerwarning', (Error, stats) => this.onTrackerwarning(Error, stats));
+    this.p2pt.on('peerconnect', peer => this.onPeerconnect(peer));
+    this.p2pt.on('peerclose', peer => this.onPeerclose(peer));
+    this.p2pt.on('msg', (peer, msg) => this.onMsg(peer, msg));
+    // awareness events
+    this.awareness.on('update', (...args) => this.onUpdate(...args));
+    // global events
     self.addEventListener('focus', () => {
-      this.connect()
-      this.requestMorePeers()
-    })
+      this.connect();
+      this.requestMorePeers();
+    });
     // don't disconnect on blur
     //self.addEventListener('blur', () => this.disconnect())
-    self.addEventListener('beforeunload', () => this.disconnect(), {once: true})
+    self.addEventListener('beforeunload', () => this.disconnect(), {once: true});
     return this.p2pt
   }
 
@@ -12504,7 +12741,7 @@ class P2ptProvider {
    * @return {void}
    */
   onTrackerconnect (WebSocketTracker, stats) {
-    this._trackerStats = stats
+    this._trackerStats = stats;
   }
 
   /**
@@ -12515,7 +12752,7 @@ class P2ptProvider {
    * @return {void}
    */
   onTrackerwarning (Error, stats) {
-    this._trackerStats = stats
+    this._trackerStats = stats;
   }
   
   /**
@@ -12525,7 +12762,7 @@ class P2ptProvider {
    * @return {void}
    */
   onPeerconnect (peer) {
-    this._peers.push(peer)
+    this._peers.push(peer);
   }
 
   /**
@@ -12535,7 +12772,7 @@ class P2ptProvider {
    * @return {void}
    */
   onPeerclose (peer) {
-    this._peers.splice(this._peers.indexOf(peer), 1)
+    this._peers.splice(this._peers.indexOf(peer), 1);
   }
 
   /**
@@ -12546,7 +12783,24 @@ class P2ptProvider {
    * @return {void}
    */
   onMsg (peer, msg) {
-    console.log('msg', peer, msg)
+    console.log('msg', peer, msg);
+  }
+
+  /**
+   * This event is emitted when a successful connection to tracker is made.
+   *
+   * @param {{ number[], number[], number[] }} changed
+   * @param {string} origin
+   * @return {void}
+   */
+  onUpdate ({ added, updated, removed }, origin) {
+    console.log('onUpdate', {added, updated, removed, origin});
+    // https://github.com/yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L354
+    const changedClients = added.concat(updated).concat(removed);
+    const encoderAwareness = createEncoder();
+    writeVarUint(encoderAwareness, this.getMessageType('messageAwareness'));
+    writeVarUint8Array(encoderAwareness, encodeAwarenessUpdate(this.awareness, changedClients));
+    console.log('broadcast message', this, toUint8Array(encoderAwareness));
   }
 
   /**
@@ -12558,9 +12812,9 @@ class P2ptProvider {
    * @return {Promise<[*, *]> | Promise<[*, *]>[]}
    */
   async send (msg, peer = this.peers, msgID = '') {
-    peer = await Promise.resolve(peer)
+    peer = await Promise.resolve(peer);
     if (Array.isArray(peer)) return peer.map(peer => this.send(msg, peer, msgID))
-    console.log('send', msg, peer)
+    console.log('send', msg, peer);
     return this.p2pt.send(peer, msg, msgID)
   }
 
@@ -12580,20 +12834,20 @@ class P2ptProvider {
    * @return {Promise<*[]>}
    */
   async requestMorePeers () {
-    const trackers = await this.p2pt.requestMorePeers()
-    const peers = this._peers
+    const trackers = await this.p2pt.requestMorePeers();
+    const peers = this._peers;
     for (const key in trackers) {
       if (Object.hasOwnProperty.call(trackers, key)) {
-        const tracker = trackers[key]
+        const tracker = trackers[key];
         for (const key in tracker) {
-          if (Object.hasOwnProperty.call(tracker, key)) peers.push(tracker[key])
+          if (Object.hasOwnProperty.call(tracker, key)) peers.push(tracker[key]);
         }
       }
     }
-    const ids = []
+    const ids = [];
     return peers.filter(peer => {
-      const isDouble = ids.includes(peer.id)
-      ids.push(peer.id)
+      const isDouble = ids.includes(peer.id);
+      ids.push(peer.id);
       return !isDouble
     })
   }
@@ -12605,6 +12859,28 @@ class P2ptProvider {
    */
   get peers () {
     return this.requestMorePeers()
+  }
+
+  /**
+   * get the number encoding for different message types by name
+   *
+   * @param {string} [name='']
+   * @return {messageType}
+   * @memberof P2ptProvider
+   */
+  getMessageType (name = '') {
+    switch (name) {
+      case 'messageSync':
+        return 0
+      case 'messageAwareness':
+        return 1
+      case 'messageQueryAwareness':
+        return 3
+      case 'messagePeerId':
+        return 4
+      default:
+        return false
+    }
   }
 
   /**
