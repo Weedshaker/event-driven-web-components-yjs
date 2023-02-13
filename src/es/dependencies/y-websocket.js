@@ -1748,7 +1748,7 @@ const broadcastMessage = (provider, buf) => {
  * creates a websocket connection to http://localhost:1234/my-document-name
  *
  * @example
- *   import * as Y from 'yjs.js'
+ *   import * as Y from 'yjs'
  *   import { WebsocketProvider } from 'y-websocket'
  *   const doc = new Y.Doc()
  *   const provider = new WebsocketProvider('http://localhost:1234', 'my-document-name', doc)

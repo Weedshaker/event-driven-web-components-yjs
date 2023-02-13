@@ -4,7 +4,7 @@ import replace from '@rollup/plugin-replace'
 
 export default [{
   input: './src/y-indexeddb/src/y-indexeddb.js',
-  external: id => /^(yjs)/.test(id),
+  external: id => /^(\.\/yjs\.js|yjs)/.test(id),
   output: {
     name: 'Y-INDEXEDDB',
     file: './src/es/dependencies/y-indexeddb.js',
@@ -12,17 +12,18 @@ export default [{
     sourcemap: false
   },
   plugins: [
-    nodeResolve(),
     replace({
       values: {
-        'yjs': 'yjs.js'
-      }
-    })
+        'yjs': './yjs.js'
+      },
+      preventAssignment: true
+    }),
+    nodeResolve(),
   ]
 },
 {
   input: './src/y-webrtc/src/y-webrtc.js',
-  external: id => /^(yjs)/.test(id),
+  external: id => /^(\.\/yjs\.js|yjs)/.test(id),
   output: {
     name: 'Y-WEBRTC',
     file: './src/es/dependencies/y-webrtc.js',
@@ -31,17 +32,12 @@ export default [{
   },
   plugins: [
     commonjs(),
-    nodeResolve(),
-    replace({
-      values: {
-        'yjs': 'yjs.js'
-      }
-    })
+    nodeResolve()
   ]
 },
 {
   input: './src/y-p2pt/src/es/y-p2pt.js',
-  external: id => /^(yjs)/.test(id),
+  external: id => /^(\.\/yjs\.js|yjs)/.test(id),
   output: {
     name: 'Y-P2PT',
     file: './src/es/dependencies/y-p2pt.js',
@@ -49,18 +45,22 @@ export default [{
     sourcemap: false
   },
   plugins: [
-    commonjs(),
-    nodeResolve(),
     replace({
       values: {
-        'yjs': 'yjs.js'
-      }
-    })
-  ]
+        'yjs': './yjs.js'
+      },
+      preventAssignment: true
+    }),
+    commonjs(),
+    nodeResolve()
+  ],
+  watch: {
+    include: './src/y-p2pt/src/es/y-p2pt.js'
+  }
 },
 {
   input: './src/y-websocket/src/y-websocket.js',
-  external: id => /^(yjs)/.test(id),
+  external: id => /^(\.\/yjs\.js|yjs)/.test(id),
   output: {
     name: 'Y-WEBSOCKET',
     file: './src/es/dependencies/y-websocket.js',
@@ -68,12 +68,7 @@ export default [{
     sourcemap: false
   },
   plugins: [
-    nodeResolve(),
-    replace({
-      values: {
-        'yjs': 'yjs.js'
-      }
-    })
+    nodeResolve()
   ]
 },
 {

@@ -12795,7 +12795,7 @@ class P2ptProvider {
    */
   onUpdate ({ added, updated, removed }, origin) {
     console.log('onUpdate', {added, updated, removed, origin});
-    // https://github.com/yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L354
+    // https://github.com/./yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L354
     const changedClients = added.concat(updated).concat(removed);
     const encoderAwareness = createEncoder();
     writeVarUint(encoderAwareness, this.getMessageType('messageAwareness'));
