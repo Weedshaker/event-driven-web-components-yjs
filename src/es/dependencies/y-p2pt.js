@@ -12636,7 +12636,7 @@ var syncProtocol = /*#__PURE__*/Object.freeze({
 /**
  * messageType
  *
- * @typedef {0|1|3|4|false} messageType
+ * @typedef {0|1|3|4|'messageSync'|'messageAwareness'|'messageQueryAwareness'|'messageBcPeerId'|false} messageType
  */
 
 /**
@@ -12702,8 +12702,11 @@ class P2ptProvider {
     this.p2pt.on('peerconnect', peer => this.onPeerconnect(peer));
     this.p2pt.on('peerclose', peer => this.onPeerclose(peer));
     this.p2pt.on('msg', (peer, msg) => this.onMsg(peer, msg));
+    // awareness setup
     // awareness events
-    this.awareness.on('update', (...args) => this.onUpdate(...args));
+    this.awareness.on('update', (...args) => this.onUpdateAwareness(...args));
+    // doc events
+    this.doc.on('update', (...args) => this.onUpdateDoc(...args));
     // global events
     self.addEventListener('focus', () => {
       this.connect();
@@ -12715,13 +12718,40 @@ class P2ptProvider {
     return this.p2pt
   }
 
+  // https://github.com/./yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L376
+  initAwareness () {
+    // TODO: broadcast peers
+    // broadcast peerId via broadcastchannel
+    //broadcastBcPeerId(this)
+    // write sync step 1
+    const encoderSync = createEncoder();
+    writeVarUint(encoderSync, this.getMessageType('messageSync'));
+    writeSyncStep1(encoderSync, this.doc);
+    this.send(toUint8Array(encoderSync));
+    // broadcast local state
+    const encoderState = createEncoder();
+    writeVarUint(encoderState, this.getMessageType('messageSync'));
+    writeSyncStep2(encoderState, this.doc);
+    this.send(toUint8Array(encoderState));
+    // write queryAwareness
+    const encoderAwarenessQuery = createEncoder();
+    writeVarUint(encoderAwarenessQuery, this.getMessageType('messageQueryAwareness'));
+    this.send(toUint8Array(encoderAwarenessQuery));
+    // broadcast local awareness state
+    const encoderAwarenessState = createEncoder();
+    writeVarUint(encoderAwarenessState, this.getMessageType('messageAwareness'));
+    writeVarUint8Array(encoderAwarenessState, encodeAwarenessUpdate(this.awareness, [this.doc.clientID]));
+    this.send(toUint8Array(encoderAwarenessState));
+  }
+
   /**
    * start P2ptProvider
    *
    * @return {void}
    */
   connect () {
-    return this.p2pt.start()
+    this.p2pt.start();
+    this.initAwareness();
   }
 
   /**
@@ -12779,11 +12809,79 @@ class P2ptProvider {
    * This event is emitted once all the chunks are received for a message.
    *
    * @param {*} peer
-   * @param {string} msg
-   * @return {void}
+   * @param {string|Uint8Array} msg
+   * @return {any}
    */
   onMsg (peer, msg) {
-    console.log('msg', peer, msg);
+    const msgArr = new Uint8Array(msg.toLocaleString().split(','));
+    if (!msgArr || !msgArr.length || (msgArr.length === 1 && msgArr[0] === 0)) {
+      return console.log('msg', peer, msg)
+    }
+    const decoder = createDecoder(msgArr);
+    const encoder = createEncoder();
+    const messageType = readVarUint(decoder);
+    let sendReply = false;
+    console.log('msgArr', peer, msg, this.getMessageType(messageType));
+    switch (this.getMessageType(messageType)) {
+      case 'messageSync': {
+        writeVarUint(encoder, messageType);
+        const syncMessageType = readSyncMessage(decoder, encoder, this.doc, this);
+        if (syncMessageType === messageYjsSyncStep1) sendReply = true;
+        break
+      }
+      case 'messageQueryAwareness':
+        writeVarUint(encoder, messageType);
+        writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, Array.from(this.awareness.getStates().keys())));
+        sendReply = true;
+        break
+      case 'messageAwareness':
+        applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);
+        break
+      case 'messageBcPeerId': {
+        readUint8(decoder) === 1;
+        readVarString(decoder);
+        // TODO: part of making peers aware of each other https://github.com/./yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L93
+        /*
+        if (peerName !== room.peerId && ((room.bcConns.has(peerName) && !add) || (!room.bcConns.has(peerName) && add))) {
+          const removed = []
+          const added = []
+          if (add) {
+            room.bcConns.add(peerName)
+            added.push(peerName)
+          } else {
+            room.bcConns.delete(peerName)
+            removed.push(peerName)
+          }
+          room.provider.emit('peers', [{
+            added,
+            removed,
+            webrtcPeers: Array.from(room.webrtcConns.keys()),
+            bcPeers: Array.from(room.bcConns)
+          }])
+          broadcastBcPeerId(room)
+        }
+        */
+       /* https://github.com/./yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L277
+        * @param {Room} room
+        const broadcastBcPeerId = room => {
+          if (room.provider.filterBcConns) {
+            // broadcast peerId via broadcastchannel
+            const encoderPeerIdBc = encoding.createEncoder()
+            encoding.writeVarUint(encoderPeerIdBc, messageBcPeerId)
+            encoding.writeUint8(encoderPeerIdBc, 1)
+            encoding.writeVarString(encoderPeerIdBc, room.peerId)
+            broadcastBcMessage(room, encoding.toUint8Array(encoderPeerIdBc))
+          }
+        }
+       */
+        break
+      }
+      default:
+        console.error('Unable to compute message');
+        break
+    }
+    if (!sendReply) return null
+    this.send(toUint8Array(encoder));
   }
 
   /**
@@ -12793,20 +12891,36 @@ class P2ptProvider {
    * @param {string} origin
    * @return {void}
    */
-  onUpdate ({ added, updated, removed }, origin) {
-    console.log('onUpdate', {added, updated, removed, origin});
-    // https://github.com/./yjs.js/y-webrtc/blob/6460662715a89b4c70b88f4dad16676f736e2498/src/y-webrtc.js#L354
+  onUpdateAwareness ({ added, updated, removed }, origin) {
+    console.log('onUpdateAwareness', {added, updated, removed, origin});
+    // https://github.com/./yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L354
     const changedClients = added.concat(updated).concat(removed);
     const encoderAwareness = createEncoder();
     writeVarUint(encoderAwareness, this.getMessageType('messageAwareness'));
     writeVarUint8Array(encoderAwareness, encodeAwarenessUpdate(this.awareness, changedClients));
-    console.log('broadcast message', this, toUint8Array(encoderAwareness));
+    this.send(toUint8Array(encoderAwareness));
+  }
+
+  /**
+   * This event is emitted when a successful connection to tracker is made.
+   *
+   * @param {number[]} update
+   * @param {string} origin
+   * @return {void}
+   */
+  onUpdateDoc (update, origin) {
+    console.log('onUpdateDoc', {update, origin});
+    // https://github.com/./yjs.js/y-webrtc/blob/master/src/y-webrtc.js#L342
+    const encoder = createEncoder();
+    writeVarUint(encoder, this.getMessageType('messageSync'));
+    writeUpdate(encoder, update);
+    this.send(toUint8Array(encoder));
   }
 
   /**
    * send message
    *
-   * @param {string} msg
+   * @param {any} msg
    * @param {*} [peer=this.peers]
    * @param {string} [msgID='']
    * @return {Promise<[*, *]> | Promise<[*, *]>[]}
@@ -12815,7 +12929,7 @@ class P2ptProvider {
     peer = await Promise.resolve(peer);
     if (Array.isArray(peer)) return peer.map(peer => this.send(msg, peer, msgID))
     console.log('send', msg, peer);
-    return this.p2pt.send(peer, msg, msgID)
+    return this.p2pt.send(peer, typeof msg === 'string' ? msg : msg.toLocaleString(), msgID)
   }
 
   /**
@@ -12864,23 +12978,39 @@ class P2ptProvider {
   /**
    * get the number encoding for different message types by name
    *
-   * @param {string} [name='']
+   * @param {string|number} [name='']
    * @return {messageType}
    * @memberof P2ptProvider
    */
   getMessageType (name = '') {
-    switch (name) {
-      case 'messageSync':
-        return 0
-      case 'messageAwareness':
-        return 1
-      case 'messageQueryAwareness':
-        return 3
-      case 'messagePeerId':
-        return 4
-      default:
-        return false
+    if (typeof name === 'string') {
+      switch (name) {
+        case 'messageSync':
+          return 0
+        case 'messageAwareness':
+          return 1
+        case 'messageQueryAwareness':
+          return 3
+        case 'messageBcPeerId':
+          return 4
+        default:
+          return false
+      }
+    } else if (typeof name === 'number') {
+      switch (name) {
+        case 0:
+          return 'messageSync'
+        case 1:
+          return 'messageAwareness'
+        case 3:
+          return 'messageQueryAwareness'
+        case 4:
+          return 'messageBcPeerId'
+        default:
+          return false
+      }
     }
+    return false
   }
 
   /**
