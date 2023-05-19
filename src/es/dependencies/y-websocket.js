@@ -1722,7 +1722,6 @@ const setupWS = (provider) => {
         websocket.send(toUint8Array(encoderAwarenessState));
       }
     };
-
     provider.emit('status', [{
       status: 'connecting'
     }]);
@@ -1734,8 +1733,9 @@ const setupWS = (provider) => {
  * @param {ArrayBuffer} buf
  */
 const broadcastMessage = (provider, buf) => {
-  if (provider.wsconnected) {
-    /** @type {WebSocket} */ (provider.ws).send(buf);
+  const ws = provider.ws;
+  if (provider.wsconnected && ws && ws.readyState === ws.OPEN) {
+    ws.send(buf);
   }
   if (provider.bcconnected) {
     publish(provider.bcChannel, buf, provider);
@@ -1760,7 +1760,7 @@ class WebsocketProvider extends Observable {
    * @param {string} serverUrl
    * @param {string} roomname
    * @param {Y.Doc} doc
-   * @param {object} [opts]
+   * @param {object} opts
    * @param {boolean} [opts.connect]
    * @param {awarenessProtocol.Awareness} [opts.awareness]
    * @param {Object<string,string>} [opts.params]

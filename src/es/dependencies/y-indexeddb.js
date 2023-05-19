@@ -396,14 +396,18 @@ const PREFERRED_TRIM_SIZE = 500;
 /**
  * @param {IndexeddbPersistence} idbPersistence
  * @param {function(IDBObjectStore):void} [beforeApplyUpdatesCallback]
+ * @param {function(IDBObjectStore):void} [afterApplyUpdatesCallback]
  */
-const fetchUpdates = (idbPersistence, beforeApplyUpdatesCallback = () => {}) => {
+const fetchUpdates = (idbPersistence, beforeApplyUpdatesCallback = () => {}, afterApplyUpdatesCallback = () => {}) => {
   const [updatesStore] = transact(/** @type {IDBDatabase} */ (idbPersistence.db), [updatesStoreName]); // , 'readonly')
   return getAll(updatesStore, createIDBKeyRangeLowerBound(idbPersistence._dbref, false)).then(updates => {
-    beforeApplyUpdatesCallback(updatesStore);
-    Y.transact(idbPersistence.doc, () => {
-      updates.forEach(val => Y.applyUpdate(idbPersistence.doc, val));
-    }, idbPersistence, false);
+    if (!idbPersistence._destroyed) {
+      beforeApplyUpdatesCallback(updatesStore);
+      Y.transact(idbPersistence.doc, () => {
+        updates.forEach(val => Y.applyUpdate(idbPersistence.doc, val));
+      }, idbPersistence, false);
+      afterApplyUpdatesCallback(updatesStore);
+    }
   })
     .then(() => getLastKey(updatesStore).then(lastKey => { idbPersistence._dbref = lastKey + 1; }))
     .then(() => count(updatesStore).then(cnt => { idbPersistence._dbsize = cnt; }))
@@ -458,18 +462,20 @@ class IndexeddbPersistence extends Observable {
     /**
      * @type {Promise<IndexeddbPersistence>}
      */
-    this.whenSynced = this._db.then(db => {
+    this.whenSynced = create$3(resolve => this.on('synced', () => resolve(this)));
+
+    this._db.then(db => {
       this.db = db;
       /**
        * @param {IDBObjectStore} updatesStore
        */
       const beforeApplyUpdatesCallback = (updatesStore) => addAutoKey(updatesStore, Y.encodeStateAsUpdate(doc));
-      return fetchUpdates(this, beforeApplyUpdatesCallback).then(() => {
+      const afterApplyUpdatesCallback = () => {
         if (this._destroyed) return this
-        this.emit('synced', [this]);
         this.synced = true;
-        return this
-      })
+        this.emit('synced', [this]);
+      };
+      fetchUpdates(this, beforeApplyUpdatesCallback, afterApplyUpdatesCallback);
     });
     /**
      * Timeout in ms untill data is merged and persisted in idb.

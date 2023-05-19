@@ -12832,7 +12832,7 @@ class P2ptProvider {
       case 'messageQueryAwareness':
         writeVarUint(encoder, messageType);
         writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, Array.from(this.awareness.getStates().keys())));
-        sendReply = true;
+        //sendReply = true // too many messages, something is missing to make awareness settle
         break
       case 'messageAwareness':
         applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);

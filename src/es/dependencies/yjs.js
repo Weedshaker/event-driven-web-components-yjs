@@ -137,6 +137,17 @@ const appendTo = (dest, src) => {
  */
 const from = Array.from;
 
+/**
+ * True iff condition holds on some element in the Array.
+ *
+ * @function
+ * @template S
+ * @param {Array<S>} arr
+ * @param {function(S, number, Array<S>):boolean} f
+ * @return {boolean}
+ */
+const some = (arr, f) => arr.some(f);
+
 const isArray = Array.isArray;
 
 /**
@@ -1692,7 +1703,7 @@ const mergeDeleteSets = dss => {
  * @function
  */
 const addToDeleteSet = (ds, client, clock, length) => {
-  setIfUndefined(ds.clients, client, () => []).push(new DeleteItem(clock, length));
+  setIfUndefined(ds.clients, client, () => /** @type {Array<DeleteItem>} */ ([])).push(new DeleteItem(clock, length));
 };
 
 const createDeleteSet = () => new DeleteSet();
@@ -1740,17 +1751,21 @@ const createDeleteSetFromStructStore = ss => {
  */
 const writeDeleteSet = (encoder, ds) => {
   writeVarUint(encoder.restEncoder, ds.clients.size);
-  ds.clients.forEach((dsitems, client) => {
-    encoder.resetDsCurVal();
-    writeVarUint(encoder.restEncoder, client);
-    const len = dsitems.length;
-    writeVarUint(encoder.restEncoder, len);
-    for (let i = 0; i < len; i++) {
-      const item = dsitems[i];
-      encoder.writeDsClock(item.clock);
-      encoder.writeDsLen(item.len);
-    }
-  });
+
+  // Ensure that the delete set is written in a deterministic order
+  from(ds.clients.entries())
+    .sort((a, b) => b[0] - a[0])
+    .forEach(([client, dsitems]) => {
+      encoder.resetDsCurVal();
+      writeVarUint(encoder.restEncoder, client);
+      const len = dsitems.length;
+      writeVarUint(encoder.restEncoder, len);
+      for (let i = 0; i < len; i++) {
+        const item = dsitems[i];
+        encoder.writeDsClock(item.clock);
+        encoder.writeDsLen(item.len);
+      }
+    });
 };
 
 /**
@@ -1768,7 +1783,7 @@ const readDeleteSet = decoder => {
     const client = readVarUint(decoder.restDecoder);
     const numberOfDeletes = readVarUint(decoder.restDecoder);
     if (numberOfDeletes > 0) {
-      const dsField = setIfUndefined(ds.clients, client, () => []);
+      const dsField = setIfUndefined(ds.clients, client, () => /** @type {Array<DeleteItem>} */ ([]));
       for (let i = 0; i < numberOfDeletes; i++) {
         dsField.push(new DeleteItem(decoder.readDsClock(), decoder.readDsLen()));
       }
@@ -2043,7 +2058,7 @@ class Doc extends Observable {
   }
 
   getSubdocGuids () {
-    return new Set(Array.from(this.subdocs).map(doc => doc.guid))
+    return new Set(from(this.subdocs).map(doc => doc.guid))
   }
 
   /**
@@ -2052,13 +2067,15 @@ class Doc extends Observable {
    * that happened inside of the transaction are sent as one message to the
    * other peers.
    *
-   * @param {function(Transaction):void} f The function that should be executed as a transaction
+   * @template T
+   * @param {function(Transaction):T} f The function that should be executed as a transaction
    * @param {any} [origin] Origin of who started the transaction. Will be stored on transaction.origin
+   * @return T
    *
    * @public
    */
   transact (f, origin = null) {
-    transact(this, f, origin);
+    return transact(this, f, origin)
   }
 
   /**
@@ -2900,7 +2917,7 @@ const writeClientsStructs = (encoder, store, _sm) => {
   writeVarUint(encoder.restEncoder, sm.size);
   // Write items with higher client ids first
   // This heavily improves the conflict algorithm.
-  Array.from(sm.entries()).sort((a, b) => b[0] - a[0]).forEach(([client, clock]) => {
+  from(sm.entries()).sort((a, b) => b[0] - a[0]).forEach(([client, clock]) => {
     // @ts-ignore
     writeStructs(encoder, store.clients.get(client), client, clock);
   });
@@ -3035,7 +3052,7 @@ const integrateStructs = (transaction, store, clientsStructRefs) => {
    */
   const stack = [];
   // sort them so that we take the higher id first, in case of conflicts the lower id will probably not conflict with the id from the higher user.
-  let clientsStructRefsIds = Array.from(clientsStructRefs.keys()).sort((a, b) => a - b);
+  let clientsStructRefsIds = from(clientsStructRefs.keys()).sort((a, b) => a - b);
   if (clientsStructRefsIds.length === 0) {
     return null
   }
@@ -3405,7 +3422,7 @@ const decodeStateVector = decodedState => readStateVector(new DSDecoderV1(create
  */
 const writeStateVector = (encoder, sv) => {
   writeVarUint(encoder.restEncoder, sv.size);
-  Array.from(sv.entries()).sort((a, b) => b[0] - a[0]).forEach(([client, clock]) => {
+  from(sv.entries()).sort((a, b) => b[0] - a[0]).forEach(([client, clock]) => {
     writeVarUint(encoder.restEncoder, client); // @todo use a special client decoder that is based on mapping
     writeVarUint(encoder.restEncoder, clock);
   });
@@ -3455,9 +3472,24 @@ const encodeStateVector = doc => encodeStateVectorV2(doc, new DSEncoderV1());
  */
 
 /**
+ * Object.assign
+ */
+const assign = Object.assign;
+
+/**
  * @param {Object<string,any>} obj
  */
 const keys = Object.keys;
+
+/**
+ * @param {Object<string,any>} obj
+ * @param {function(any,string):any} f
+ */
+const forEach = (obj, f) => {
+  for (const key in obj) {
+    f(obj[key], key);
+  }
+};
 
 /**
  * @param {Object<string,any>} obj
@@ -3518,6 +3550,14 @@ const callAll = (fs, args, i = 0) => {
     }
   }
 };
+
+/**
+ * @template A
+ *
+ * @param {A} a
+ * @return {A}
+ */
+const id = a => a;
 
 /**
  * General event handler implementation.
@@ -4287,6 +4327,14 @@ const splitSnapshotAffectedStructs = (transaction, snapshot) => {
 };
 
 /**
+ * @example
+ *  const ydoc = new Y.Doc({ gc: false })
+ *  ydoc.getText().insert(0, 'world!')
+ *  const snapshot = Y.snapshot(ydoc)
+ *  ydoc.getText().insert(0, 'hello ')
+ *  const restored = Y.createDocFromSnapshot(ydoc, snapshot)
+ *  assert(restored.getText().toString() === 'world!')
+ *
  * @param {Doc} originDoc
  * @param {Snapshot} snapshot
  * @param {Doc} [newDoc] Optionally, you may define the Yjs document that receives the data from originDoc
@@ -4295,7 +4343,7 @@ const splitSnapshotAffectedStructs = (transaction, snapshot) => {
 const createDocFromSnapshot = (originDoc, snapshot, newDoc = new Doc()) => {
   if (originDoc.gc) {
     // we should not try to restore a GC-ed document, because some of the restored items might have their content deleted
-    throw new Error('originDoc must not be garbage collected')
+    throw new Error('Garbage-collection must be disabled in `originDoc`!')
   }
   const { sv, ds } = snapshot;
 
@@ -5131,15 +5179,21 @@ const cleanupTransactions = (transactionCleanups, i) => {
 /**
  * Implements the functionality of `y.transact(()=>{..})`
  *
+ * @template T
  * @param {Doc} doc
- * @param {function(Transaction):void} f
+ * @param {function(Transaction):T} f
  * @param {any} [origin=true]
+ * @return {T}
  *
  * @function
  */
 const transact = (doc, f, origin = null, local = true) => {
   const transactionCleanups = doc._transactionCleanups;
   let initialCall = false;
+  /**
+   * @type {any}
+   */
+  let result = null;
   if (doc._transaction === null) {
     initialCall = true;
     doc._transaction = new Transaction(doc, origin, local);
@@ -5150,7 +5204,7 @@ const transact = (doc, f, origin = null, local = true) => {
     doc.emit('beforeTransaction', [doc._transaction, doc]);
   }
   try {
-    f(doc._transaction);
+    result = f(doc._transaction);
   } finally {
     if (initialCall) {
       const finishCleanup = doc._transaction === transactionCleanups[0];
@@ -5168,6 +5222,7 @@ const transact = (doc, f, origin = null, local = true) => {
       }
     }
   }
+  return result
 };
 
 class StackItem {
@@ -5254,7 +5309,7 @@ const popStackItem = (undoManager, stack, eventType) => {
         }
       });
       itemsToRedo.forEach(struct => {
-        performedChange = redoItem(transaction, struct, itemsToRedo, stackItem.insertions, undoManager.ignoreRemoteMapChanges) !== null || performedChange;
+        performedChange = redoItem(transaction, struct, itemsToRedo, stackItem.insertions, undoManager.ignoreRemoteMapChanges, undoManager) !== null || performedChange;
       });
       // We want to delete in reverse order so that children are deleted before
       // parents, so we have more information available when items are filtered.
@@ -5311,7 +5366,7 @@ class UndoManager extends Observable {
    */
   constructor (typeScope, {
     captureTimeout = 500,
-    captureTransaction = tr => true,
+    captureTransaction = _tr => true,
     deleteFilter = () => true,
     trackedOrigins = new Set([null]),
     ignoreRemoteMapChanges = false,
@@ -6067,17 +6122,17 @@ const finishLazyStructWriting = (lazyWriter) => {
 
 /**
  * @param {Uint8Array} update
+ * @param {function(Item|GC|Skip):Item|GC|Skip} blockTransformer
  * @param {typeof UpdateDecoderV2 | typeof UpdateDecoderV1} YDecoder
  * @param {typeof UpdateEncoderV2 | typeof UpdateEncoderV1 } YEncoder
  */
-const convertUpdateFormat = (update, YDecoder, YEncoder) => {
+const convertUpdateFormat = (update, blockTransformer, YDecoder, YEncoder) => {
   const updateDecoder = new YDecoder(createDecoder(update));
   const lazyDecoder = new LazyStructReader(updateDecoder, false);
   const updateEncoder = new YEncoder();
   const lazyWriter = new LazyStructWriter(updateEncoder);
-
   for (let curr = lazyDecoder.curr; curr !== null; curr = lazyDecoder.next()) {
-    writeStructToLazyStructWriter(lazyWriter, curr, 0);
+    writeStructToLazyStructWriter(lazyWriter, blockTransformer(curr), 0);
   }
   finishLazyStructWriting(lazyWriter);
   const ds = readDeleteSet(updateDecoder);
@@ -6086,14 +6141,135 @@ const convertUpdateFormat = (update, YDecoder, YEncoder) => {
 };
 
 /**
- * @param {Uint8Array} update
+ * @typedef {Object} ObfuscatorOptions
+ * @property {boolean} [ObfuscatorOptions.formatting=true]
+ * @property {boolean} [ObfuscatorOptions.subdocs=true]
+ * @property {boolean} [ObfuscatorOptions.yxml=true] Whether to obfuscate nodeName / hookName
  */
-const convertUpdateFormatV1ToV2 = update => convertUpdateFormat(update, UpdateDecoderV1, UpdateEncoderV2);
+
+/**
+ * @param {ObfuscatorOptions} obfuscator
+ */
+const createObfuscator = ({ formatting = true, subdocs = true, yxml = true } = {}) => {
+  let i = 0;
+  const mapKeyCache = create$5();
+  const nodeNameCache = create$5();
+  const formattingKeyCache = create$5();
+  const formattingValueCache = create$5();
+  formattingValueCache.set(null, null); // end of a formatting range should always be the end of a formatting range
+  /**
+   * @param {Item|GC|Skip} block
+   * @return {Item|GC|Skip}
+   */
+  return block => {
+    switch (block.constructor) {
+      case GC:
+      case Skip:
+        return block
+      case Item: {
+        const item = /** @type {Item} */ (block);
+        const content = item.content;
+        switch (content.constructor) {
+          case ContentDeleted:
+            break
+          case ContentType: {
+            if (yxml) {
+              const type = /** @type {ContentType} */ (content).type;
+              if (type instanceof YXmlElement) {
+                type.nodeName = setIfUndefined(nodeNameCache, type.nodeName, () => 'node-' + i);
+              }
+              if (type instanceof YXmlHook) {
+                type.hookName = setIfUndefined(nodeNameCache, type.hookName, () => 'hook-' + i);
+              }
+            }
+            break
+          }
+          case ContentAny: {
+            const c = /** @type {ContentAny} */ (content);
+            c.arr = c.arr.map(() => i);
+            break
+          }
+          case ContentBinary: {
+            const c = /** @type {ContentBinary} */ (content);
+            c.content = new Uint8Array([i]);
+            break
+          }
+          case ContentDoc: {
+            const c = /** @type {ContentDoc} */ (content);
+            if (subdocs) {
+              c.opts = {};
+              c.doc.guid = i + '';
+            }
+            break
+          }
+          case ContentEmbed: {
+            const c = /** @type {ContentEmbed} */ (content);
+            c.embed = {};
+            break
+          }
+          case ContentFormat: {
+            const c = /** @type {ContentFormat} */ (content);
+            if (formatting) {
+              c.key = setIfUndefined(formattingKeyCache, c.key, () => i + '');
+              c.value = setIfUndefined(formattingValueCache, c.value, () => ({ i }));
+            }
+            break
+          }
+          case ContentJSON: {
+            const c = /** @type {ContentJSON} */ (content);
+            c.arr = c.arr.map(() => i);
+            break
+          }
+          case ContentString: {
+            const c = /** @type {ContentString} */ (content);
+            c.str = undefined((i % 10) + '', c.str.length);
+            break
+          }
+          default:
+            // unknown content type
+            unexpectedCase();
+        }
+        if (item.parentSub) {
+          item.parentSub = setIfUndefined(mapKeyCache, item.parentSub, () => i + '');
+        }
+        i++;
+        return block
+      }
+      default:
+        // unknown block-type
+        unexpectedCase();
+    }
+  }
+};
+
+/**
+ * This function obfuscates the content of a Yjs update. This is useful to share
+ * buggy Yjs documents while significantly limiting the possibility that a
+ * developer can on the user. Note that it might still be possible to deduce
+ * some information by analyzing the "structure" of the document or by analyzing
+ * the typing behavior using the CRDT-related metadata that is still kept fully
+ * intact.
+ *
+ * @param {Uint8Array} update
+ * @param {ObfuscatorOptions} [opts]
+ */
+const obfuscateUpdate = (update, opts) => convertUpdateFormat(update, createObfuscator(opts), UpdateDecoderV1, UpdateEncoderV1);
+
+/**
+ * @param {Uint8Array} update
+ * @param {ObfuscatorOptions} [opts]
+ */
+const obfuscateUpdateV2 = (update, opts) => convertUpdateFormat(update, createObfuscator(opts), UpdateDecoderV2, UpdateEncoderV2);
 
 /**
  * @param {Uint8Array} update
  */
-const convertUpdateFormatV2ToV1 = update => convertUpdateFormat(update, UpdateDecoderV2, UpdateEncoderV1);
+const convertUpdateFormatV1ToV2 = update => convertUpdateFormat(update, id, UpdateDecoderV1, UpdateEncoderV2);
+
+/**
+ * @param {Uint8Array} update
+ */
+const convertUpdateFormatV2ToV1 = update => convertUpdateFormat(update, id, UpdateDecoderV2, UpdateEncoderV1);
 
 /**
  * @template {AbstractType<any>} T
@@ -6218,6 +6394,11 @@ class YEvent {
   }
 
   /**
+   * This is a computed property. Note that this can only be safely computed during the
+   * event call. Computing this property after other changes happened might result in
+   * unexpected behavior (incorrect computation of deltas). A safe way to collect changes
+   * is to store the `changes` or the `delta` object. Avoid storing the `transaction` object.
+   *
    * @type {Array<{insert?: string | Array<any> | object | AbstractType<any>, retain?: number, delete?: number, attributes?: Object<string, any>}>}
    */
   get delta () {
@@ -6237,6 +6418,11 @@ class YEvent {
   }
 
   /**
+   * This is a computed property. Note that this can only be safely computed during the
+   * event call. Computing this property after other changes happened might result in
+   * unexpected behavior (incorrect computation of deltas). A safe way to collect changes
+   * is to store the `changes` or the `delta` object. Avoid storing the `transaction` object.
+   *
    * @type {{added:Set<Item>,deleted:Set<Item>,keys:Map<string,{action:'add'|'update'|'delete',oldValue:any}>,delta:Array<{insert?:Array<any>|string, delete?:number, retain?:number}>}}
    */
   get changes () {
@@ -7506,7 +7692,7 @@ class YArray extends AbstractType {
   }
 
   /**
-   * Executes a provided function on once on overy element of this YArray.
+   * Executes a provided function once on overy element of this YArray.
    *
    * @param {function(T,number,YArray<T>):void} f A function to execute on every element of this YArray.
    */
@@ -7724,9 +7910,11 @@ class YMap extends AbstractType {
 
   /**
    * Adds or updates an element with a specified key and value.
+   * @template {MapType} VAL
    *
    * @param {string} key The key of the element to add to this YMap
-   * @param {MapType} value The value of the element to add
+   * @param {VAL} value The value of the element to add
+   * @return {VAL}
    */
   set (key, value) {
     if (this.doc !== null) {
@@ -8117,32 +8305,47 @@ const formatText = (transaction, parent, currPos, length, attributes) => {
  * @function
  */
 const cleanupFormattingGap = (transaction, start, curr, startAttributes, currAttributes) => {
-  let end = curr;
-  const endAttributes = copy(currAttributes);
+  /**
+   * @type {Item|null}
+   */
+  let end = start;
+  /**
+   * @type {Map<string,ContentFormat>}
+   */
+  const endFormats = create$5();
   while (end && (!end.countable || end.deleted)) {
     if (!end.deleted && end.content.constructor === ContentFormat) {
-      updateCurrentAttributes(endAttributes, /** @type {ContentFormat} */ (end.content));
+      const cf = /** @type {ContentFormat} */ (end.content);
+      endFormats.set(cf.key, cf);
     }
     end = end.right;
   }
   let cleanups = 0;
-  let reachedEndOfCurr = false;
+  let reachedCurr = false;
   while (start !== end) {
     if (curr === start) {
-      reachedEndOfCurr = true;
+      reachedCurr = true;
     }
     if (!start.deleted) {
       const content = start.content;
       switch (content.constructor) {
         case ContentFormat: {
           const { key, value } = /** @type {ContentFormat} */ (content);
-          if ((endAttributes.get(key) || null) !== value || (startAttributes.get(key) || null) === value) {
+          const startAttrValue = startAttributes.get(key) || null;
+          if (endFormats.get(key) !== content || startAttrValue === value) {
             // Either this format is overwritten or it is not necessary because the attribute already existed.
             start.delete(transaction);
             cleanups++;
-            if (!reachedEndOfCurr && (currAttributes.get(key) || null) === value && (startAttributes.get(key) || null) !== value) {
-              currAttributes.delete(key);
+            if (!reachedCurr && (currAttributes.get(key) || null) === value && startAttrValue !== value) {
+              if (startAttrValue === null) {
+                currAttributes.delete(key);
+              } else {
+                currAttributes.set(key, startAttrValue);
+              }
             }
+          }
+          if (!reachedCurr && !start.deleted) {
+            updateCurrentAttributes(currAttributes, /** @type {ContentFormat} */ (content));
           }
           break
         }
@@ -8370,36 +8573,39 @@ class YTextEvent extends YEvent {
             /**
              * @type {any}
              */
-            let op;
+            let op = null;
             switch (action) {
               case 'delete':
-                op = { delete: deleteLen };
+                if (deleteLen > 0) {
+                  op = { delete: deleteLen };
+                }
                 deleteLen = 0;
                 break
               case 'insert':
-                op = { insert };
-                if (currentAttributes.size > 0) {
-                  op.attributes = {};
-                  currentAttributes.forEach((value, key) => {
-                    if (value !== null) {
-                      op.attributes[key] = value;
-                    }
-                  });
+                if (typeof insert === 'object' || insert.length > 0) {
+                  op = { insert };
+                  if (currentAttributes.size > 0) {
+                    op.attributes = {};
+                    currentAttributes.forEach((value, key) => {
+                      if (value !== null) {
+                        op.attributes[key] = value;
+                      }
+                    });
+                  }
                 }
                 insert = '';
                 break
               case 'retain':
-                op = { retain };
-                if (Object.keys(attributes).length > 0) {
-                  op.attributes = {};
-                  for (const key in attributes) {
-                    op.attributes[key] = attributes[key];
+                if (retain > 0) {
+                  op = { retain };
+                  if (!undefined(attributes)) {
+                    op.attributes = assign({}, attributes);
                   }
                 }
                 retain = 0;
                 break
             }
-            delta.push(op);
+            if (op) delta.push(op);
             action = null;
           }
         };
@@ -8757,15 +8963,7 @@ class YText extends AbstractType {
         str = '';
       }
     }
-    // snapshots are merged again after the transaction, so we need to keep the
-    // transalive until we are done
-    transact(doc, transaction => {
-      if (snapshot) {
-        splitSnapshotAffectedStructs(transaction, snapshot);
-      }
-      if (prevSnapshot) {
-        splitSnapshotAffectedStructs(transaction, prevSnapshot);
-      }
+    const computeDelta = () => {
       while (n !== null) {
         if (isVisible(n, snapshot) || (prevSnapshot !== undefined && isVisible(n, prevSnapshot))) {
           switch (n.content.constructor) {
@@ -8818,7 +9016,22 @@ class YText extends AbstractType {
         n = n.right;
       }
       packStr();
-    }, 'cleanup');
+    };
+    if (snapshot || prevSnapshot) {
+      // snapshots are merged again after the transaction, so we need to keep the
+      // transaction alive until we are done
+      transact(doc, transaction => {
+        if (snapshot) {
+          splitSnapshotAffectedStructs(transaction, snapshot);
+        }
+        if (prevSnapshot) {
+          splitSnapshotAffectedStructs(transaction, prevSnapshot);
+        }
+        computeDelta();
+      }, 'cleanup');
+    } else {
+      computeDelta();
+    }
     return ops
   }
 
@@ -9227,7 +9440,7 @@ class YXmlFragment extends AbstractType {
   querySelectorAll (query) {
     query = query.toUpperCase();
     // @ts-ignore
-    return Array.from(new YXmlTreeWalker(this, element => element.nodeName && element.nodeName.toUpperCase() === query))
+    return from(new YXmlTreeWalker(this, element => element.nodeName && element.nodeName.toUpperCase() === query))
   }
 
   /**
@@ -9426,11 +9639,17 @@ class YXmlFragment extends AbstractType {
 const readYXmlFragment = _decoder => new YXmlFragment();
 
 /**
+ * @typedef {Object|number|null|Array<any>|string|Uint8Array|AbstractType<any>} ValueTypes
+ */
+
+/**
  * An YXmlElement imitates the behavior of a
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/Element|Dom Element}.
  *
  * * An YXmlElement has attributes (key value pairs)
  * * An YXmlElement has childElements that must inherit from YXmlElement
+ *
+ * @template {{ [key: string]: ValueTypes }} [KV={ [key: string]: string }]
  */
 class YXmlElement extends YXmlFragment {
   constructor (nodeName = 'UNDEFINED') {
@@ -9486,14 +9705,19 @@ class YXmlElement extends YXmlFragment {
   }
 
   /**
-   * @return {YXmlElement}
+   * @return {YXmlElement<KV>}
    */
   clone () {
+    /**
+     * @type {YXmlElement<KV>}
+     */
     const el = new YXmlElement(this.nodeName);
     const attrs = this.getAttributes();
-    for (const key in attrs) {
-      el.setAttribute(key, attrs[key]);
-    }
+    forEach(attrs, (value, key) => {
+      if (typeof value === 'string') {
+        el.setAttribute(key, value);
+      }
+    });
     // @ts-ignore
     el.insert(0, this.toArray().map(item => item instanceof AbstractType ? item.clone() : item));
     return el
@@ -9529,7 +9753,7 @@ class YXmlElement extends YXmlFragment {
   /**
    * Removes an attribute from this YXmlElement.
    *
-   * @param {String} attributeName The attribute name that is to be removed.
+   * @param {string} attributeName The attribute name that is to be removed.
    *
    * @public
    */
@@ -9546,8 +9770,10 @@ class YXmlElement extends YXmlFragment {
   /**
    * Sets or updates an attribute.
    *
-   * @param {String} attributeName The attribute name that is to be set.
-   * @param {String} attributeValue The attribute value that is to be set.
+   * @template {keyof KV & string} KEY
+   *
+   * @param {KEY} attributeName The attribute name that is to be set.
+   * @param {KV[KEY]} attributeValue The attribute value that is to be set.
    *
    * @public
    */
@@ -9564,9 +9790,11 @@ class YXmlElement extends YXmlFragment {
   /**
    * Returns an attribute value that belongs to the attribute name.
    *
-   * @param {String} attributeName The attribute name that identifies the
+   * @template {keyof KV & string} KEY
+   *
+   * @param {KEY} attributeName The attribute name that identifies the
    *                               queried value.
-   * @return {String} The queried attribute value.
+   * @return {KV[KEY]|undefined} The queried attribute value.
    *
    * @public
    */
@@ -9577,7 +9805,7 @@ class YXmlElement extends YXmlFragment {
   /**
    * Returns whether an attribute exists
    *
-   * @param {String} attributeName The attribute name to check for existence.
+   * @param {string} attributeName The attribute name to check for existence.
    * @return {boolean} whether the attribute exists.
    *
    * @public
@@ -9589,12 +9817,12 @@ class YXmlElement extends YXmlFragment {
   /**
    * Returns all attribute name/value pairs in a JSON Object.
    *
-   * @return {Object<string, any>} A JSON Object that describes the attributes.
+   * @return {{ [Key in Extract<keyof KV,string>]?: KV[Key]}} A JSON Object that describes the attributes.
    *
    * @public
    */
   getAttributes () {
-    return typeMapGetAll(this)
+    return /** @type {any} */ (typeMapGetAll(this))
   }
 
   /**
@@ -9616,7 +9844,10 @@ class YXmlElement extends YXmlFragment {
     const dom = _document.createElement(this.nodeName);
     const attrs = this.getAttributes();
     for (const key in attrs) {
-      dom.setAttribute(key, attrs[key]);
+      const value = attrs[key];
+      if (typeof value === 'string') {
+        dom.setAttribute(key, value);
+      }
     }
     typeListForEach(this, yxml => {
       dom.appendChild(yxml.toDOM(_document, hooks, binding));
@@ -11076,6 +11307,12 @@ const splitItem = (transaction, leftItem, diff) => {
 };
 
 /**
+ * @param {Array<StackItem>} stack
+ * @param {ID} id
+ */
+const isDeletedByUndoStack = (stack, id) => some(stack, /** @param {StackItem} s */ s => isDeleted(s.deletions, id));
+
+/**
  * Redoes the effect of this operation.
  *
  * @param {Transaction} transaction The Yjs instance.
@@ -11083,12 +11320,13 @@ const splitItem = (transaction, leftItem, diff) => {
  * @param {Set<Item>} redoitems
  * @param {DeleteSet} itemsToDelete
  * @param {boolean} ignoreRemoteMapChanges
+ * @param {import('../utils/UndoManager.js').UndoManager} um
  *
  * @return {Item|null}
  *
  * @private
  */
-const redoItem = (transaction, item, redoitems, itemsToDelete, ignoreRemoteMapChanges) => {
+const redoItem = (transaction, item, redoitems, itemsToDelete, ignoreRemoteMapChanges, um) => {
   const doc = transaction.doc;
   const store = doc.store;
   const ownClientID = doc.clientID;
@@ -11108,7 +11346,7 @@ const redoItem = (transaction, item, redoitems, itemsToDelete, ignoreRemoteMapCh
   // make sure that parent is redone
   if (parentItem !== null && parentItem.deleted === true) {
     // try to undo parent if it will be undone anyway
-    if (parentItem.redone === null && (!redoitems.has(parentItem) || redoItem(transaction, parentItem, redoitems, itemsToDelete, ignoreRemoteMapChanges) === null)) {
+    if (parentItem.redone === null && (!redoitems.has(parentItem) || redoItem(transaction, parentItem, redoitems, itemsToDelete, ignoreRemoteMapChanges, um) === null)) {
       return null
     }
     while (parentItem.redone !== null) {
@@ -11158,13 +11396,10 @@ const redoItem = (transaction, item, redoitems, itemsToDelete, ignoreRemoteMapCh
       left = item;
       // Iterate right while right is in itemsToDelete
       // If it is intended to delete right while item is redone, we can expect that item should replace right.
-      while (left !== null && left.right !== null && isDeleted(itemsToDelete, left.right.id)) {
+      while (left !== null && left.right !== null && (left.right.redone || isDeleted(itemsToDelete, left.right.id) || isDeletedByUndoStack(um.undoStack, left.right.id) || isDeletedByUndoStack(um.redoStack, left.right.id))) {
         left = left.right;
-      }
-      // follow redone
-      // trace redone until parent matches
-      while (left !== null && left.redone !== null) {
-        left = getItemCleanStart(transaction, left.redone);
+        // follow redone
+        while (left.redone) left = getItemCleanStart(transaction, left.redone);
       }
       if (left && left.right !== null) {
         // It is not possible to redo this item because it conflicts with a
@@ -11755,4 +11990,4 @@ if (glo[importIdentifier] === true) {
 }
 glo[importIdentifier] = true;
 
-export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot };
+export { AbsolutePosition, AbstractConnector, AbstractStruct, AbstractType, YArray as Array, ContentAny, ContentBinary, ContentDeleted, ContentEmbed, ContentFormat, ContentJSON, ContentString, ContentType, Doc, GC, ID, Item, YMap as Map, PermanentUserData, RelativePosition, Snapshot, YText as Text, Transaction, UndoManager, UpdateEncoderV1, YXmlElement as XmlElement, YXmlFragment as XmlFragment, YXmlHook as XmlHook, YXmlText as XmlText, YArrayEvent, YEvent, YMapEvent, YTextEvent, YXmlEvent, applyUpdate, applyUpdateV2, cleanupYTextFormatting, compareIDs, compareRelativePositions, convertUpdateFormatV1ToV2, convertUpdateFormatV2ToV1, createAbsolutePositionFromRelativePosition, createDeleteSet, createDeleteSetFromStructStore, createDocFromSnapshot, createID, createRelativePositionFromJSON, createRelativePositionFromTypeIndex, createSnapshot, decodeRelativePosition, decodeSnapshot, decodeSnapshotV2, decodeStateVector, decodeUpdate, decodeUpdateV2, diffUpdate, diffUpdateV2, emptySnapshot, encodeRelativePosition, encodeSnapshot, encodeSnapshotV2, encodeStateAsUpdate, encodeStateAsUpdateV2, encodeStateVector, encodeStateVectorFromUpdate, encodeStateVectorFromUpdateV2, equalSnapshots, findIndexSS, findRootTypeKey, getItem, getState, getTypeChildren, isDeleted, isParentOf, iterateDeletedStructs, logType, logUpdate, logUpdateV2, mergeUpdates, mergeUpdatesV2, obfuscateUpdate, obfuscateUpdateV2, parseUpdateMeta, parseUpdateMetaV2, readUpdate, readUpdateV2, relativePositionToJSON, snapshot, transact, tryGc, typeListToArraySnapshot, typeMapGetSnapshot };
