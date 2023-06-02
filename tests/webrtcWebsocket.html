@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yjs webrtc.websocket test</title>
+  </head>
+
+  <body>
+    Test
+    <script type=module>
+      Promise.all([
+        import('../../src/es/dependencies/y-indexeddb.js'),
+        import('../../src/es/dependencies/y-webrtc.js'),
+        import('../../src/es/dependencies/y-p2pt.js'),
+        import('../../src/es/dependencies/y-websocket.js'),
+        import('../../src/es/dependencies/yjs.js'),
+      ]).then(([
+        indexeddb,
+        webrtc,
+        p2pt,
+        websocket,
+        Y
+      ]) => {
+        console.log('module', Y)
+
+        const div = document.createElement('div')
+        document.body.appendChild(div)
+        
+        const ydoc = new Y.Doc()
+
+        // Sync clients with the y-webrtc provider.
+        const webrtcProvider = new webrtc.WebrtcProvider('weedo-count-demo', ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
+        const awareness = webrtcProvider.awareness;
+        console.log(awareness);
+/*
+        console.log('p2pt', p2pt)
+        const p2ptProvider = new p2pt.P2ptProvider('weedo-count-demo', ydoc)
+        const awareness = p2ptProvider.awareness;
+        self.p2ptProvider = p2ptProvider
+*/
+        awareness.setLocalStateField("user", {
+          name: new Date().getUTCMilliseconds()
+        });
+
+        // You can observe when a user updates their awareness information
+        awareness.on('change', changes => {
+          // Whenever somebody updates their awareness information,
+          // we log all awareness information from all users.
+          console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
+        })
+
+        awareness.on('update', ({ added, updated, removed }) => {
+          console.log("awareness UPDATE", added, updated, removed);
+        })
+ 
+        // Sync clients with the y-websocket provider
+        const websocketProvider = new websocket.WebsocketProvider('wss://demos.yjs.dev', 'weedo-count-demo', ydoc)
+
+        // this allows you to instantly get the (cached) documents data
+        document.body.appendChild(div)
+        const indexeddbProvider = new indexeddb.IndexeddbPersistence('weedo-count-demo', ydoc)
+            indexeddbProvider.whenSynced.then((data) => {
+            console.log('loaded data from indexed db',data)
+            div.textContent += ' / loaded data from indexed db'
+        })
+
+        const yarray = ydoc.getArray('count')
+        // observe changes of the sum
+        yarray.observe(event => {
+          console.log(event.changes.delta)
+          // print updates when the data changes
+          const text = 'new sum: ' + yarray.toArray().reduce((a,b) => a + b)
+          console.log(text)
+          div.textContent += ' / ' + text
+        })
+
+        const button = document.createElement('button')
+        document.body.appendChild(button)
+        button.textContent = 'yarray.push([1])'
+        // add 1 to the sum
+        button.addEventListener('click', event => yarray.push([1])) // => "new sum: 1"
+
+        const buttonTwo = document.createElement('button')
+        document.body.appendChild(buttonTwo)
+        buttonTwo.textContent = 'yarray.delete(-1)'
+        // add 1 to the sum
+        buttonTwo.addEventListener('click', event => yarray.delete(-1)) // => "new sum: 1"
+      })
+    </script>
+  </body>
+
+</html>

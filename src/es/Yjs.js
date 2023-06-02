@@ -9,7 +9,8 @@ import * as Y from './dependencies/yjs.js'
 /* global CustomEvent */
 
 /**
- * Yjs is a helper with a few functions for every web component which possibly allows a YjsRoot (atom, organism and molecule)
+ * Yjs is a helper to bring the docs events into a truly event driven environment
+ * NOTE: only the indexeddb provider is yet 100% supported, the strategy is rather to have separate web components for the messaging aka. event-driven-web-components-p2pt
  *
  * @export
  * @function Yjs
