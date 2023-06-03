@@ -50,7 +50,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.identifier = this.getAttribute('identifier') || 'weedshakers-event-driven-web-components'
 
     /** @type {Promise<import("./dependencies/yjs").Doc>} */
-    this.ydoc = this.init()
+    this.doc = this.init()
   }
 
   /**
@@ -62,32 +62,65 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     const div = document.createElement('div')
     this.appendChild(div)
         
-    const ydoc = new Y.Doc()
+    const doc = new Y.Doc()
 
-    const websocket = await import('./dependencies/y-websocket.js')
-    const websocketProvider = new websocket.WebsocketProvider('wss://the-decentral-web.herokuapp.com', this.identifier, ydoc)
-    
-    const awareness = websocketProvider.awareness;
-    console.log(awareness);
-    awareness.setLocalStateField("user", {
-      name: new Date().getUTCMilliseconds()
-    });
-    // You can observe when a user updates their awareness information
-    awareness.on('change', changes => {
-      // Whenever somebody updates their awareness information,
-      // we log all awareness information from all users.
-      console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
-    })
+    const providers = []
+    /** @type {import("./dependencies/y-websocket")} */
+    let websocket
+    /** @type {import("./dependencies/y-websocket").WebsocketProvider} */
+    let websocketProvider
+    if (this.hasAttribute('websocket')) {
+      websocket = await import('./dependencies/y-websocket.js')
+      providers.push(websocketProvider = new websocket.WebsocketProvider('wss://the-decentral-web.herokuapp.com', this.identifier, doc))
+    }
 
-    this.appendChild(div)
-    const indexeddb = await import('./dependencies/y-indexeddb.js')
-    const indexeddbProvider = new indexeddb.IndexeddbPersistence(this.identifier, ydoc)
-        indexeddbProvider.whenSynced.then((data) => {
+    /** @type {import("./dependencies/y-webrtc")} */
+    let webrtc
+    /** @type {import("./dependencies/y-webrtc").WebrtcProvider} */
+    let webrtcProvider
+    if (this.hasAttribute('webrtc')) {
+      webrtc = await import('./dependencies/y-webrtc.js')
+      providers.push(webrtcProvider = new webrtc.WebrtcProvider(this.identifier, doc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/))
+    }
+
+    /** @type {import("./dependencies/y-p2pt")} */
+    let p2pt
+    /** @type {import("./dependencies/y-p2pt").P2ptProvider} */
+    let p2ptProvider
+    if (this.hasAttribute('p2pt')) {
+      p2pt = await import('./dependencies/y-p2pt.js')
+      providers.push(p2ptProvider = new p2pt.P2ptProvider(this.identifier, doc))
+    }
+
+    /** @type {import("./dependencies/y-indexeddb")} */
+    let indexeddb
+    /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
+    let indexeddbPersistence
+    if (this.hasAttribute('indexeddb')) {
+      indexeddb = await import('./dependencies/y-indexeddb.js')
+      indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
+      indexeddbPersistence.whenSynced.then((data) => {
         console.log('loaded data from indexed db',data)
         div.textContent += ' / loaded data from indexed db'
     })
+    }
+    
+    // awareness
+    if (providers[0]) {
+      const awareness = providers[0].awareness;
+      console.log(awareness);
+      awareness.setLocalStateField("user", {
+        name: new Date().getUTCMilliseconds()
+      });
+      // You can observe when a user updates their awareness information
+      awareness.on('change', changes => {
+        // Whenever somebody updates their awareness information,
+        // we log all awareness information from all users.
+        console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
+      })
+    }
 
-    const yarray = ydoc.getArray('count')
+    const yarray = doc.getArray('count')
     // observe changes of the sum
     yarray.observe(event => {
       console.log(event.changes.delta)
@@ -109,83 +142,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     // add 1 to the sum
     buttonTwo.addEventListener('click', event => yarray.delete(-1)) // => "new sum: 1"
 
-    return ydoc
-
-//     Promise.all([
-//       import('./dependencies/y-indexeddb.js'),
-//       import('./dependencies/y-webrtc.js'),
-//       import('./dependencies/y-p2pt.js'),
-//       import('./dependencies/y-websocket.js'),
-//     ]).then(([
-//       indexeddb,
-//       webrtc,
-//       p2pt,
-//       websocket,
-//     ]) => {
-//       const div = document.createElement('div')
-//         this.appendChild(div)
-        
-//         const ydoc = new Y.Doc()
-
-//         // Sync clients with the y-webrtc provider.
-//         //const webrtcProvider = new webrtc.WebrtcProvider(this.identifier, ydoc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/)
-//         // Sync clients with the y-websocket provider
-//         const websocketProvider = new websocket.WebsocketProvider('wss://the-decentral-web.herokuapp.com', this.identifier, ydoc)
-//         const awareness = websocketProvider.awareness;
-//         console.log(awareness);
-// /*
-//         console.log('p2pt', p2pt)
-//         const p2ptProvider = new p2pt.P2ptProvider(this.identifier, ydoc)
-//         const awareness = p2ptProvider.awareness;
-//         self.p2ptProvider = p2ptProvider
-// */
-//         awareness.setLocalStateField("user", {
-//           name: new Date().getUTCMilliseconds()
-//         });
-
-//         // You can observe when a user updates their awareness information
-//         awareness.on('change', changes => {
-//           // Whenever somebody updates their awareness information,
-//           // we log all awareness information from all users.
-//           console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
-//         })
-
-//         awareness.on('update', ({ added, updated, removed }) => {
-//           console.log("awareness UPDATE", added, updated, removed);
-//         })
- 
-        
-
-//         // this allows you to instantly get the (cached) documents data
-//         this.appendChild(div)
-//         const indexeddbProvider = new indexeddb.IndexeddbPersistence(this.identifier, ydoc)
-//             indexeddbProvider.whenSynced.then((data) => {
-//             console.log('loaded data from indexed db',data)
-//             div.textContent += ' / loaded data from indexed db'
-//         })
-
-//         const yarray = ydoc.getArray('count')
-//         // observe changes of the sum
-//         yarray.observe(event => {
-//           console.log(event.changes.delta)
-//           // print updates when the data changes
-//           const text = 'new sum: ' + yarray.toArray().reduce((a,b) => a + b)
-//           console.log(text)
-//           div.textContent += ' / ' + text
-//         })
-
-//         const button = document.createElement('button')
-//         this.appendChild(button)
-//         button.textContent = 'yarray.push([1])'
-//         // add 1 to the sum
-//         button.addEventListener('click', event => yarray.push([1])) // => "new sum: 1"
-
-//         const buttonTwo = document.createElement('button')
-//         this.appendChild(buttonTwo)
-//         buttonTwo.textContent = 'yarray.delete(-1)'
-//         // add 1 to the sum
-//         buttonTwo.addEventListener('click', event => yarray.delete(-1)) // => "new sum: 1"
-//     })
+    return doc
   }
 
   /**
