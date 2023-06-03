@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang=en>
+<head>
+  <meta charset="utf-8">
+  <title>YJS Example</title>
+</head>
+<body>
+  <c-event-driven-yjs>
+    <h1>Simple YJS capability example</h1>
+    <h2>Received</h2>
+    <yjs-msg></yjs-msg>
+    <h2>Send</h2>
+    <yjs-send></yjs-send>
+  </c-event-driven-yjs>
+  <script rel=preload type=module>
+    /**
+     * First level controllers and organisms are loaded and defined here then they may loadChildComponents
+     */
+    const version = '014'
+    Promise.all([
+      import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
+    ]).then(elements => elements.forEach(element => {
+      // don't define already existing customElements
+      if (element && !customElements.get(element[0])) customElements.define(...element)
+    }))
+  </script>
+  <code>v.0.0.1</code>
+</body>
+</html>
