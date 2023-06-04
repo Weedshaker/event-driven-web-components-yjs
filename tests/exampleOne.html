@@ -7,6 +7,10 @@
 <body>
   <c-event-driven-yjs websocket indexeddb>
     <h1>Simple YJS capability example</h1>
+    <yjs-indexeddb-synced></yjs-indexeddb-synced>
+    <hr>
+    <yjs-awareness-change></yjs-awareness-change>
+    <hr>
     <h2>Received</h2>
     <yjs-msg></yjs-msg>
     <h2>Send</h2>
@@ -19,6 +23,8 @@
     const version = '014'
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
+      import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
+      import(`./exampleOne/AwarenessChange.js?${version}`).then(module => ['yjs-awareness-change', module.default]),
     ]).then(elements => elements.forEach(element => {
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)

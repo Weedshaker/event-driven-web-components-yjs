@@ -11,6 +11,31 @@ import * as Y from './dependencies/yjs.js'
 }} options
 */
 
+/**
+ * Different Providers
+ @typedef {import("./dependencies/y-websocket").WebsocketProvider | import("./dependencies/y-webrtc").WebrtcProvider | import("./dependencies/y-p2pt").P2ptProvider} providerType
+*/
+
+/**
+ * outgoing event
+ @typedef {{
+  indexeddb: import("./dependencies/y-indexeddb"),
+  indexeddbPersistence: import("./dependencies/y-indexeddb").IndexeddbPersistence,
+  data: any
+}} IndexeddbSyncedEventDetail
+*/
+
+/**
+ * outgoing event
+ @typedef {{
+  provider: providerType,
+  key: string,
+  awareness: any,
+  changes: any,
+  stateValues: any
+}} AwarenessChangeEventDetail
+*/
+
 /* global HTMLElement */
 /* global document */
 /* global self */
@@ -49,14 +74,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     /** @type {string} */
     this.identifier = this.getAttribute('identifier') || 'weedshakers-event-driven-web-components'
 
-    /** @type {Promise<import("./dependencies/yjs").Doc>} */
-    this.doc = this.init()
+    /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>} */
+    this.yjs = this.init()
   }
 
   /**
    * initialize P2PT
    *
-   * @return {Promise<import("./dependencies/yjs").Doc>}
+   * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>}
    */
   async init () {
     const div = document.createElement('div')
@@ -64,32 +89,26 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         
     const doc = new Y.Doc()
 
-    const providers = []
+    const providers = new Map()
     /** @type {import("./dependencies/y-websocket")} */
     let websocket
-    /** @type {import("./dependencies/y-websocket").WebsocketProvider} */
-    let websocketProvider
     if (this.hasAttribute('websocket')) {
       websocket = await import('./dependencies/y-websocket.js')
-      providers.push(websocketProvider = new websocket.WebsocketProvider('wss://the-decentral-web.herokuapp.com', this.identifier, doc))
+      providers.set('websocket', new websocket.WebsocketProvider('wss://the-decentral-web.herokuapp.com', this.identifier, doc))
     }
 
     /** @type {import("./dependencies/y-webrtc")} */
     let webrtc
-    /** @type {import("./dependencies/y-webrtc").WebrtcProvider} */
-    let webrtcProvider
     if (this.hasAttribute('webrtc')) {
       webrtc = await import('./dependencies/y-webrtc.js')
-      providers.push(webrtcProvider = new webrtc.WebrtcProvider(this.identifier, doc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/))
+      providers.set('webrtc', new webrtc.WebrtcProvider(this.identifier, doc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/))
     }
 
     /** @type {import("./dependencies/y-p2pt")} */
     let p2pt
-    /** @type {import("./dependencies/y-p2pt").P2ptProvider} */
-    let p2ptProvider
     if (this.hasAttribute('p2pt')) {
       p2pt = await import('./dependencies/y-p2pt.js')
-      providers.push(p2ptProvider = new p2pt.P2ptProvider(this.identifier, doc))
+      providers.set('p2pt', new p2pt.P2ptProvider(this.identifier, doc))
     }
 
     /** @type {import("./dependencies/y-indexeddb")} */
@@ -99,26 +118,42 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (this.hasAttribute('indexeddb')) {
       indexeddb = await import('./dependencies/y-indexeddb.js')
       indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
-      indexeddbPersistence.whenSynced.then((data) => {
-        console.log('loaded data from indexed db',data)
-        div.textContent += ' / loaded data from indexed db'
-    })
+      indexeddbPersistence.whenSynced.then(data => this.dispatchEvent(new CustomEvent(`${this.namespace}indexeddb-synced`, {
+        /** @type {IndexeddbSyncedEventDetail} */
+        detail: {
+          indexeddb,
+          indexeddbPersistence,
+          data,
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })))
     }
     
     // awareness
-    if (providers[0]) {
-      const awareness = providers[0].awareness;
-      console.log(awareness);
-      awareness.setLocalStateField("user", {
+    providers.forEach((provider, key) => {
+      const awareness = provider.awareness;
+      awareness.on('change', changes => this.dispatchEvent(new CustomEvent(`${this.namespace}${key}-awareness-change`, {
+        /** @type {AwarenessChangeEventDetail} */
+        detail: {
+          provider,
+          key,
+          awareness,
+          changes,
+          stateValues: Array.from(awareness.getStates().values()),
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })))
+
+      // TODO: from here on down
+      // TODO: setLocalStateFiled by event ether for particular provider and if not specified for all
+      awareness.setLocalStateField('user', {
         name: new Date().getUTCMilliseconds()
-      });
-      // You can observe when a user updates their awareness information
-      awareness.on('change', changes => {
-        // Whenever somebody updates their awareness information,
-        // we log all awareness information from all users.
-        console.log("awareness CHANGE", Array.from(awareness.getStates().values()))
       })
-    }
+    })
 
     const yarray = doc.getArray('count')
     // observe changes of the sum
@@ -142,7 +177,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     // add 1 to the sum
     buttonTwo.addEventListener('click', event => yarray.delete(-1)) // => "new sum: 1"
 
-    return doc
+    return {doc, providers}
   }
 
   /**
