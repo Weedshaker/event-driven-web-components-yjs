@@ -24,6 +24,11 @@ at forks, clones or any reuse of code the right to place three links on each sli
 
 Frontend Event Driven Architecture works basically like the DOM itself...
 
+## TODO:
+- [ ] url params and file src params for connection options and other props
+- [ ] all callbacks as events
+- [ ] simple text chat example
+
 
 ## Credit
 
