@@ -7,7 +7,9 @@ import * as Y from './dependencies/yjs.js'
  * Constructor options
  @typedef {{
   namespace?: string,
-  identifier?: string
+  identifier?: string,
+  websocketUrl?: string,
+  webRtcUrl?: string
 }} options
 */
 
@@ -68,13 +70,31 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     this.url = new URL(location.href)
 
-    if (typeof options.namespace === 'string') this.namespace = options.namespace
+    if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
     // @ts-ignore
-    if (typeof this.url.searchParams.get('identifier') === 'string') this.identifier = this.url.searchParams.get('identifier')
-    else if (typeof options.identifier === 'string') this.identifier = options.identifier
+    if (this.url.searchParams.get('identifier')) this.identifier = this.url.searchParams.get('identifier')
+    else if (options.identifier) this.identifier = options.identifier
     else if (!this.identifier) this.identifier = 'weedshakers-event-driven-web-components'
+
+    // @ts-ignore
+    if (this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url')
+    else if (options.websocketUrl) this.websocketUrl = options.websocketUrl
+    else if (!this.websocketUrl && (
+      this.url.searchParams.has('websocket-url')
+      || Object.hasOwnProperty.call(options, 'websocketUrl')
+      || this.hasAttribute('websocket-url')
+    )) this.websocketUrl = 'wss://the-decentral-web.herokuapp.com'
+
+    // @ts-ignore
+    if (this.url.searchParams.get('web-rtc-url')) this.webRtcUrl = this.url.searchParams.get('web-rtc-url')
+    else if (options.webRtcUrl) this.webRtcUrl = options.webRtcUrl
+    else if (!this.webRtcUrl && (
+      this.url.searchParams.has('web-rtc-url')
+      || Object.hasOwnProperty.call(options, 'webRtcUrl')
+      || this.hasAttribute('web-rtc-url')
+    )) this.webRtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>} */
     this.yjs = this.init()
@@ -91,23 +111,18 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     const providers = new Map()
     /** @type {import("./dependencies/y-websocket")} */
     let websocket
-    if (this.url.searchParams.has('websocket') || this.hasAttribute('websocket')) {
+    if (this.websocketUrl) {
       websocket = await import('./dependencies/y-websocket.js')
-      providers.set('websocket', new websocket.WebsocketProvider(
-        this.url.searchParams.get('websocket')
-        || this.getAttribute('websocket')
-        || 'wss://the-decentral-web.herokuapp.com', this.identifier, doc))
+      providers.set('websocket', new websocket.WebsocketProvider(this.websocketUrl, this.identifier, doc))
     }
 
     /** @type {import("./dependencies/y-webrtc")} */
     let webrtc
-    if (this.url.searchParams.has('webrtc') || this.hasAttribute('webrtc')) {
+    if (this.webRtcUrl) {
       webrtc = await import('./dependencies/y-webrtc.js')
       providers.set('webrtc', new webrtc.WebrtcProvider(this.identifier, doc, 
         {
-          signaling: this.url.searchParams.get('webrtc')?.split(',')
-          || this.getAttribute('webrtc')?.split(',')
-          || ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']
+          signaling: this.webRtcUrl.split(',')
         }
       ))
     }
@@ -244,5 +259,35 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   get identifier () {
     // @ts-ignore
     return this.getAttribute('identifier')
+  }
+
+  /**
+   * @param {string} value
+   */
+  set websocketUrl (value) {
+    this.setAttribute('websocket-url', value)
+  }
+
+  /**
+   * @return {string}
+   */
+  get websocketUrl () {
+    // @ts-ignore
+    return this.getAttribute('websocket-url')
+  }
+
+  /**
+   * @param {string} value
+   */
+  set webRtcUrl (value) {
+    this.setAttribute('web-rtc-url', value)
+  }
+
+  /**
+   * @return {string}
+   */
+  get webRtcUrl () {
+    // @ts-ignore
+    return this.getAttribute('web-rtc-url')
   }
 }
