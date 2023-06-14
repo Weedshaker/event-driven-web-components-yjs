@@ -66,13 +66,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     // @ts-ignore
     super(...args)
 
-    if (typeof options.namespace === 'string') this.setAttribute('namespace', options.namespace)
-    /** @type {string} */
-    this.namespace = this.getAttribute('namespace') || 'yjs-'
+    this.url = new URL(location.href)
 
-    if (typeof options.identifier === 'string') this.setAttribute('identifier', options.identifier)
-    /** @type {string} */
-    this.identifier = this.getAttribute('identifier') || 'weedshakers-event-driven-web-components'
+    if (typeof options.namespace === 'string') this.namespace = options.namespace
+    else if (!this.namespace) this.namespace = 'yjs-'
+
+    // @ts-ignore
+    if (typeof this.url.searchParams.get('identifier') === 'string') this.identifier = this.url.searchParams.get('identifier')
+    else if (typeof options.identifier === 'string') this.identifier = options.identifier
+    else if (!this.identifier) this.identifier = 'weedshakers-event-driven-web-components'
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>} */
     this.yjs = this.init()
@@ -83,25 +85,31 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    *
    * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>}
    */
-  async init () {
-    const div = document.createElement('div')
-    this.appendChild(div)
-        
+  async init () {        
     const doc = new Y.Doc()
 
     const providers = new Map()
     /** @type {import("./dependencies/y-websocket")} */
     let websocket
-    if (this.hasAttribute('websocket')) {
+    if (this.url.searchParams.has('websocket') || this.hasAttribute('websocket')) {
       websocket = await import('./dependencies/y-websocket.js')
-      providers.set('websocket', new websocket.WebsocketProvider('wss://the-decentral-web.herokuapp.com', this.identifier, doc))
+      providers.set('websocket', new websocket.WebsocketProvider(
+        this.url.searchParams.get('websocket')
+        || this.getAttribute('websocket')
+        || 'wss://the-decentral-web.herokuapp.com', this.identifier, doc))
     }
 
     /** @type {import("./dependencies/y-webrtc")} */
     let webrtc
-    if (this.hasAttribute('webrtc')) {
+    if (this.url.searchParams.has('webrtc') || this.hasAttribute('webrtc')) {
       webrtc = await import('./dependencies/y-webrtc.js')
-      providers.set('webrtc', new webrtc.WebrtcProvider(this.identifier, doc/*, {signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']}*/))
+      providers.set('webrtc', new webrtc.WebrtcProvider(this.identifier, doc, 
+        {
+          signaling: this.url.searchParams.get('webrtc')?.split(',')
+          || this.getAttribute('webrtc')?.split(',')
+          || ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com', 'wss://y-webrtc-signaling-us.herokuapp.com']
+        }
+      ))
     }
 
     /** @type {import("./dependencies/y-p2pt")} */
@@ -155,6 +163,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       })
     })
 
+    this.commandListener = event => {
+      if (typeof event.detail.command === 'string') {
+        const result = doc[event.detail.command]()
+      }
+    }
+
+    const div = document.createElement('div')
+    this.appendChild(div)
     const yarray = doc.getArray('count')
     // observe changes of the sum
     yarray.observe(event => {
@@ -195,4 +211,38 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {void}
    */
   disconnectedCallback () {}
+
+  /**
+   * The namespace is prepended to the custom event names
+   * 
+   * @param {string} value
+   */
+  set namespace (value) {
+    if (value) this.setAttribute('namespace', value)
+  }
+
+  /**
+   * @return {string}
+   */
+  get namespace () {
+    // @ts-ignore
+    return this.getAttribute('namespace')
+  }
+
+  /**
+   * The identifier is used as the room name
+   * 
+   * @param {string} value
+   */
+  set identifier (value) {
+    if (value) this.setAttribute('identifier', value)
+  }
+
+  /**
+   * @return {string}
+   */
+  get identifier () {
+    // @ts-ignore
+    return this.getAttribute('identifier')
+  }
 }
