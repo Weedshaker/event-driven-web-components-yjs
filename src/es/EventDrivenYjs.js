@@ -21,6 +21,13 @@ import * as Y from './dependencies/yjs.js'
 /**
  * outgoing event
  @typedef {{
+  yjs: Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>
+}} ReadyEventDetail
+*/
+
+/**
+ * outgoing event
+ @typedef {{
   indexeddb: import("./dependencies/y-indexeddb"),
   indexeddbPersistence: import("./dependencies/y-indexeddb").IndexeddbPersistence,
   data: any
@@ -36,6 +43,35 @@ import * as Y from './dependencies/yjs.js'
   changes: any,
   stateValues: any
 }} AwarenessChangeEventDetail
+*/
+
+/**
+ * ingoing event
+ @typedef {{
+  command: string,
+  arguments: any[],
+  resolve?: any,
+  observe?: boolean | string,
+  id?: string
+}} ApiEventDetail
+*/
+
+/**
+ * outgoing event
+ @typedef {{
+  command: string,
+  arguments: any[],
+  result?: any
+}} ApiResultEventDetail
+*/
+
+/**
+ * outgoing event
+ @typedef {{
+  yjsEvent: any,
+  type: any,
+  id: string
+}} ObserveEventDetail
 */
 
 /* global HTMLElement */
@@ -98,6 +134,43 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Map<[string, providerType]>}>} */
     this.yjs = this.init()
+
+    /**
+     * @param {any & {detail: ApiEventDetail}} event
+     */
+    this.apiListener = async event => {
+      if (event.detail.command && typeof event.detail.command === 'string') {
+        const yjs = await this.yjs
+        const type = yjs.doc[event.detail.command](...event.detail?.arguments)
+        if (event.detail.observe) type.observe(yjsEvent => this.dispatchEvent(/** @type {ObserveEventDetail} */new CustomEvent(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`, {
+          detail: {
+            yjsEvent,
+            type,
+            id: event.detail.id
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        })))
+        if (event.detail.resolve) return event.detail.resolve({
+          command: event.detail.command,
+          arguments: event.detail.arguments,
+          type,
+          id: event.detail.id
+        })
+        this.dispatchEvent(/** @type {ApiResultEventDetail} */new CustomEvent(`${this.namespace}api-result`, {
+          detail: {
+            command: event.detail.command,
+            arguments: event.detail.arguments,
+            type,
+            id: event.detail.id
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
+    }
   }
 
   /**
@@ -178,36 +251,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       })
     })
 
-    this.commandListener = event => {
-      if (typeof event.detail.command === 'string') {
-        const result = doc[event.detail.command]()
-      }
-    }
-
-    const div = document.createElement('div')
-    this.appendChild(div)
-    const yarray = doc.getArray('count')
-    // observe changes of the sum
-    yarray.observe(event => {
-      console.log(event.changes.delta)
-      // print updates when the data changes
-      const text = 'new sum: ' + yarray.toArray().reduce((a,b) => a + b)
-      console.log(text)
-      div.textContent += ' / ' + text
-    })
-
-    const button = document.createElement('button')
-    this.appendChild(button)
-    button.textContent = 'yarray.push([1])'
-    // add 1 to the sum
-    button.addEventListener('click', event => yarray.push([1])) // => "new sum: 1"
-
-    const buttonTwo = document.createElement('button')
-    this.appendChild(buttonTwo)
-    buttonTwo.textContent = 'yarray.delete(-1)'
-    // add 1 to the sum
-    buttonTwo.addEventListener('click', event => yarray.delete(-1)) // => "new sum: 1"
-
     return {doc, providers}
   }
 
@@ -217,7 +260,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    *
    * @return {void}
    */
-  connectedCallback () {}
+  connectedCallback () {
+    this.addEventListener(`${this.namespace}api`, this.apiListener)
+    document.body.setAttribute(`${this.namespace}ready`, 'true')
+    this.dispatchEvent(new CustomEvent(`${this.namespace}ready`, {
+      /** @type {ReadyEventDetail} */
+      detail: {
+        yjs: this.yjs
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
+  }
 
   /**
    * Lifecycle callback, triggered when node is detached from the dom
@@ -225,10 +280,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    *
    * @return {void}
    */
-  disconnectedCallback () {}
+  disconnectedCallback () {
+    this.removeEventListener(`${this.namespace}api`, this.apiListener)
+    document.body.removeAttribute(`${this.namespace}ready`)
+  }
 
   /**
    * The namespace is prepended to the custom event names
+   * priority of value appliance: options, attribute
    * 
    * @param {string} value
    */
@@ -246,6 +305,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * The identifier is used as the room name
+   * priority of value appliance: url param, options, attribute
    * 
    * @param {string} value
    */
@@ -262,6 +322,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
+   * priority of value appliance: url param, options, attribute
+   * 
    * @param {string} value
    */
   set websocketUrl (value) {
@@ -277,6 +339,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
+   * priority of value appliance: url param, options, attribute
+   * 
    * @param {string} value
    */
   set webRtcUrl (value) {

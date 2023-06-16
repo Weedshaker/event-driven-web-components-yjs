@@ -29,6 +29,47 @@
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)
     }))
+
+    // todo: move this into their own components
+    // result
+    const div = document.createElement('div')
+    document.body.appendChild(div)
+    // button
+    const button = document.createElement('button')
+    document.body.appendChild(button)
+    button.textContent = 'yarray.push([1])'
+    const buttonTwo = document.createElement('button')
+    document.body.appendChild(buttonTwo)
+    buttonTwo.textContent = 'yarray.delete(-1)'
+
+    // create test elements
+    document.body.addEventListener('yjs-array-changed', event => {
+      console.log(event.detail.yjsEvent.changes.delta)
+      // print updates when the data changes
+      const text = 'new sum: ' + event.detail.type.toArray().reduce((a,b) => a + b)
+      console.log(text)
+      div.textContent += ' / ' + text
+    })
+    document.body.addEventListener('yjs-ready', event => {
+      new Promise(resolve => {
+        document.querySelector('h1').dispatchEvent(new CustomEvent('yjs-api', {
+          detail: {
+            command: 'getArray',
+            arguments: 'count',
+            resolve,
+            observe: 'yjs-array-changed'
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }).then(result => {
+        // add 1 to the sum
+        button.addEventListener('click', event => result.type.push([1])) // => "new sum: 1"
+        // add 1 to the sum
+        buttonTwo.addEventListener('click', event => result.type.delete(-1)) // => "new sum: 1"
+      })
+    })
   </script>
   <code>v.0.0.1</code>
 </body>
