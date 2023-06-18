@@ -15,7 +15,7 @@ import * as Y from './dependencies/yjs.js'
 
 /**
  * Different Providers
- @typedef {import("./dependencies/y-websocket").WebsocketProvider | import("./dependencies/y-webrtc").WebrtcProvider | import("./dependencies/y-p2pt").P2ptProvider} providerType
+ @typedef {import("./dependencies/y-websocket").WebsocketProvider[] | import("./dependencies/y-webrtc").WebrtcProvider | import("./dependencies/y-p2pt").P2ptProvider} providerType
 */
 
 /**
@@ -181,12 +181,21 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   async init () {        
     const doc = new Y.Doc()
 
+    // TODO: fix multiple websocket providers type highlighting
+    // TODO: User number on awareness seems to be broken, review change later
+
+    /**
+     * @type {Map<[string, providerType]>}
+     */
     const providers = new Map()
     /** @type {import("./dependencies/y-websocket")} */
     let websocket
     if (this.websocketUrl) {
-      websocket = await import('./dependencies/y-websocket.js')
-      providers.set('websocket', new websocket.WebsocketProvider(this.websocketUrl, this.identifier, doc))
+      this.websocketUrl.split(',').forEach(async websocketUrl => {
+        websocket = await import('./dependencies/y-websocket.js')
+        const websocketProvider = new websocket.WebsocketProvider(websocketUrl, this.identifier, doc)
+        providers.has('websocket') ? providers.get('websocket').push(websocketProvider) : providers.set('websocket', [websocketProvider])
+      })
     }
 
     /** @type {import("./dependencies/y-webrtc")} */
@@ -226,9 +235,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         composed: true
       })))
     }
-    
     // awareness
-    providers.forEach((provider, key) => {
+    const awarenessAddEventListener = (provider, key) => {
       const awareness = provider.awareness;
       awareness.on('change', changes => this.dispatchEvent(new CustomEvent(`${this.namespace}${key}-awareness-change`, {
         /** @type {AwarenessChangeEventDetail} */
@@ -249,6 +257,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       awareness.setLocalStateField('user', {
         name: new Date().getUTCMilliseconds()
       })
+    }
+    providers.forEach((provider, key) => {
+      if (Array.isArray(provider)) provider.forEach(provider => awarenessAddEventListener(provider, key))
+      else awarenessAddEventListener(provider, key)
     })
 
     return {doc, providers}
