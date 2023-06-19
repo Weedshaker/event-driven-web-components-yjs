@@ -50,7 +50,7 @@
       console.log(text)
       div.textContent += ' / ' + text
     })
-    document.body.addEventListener('yjs-ready', event => {
+    document.body.addEventListener('yjs-load', event => {
       new Promise(resolve => {
         document.querySelector('h1').dispatchEvent(new CustomEvent('yjs-api', {
           detail: {
