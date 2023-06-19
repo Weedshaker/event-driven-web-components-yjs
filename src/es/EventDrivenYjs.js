@@ -19,7 +19,7 @@ import * as Y from './dependencies/yjs.js'
 */
 
 /**
- * Provider container
+ * Provider names
  @typedef {
   'websocket' | 'webRtc' | 'p2pt'
  } ProviderNames
@@ -76,7 +76,8 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   command: string,
   arguments: any[],
-  result?: any
+  result?: any,
+  id?: string
  }} ApiResultEventDetail
 */
 
@@ -97,15 +98,10 @@ import * as Y from './dependencies/yjs.js'
 
 /**
  * EventDrivenYjs is a helper to bring the docs events into a truly event driven environment
- * NOTE: only the indexeddb provider is yet 100% supported, the strategy is rather to have separate web components for the messaging aka. event-driven-web-components-p2pt
  *
  * @export
  * @function EventDrivenYjs
  * @param {CustomElementConstructor} [ChosenHTMLElement = HTMLElement]
- * @property {
-    connectedCallback,
-    disconnectedCallback,
-  }
  * @return {CustomElementConstructor | *}
  */
 export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDrivenYjs extends ChosenHTMLElement {
@@ -118,7 +114,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   constructor (options = { namespace: undefined, identifier: undefined }, ...args) {
     super(...args)
 
-    this.options = options
     this.url = new URL(location.href)
     /**
      * @type {Providers}
@@ -204,7 +199,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
-   * initialize P2PT
+   * initialize the yjs doc
    *
    * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>}
    */
@@ -314,7 +309,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * Lifecycle callback, triggered when node is attached to the dom
-   * must be here as a placeholder
    *
    * @return {void}
    */
@@ -334,7 +328,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * Lifecycle callback, triggered when node is detached from the dom
-   * must be here as a placeholder
    *
    * @return {void}
    */
