@@ -9,7 +9,7 @@ import * as Y from './dependencies/yjs.js'
   namespace?: string,
   identifier?: string,
   websocketUrl?: string,
-  webRtcUrl?: string
+  webrtcUrl?: string
  }} options
 */
 
@@ -21,7 +21,7 @@ import * as Y from './dependencies/yjs.js'
 /**
  * Provider names
  @typedef {
-  'websocket' | 'webRtc' | 'p2pt'
+  'websocket' | 'webrtc' | 'p2pt'
  } ProviderNames
 */
 
@@ -120,8 +120,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.providers = new Map()
     this.providers.set('websocket', new Map())
-    this.providers.set('webRtc', new Map())
-    this.providers.set('p2pt', new Map())
+    this.providers.set('webrtc', new Map())
+    this.providers.set('p2pt', new Map()) // NOTE: the p2pt provider is not ready yet and only for test purposes here
+    /**
+     * keep track of all awareness to which we have an event listener
+     * 
+     * @type {any}
+     */
+    this.awareness = []
 
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
@@ -147,13 +153,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     // set attribute web-rtc-url
     // @ts-ignore
-    if (this.url.searchParams.get('web-rtc-url')) this.webRtcUrl = this.url.searchParams.get('web-rtc-url')
-    else if (options.webRtcUrl) this.webRtcUrl = options.webRtcUrl
-    else if (!this.webRtcUrl && (
+    if (this.url.searchParams.get('web-rtc-url')) this.webrtcUrl = this.url.searchParams.get('web-rtc-url')
+    else if (options.webrtcUrl) this.webrtcUrl = options.webrtcUrl
+    else if (!this.webrtcUrl && (
       this.url.searchParams.has('web-rtc-url')
-      || Object.hasOwnProperty.call(options, 'webRtcUrl')
+      || Object.hasOwnProperty.call(options, 'webrtcUrl')
       || this.hasAttribute('web-rtc-url')
-    )) this.webRtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
+    )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
     this.yjs = this.init()
@@ -206,45 +212,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   async init () {        
     const doc = new Y.Doc()
 
-    // TODO: User number on awareness seems to be broken, review change later
-
-    /** @type {import("./dependencies/y-websocket")} */
-    let websocket
-    if (this.websocketUrl) {
-      this.websocketUrl.split(',').filter(url => url).forEach(async websocketUrl => {
-        websocket = await import('./dependencies/y-websocket.js')
-        // @ts-ignore
-        this.providers.get('websocket').set(websocketUrl, new websocket.WebsocketProvider(websocketUrl, this.identifier, doc))
-      })
-    }
-
-    /** @type {import("./dependencies/y-webrtc")} */
-    let webrtc
-    if (this.webRtcUrl) {
-      webrtc = await import('./dependencies/y-webrtc.js')
-      // @ts-ignore
-      this.providers.get('webRtc').set(this.webRtcUrl, new webrtc.WebrtcProvider(this.identifier, doc, 
-        {
-          signaling: this.webRtcUrl.split(',').filter(url => url)
-        }
-      ))
-    }
-
-    /** @type {import("./dependencies/y-p2pt")} */
-    let p2pt
-    if (this.hasAttribute('p2pt')) {
-      p2pt = await import('./dependencies/y-p2pt.js')
-      // @ts-ignore
-      this.providers.get('p2pt').set('p2pt', new p2pt.P2ptProvider(this.identifier, doc))
-    }
-
-    /** @type {import("./dependencies/y-indexeddb")} */
-    let indexeddb
-    /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
-    let indexeddbPersistence
     if (this.hasAttribute('indexeddb')) {
-      indexeddb = await import('./dependencies/y-indexeddb.js')
-      indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
+      /** @type {import("./dependencies/y-indexeddb")} */
+      const indexeddb = await import('./dependencies/y-indexeddb.js')
+      /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
+      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
       indexeddbPersistence.whenSynced.then(data => this.dispatchEvent(new CustomEvent(`${this.namespace}indexeddb-synced`, {
         /** @type {IndexeddbSyncedEventDetail} */
         detail: {
@@ -258,6 +230,84 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       })))
     }
 
+    this.updateProviders(doc)
+
+    return {doc, providers: this.providers}
+  }
+
+  /**
+   * create or destory providers as required
+   *
+   * @param {import("./dependencies/yjs").Doc} doc
+   */
+  async updateProviders (doc) {
+    if (!doc) doc = (await this.yjs).doc
+
+    /** @type {Map<string, ProviderTypes>} */
+    // @ts-ignore
+    const websocketMap = this.providers.get('websocket')
+    if (this.websocketUrl) {
+      /** @type {import("./dependencies/y-websocket")} */
+      const websocket = await import('./dependencies/y-websocket.js')
+      this.websocketUrl.split(',').filter(url => url).forEach(websocketUrl => {
+        if (websocketMap.has(websocketUrl)) {
+          websocketMap.get(websocketUrl)?.connect()
+        } else {
+          websocketMap.set(websocketUrl, new websocket.WebsocketProvider(websocketUrl, this.identifier, doc))
+        }
+      })
+      websocketMap.forEach(
+        /**
+         * @param {ProviderTypes} provider
+         * @param {string} url
+         */
+        (provider, url) => {
+          if (!this.websocketUrl.includes(url)) provider.disconnect()
+        }
+      )
+    } else {
+      websocketMap.forEach(
+        /**
+         * @param {ProviderTypes} provider
+         */
+        provider => provider.disconnect()
+      )
+    }
+
+    /** @type {Map<string, ProviderTypes>} */
+    // @ts-ignore
+    const webrtcMap = this.providers.get('webrtc')
+    if (this.webrtcUrl) {
+      if (webrtcMap.has(this.webrtcUrl)) {
+        webrtcMap.get(this.webrtcUrl)?.connect()
+      } else {
+        /** @type {import("./dependencies/y-webrtc")} */
+        const webrtc = await import('./dependencies/y-webrtc.js')
+        webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(this.identifier, doc, 
+          {
+            signaling: this.webrtcUrl.split(',').filter(url => url)
+          }
+        ))
+      }
+    } else if (webrtcMap.has(this.webrtcUrl)) {
+      webrtcMap.get(this.webrtcUrl)?.disconnect()
+    }
+
+    /** @type {Map<string, ProviderTypes>} */
+    // @ts-ignore
+    const p2ptMap = this.providers.get('p2pt')
+    if (this.hasAttribute('p2pt')) {
+      if (p2ptMap.has('p2pt')) {
+        p2ptMap.get('p2pt')?.connect()
+      } else {
+        /** @type {import("./dependencies/y-p2pt")} */
+        const p2pt = await import('./dependencies/y-p2pt.js')
+        p2ptMap.set('p2pt', new p2pt.P2ptProvider(this.identifier, doc))
+      }
+    } else if (p2ptMap.has('p2pt')) {
+      p2ptMap.get('p2pt')?.disconnect()
+    }
+
     /**
      * awareness
      * 
@@ -266,16 +316,17 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {string} url
      */
     const awarenessAddEventListener = (provider, name, url) => {
-      const awareness = provider.awareness;
-      awareness.on('change', changes => this.dispatchEvent(new CustomEvent(`${this.namespace}${name}-awareness-change`, {
+      if (this.awareness.includes(provider.awareness)) return
+      this.awareness.push(provider.awareness)
+      provider.awareness.on('change', changes => this.dispatchEvent(new CustomEvent(`${this.namespace}${name}-awareness-change`, {
         /** @type {AwarenessChangeEventDetail} */
         detail: {
           provider,
           name,
           url,
-          awareness,
+          awareness: provider.awareness,
           changes,
-          stateValues: Array.from(awareness.getStates().values()),
+          stateValues: Array.from(provider.awareness.getStates().values()),
         },
         bubbles: true,
         cancelable: true,
@@ -284,27 +335,24 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
       // TODO: from here on down
       // TODO: setLocalStateFiled by event ether for particular provider and if not specified for all
-      awareness.setLocalStateField('user', {
+      provider.awareness.setLocalStateField('user', {
         name: new Date().getUTCMilliseconds()
       })
     }
+    // loop each provider to add awareness event listener
     this.providers.forEach(
       /**
        * @param {Map<string, ProviderTypes>} providerMap
        * @param {ProviderNames} name
        */
-      (providerMap, name) => {
-        providerMap.forEach(
-          /**
-           * @param {ProviderTypes} provider
-           * @param {string} url
-           */
-          (provider, url) => awarenessAddEventListener(provider, name, url)
-        )
-      }
+      (providerMap, name) => providerMap.forEach(
+        /**
+         * @param {ProviderTypes} provider
+         * @param {string} url
+         */
+        (provider, url) => awarenessAddEventListener(provider, name, url)
+      )
     )
-
-    return {doc, providers: this.providers}
   }
 
   /**
@@ -394,14 +442,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * 
    * @param {string} value
    */
-  set webRtcUrl (value) {
+  set webrtcUrl (value) {
     this.setAttribute('web-rtc-url', value)
   }
 
   /**
    * @return {string}
    */
-  get webRtcUrl () {
+  get webrtcUrl () {
     // @ts-ignore
     return this.getAttribute('web-rtc-url')
   }
