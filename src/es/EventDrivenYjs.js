@@ -315,7 +315,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {ProviderNames} name
      * @param {string} url
      */
-    const awarenessAddEventListener = (provider, name, url) => {
+    const awarenessAddEventListener = async (provider, name, url) => {
       if (this.awareness.includes(provider.awareness)) return
       this.awareness.push(provider.awareness)
       provider.awareness.on('change', changes => this.dispatchEvent(new CustomEvent(`${this.namespace}${name}-awareness-change`, {
@@ -336,7 +336,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // TODO: from here on down
       // TODO: setLocalStateFiled by event ether for particular provider and if not specified for all
       provider.awareness.setLocalStateField('user', {
-        name: new Date().getUTCMilliseconds()
+        name: new Date().getUTCMilliseconds(),
+        fingerprint: await this.fingerprint
       })
     }
     // loop each provider to add awareness event listener
@@ -452,5 +453,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   get webrtcUrl () {
     // @ts-ignore
     return this.getAttribute('web-rtc-url')
+  }
+
+  /**
+   * @return {Promise<string>}
+   */
+  get fingerprint () {
+    // ClientJS does not work with ES6 Imports and for that we fetch it
+    return this._fingerprint || (this._fingerprint = fetch(`${import.meta.url.replace(/(.*\/)(.*)$/, '$1')}dependencies/clientjs/dist/client.min.js`).then(response => response.text()).then(clientJS => {
+      const script = document.createElement('script')
+      script.textContent = clientJS
+      document.head.appendChild(script)
+      // @ts-ignore
+      return (new self.ClientJS).getFingerprint()
+    }))
   }
 }
