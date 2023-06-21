@@ -106,6 +106,10 @@ import * as Y from './dependencies/yjs.js'
  * @return {CustomElementConstructor | *}
  */
 export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDrivenYjs extends ChosenHTMLElement {
+  static get observedAttributes () {
+    return ['websocket-url', 'webrtc-url']
+  }
+
   /**
    * Creates an instance of EventDrivenYjs. The constructor will be called for every custom element using this class when initially created.
    *
@@ -152,14 +156,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.hasAttribute('websocket-url')
     )) this.websocketUrl = 'wss://demos.yjs.dev'
 
-    // set attribute web-rtc-url
+    // set attribute webrtc-url
     // @ts-ignore
-    if (this.url.searchParams.get('web-rtc-url')) this.webrtcUrl = this.url.searchParams.get('web-rtc-url')
+    if (this.url.searchParams.get('webrtc-url')) this.webrtcUrl = this.url.searchParams.get('webrtc-url')
     else if (options.webrtcUrl) this.webrtcUrl = options.webrtcUrl
     else if (!this.webrtcUrl && (
-      this.url.searchParams.has('web-rtc-url') ||
+      this.url.searchParams.has('webrtc-url') ||
       Object.hasOwnProperty.call(options, 'webrtcUrl') ||
-      this.hasAttribute('web-rtc-url')
+      this.hasAttribute('webrtc-url')
     )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
@@ -170,7 +174,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {any & {detail: ApiEventDetail}} event
      */
-    this.apiListener = async event => {
+    this.apiEventListener = async event => {
       if (event.detail.command && typeof event.detail.command === 'string') {
         const yjs = await this.yjs
         const type = yjs.doc[event.detail.command](...event.detail?.arguments)
@@ -208,6 +212,23 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         // TODO: also listen on type level
       }
     }
+
+    /**
+     * subscribe to url changes
+     * 
+     * trigger this event by history.pushState(state, '', url) + dispatchEvent(new PopStateEvent('popstate', { state: state }))
+     * otherwise this is only triggered by the user clicking the history navigation of the browser
+     * more: https://stackoverflow.com/questions/10940837/history-pushstate-does-not-trigger-popstate-event
+     *
+     * @param {PopStateEvent} event
+     */
+    this.popstateEventListener = event => {
+      const oldWebsocketUrl = this.url.searchParams.get('websocket-url')
+      const oldWebrtcUrl = this.url.searchParams.get('webrtc-url')
+      this.url = new URL(location.href)
+      if (oldWebsocketUrl !== this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url') || ''
+      if (oldWebrtcUrl !== this.url.searchParams.get('webrtc-url')) this.webrtcUrl = this.url.searchParams.get('webrtc-url') || ''
+    }
   }
 
   /**
@@ -244,7 +265,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * create or destory providers as required
    *
-   * @param {import("./dependencies/yjs").Doc} doc
+   * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
    */
   async updateProviders (doc) {
     if (!doc) doc = (await this.yjs).doc
@@ -259,7 +280,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         if (websocketMap.has(websocketUrl)) {
           websocketMap.get(websocketUrl)?.connect()
         } else {
-          websocketMap.set(websocketUrl, new websocket.WebsocketProvider(websocketUrl, this.identifier, doc))
+          websocketMap.set(websocketUrl, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl), this.identifier, doc))
         }
       })
       websocketMap.forEach(
@@ -291,7 +312,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         const webrtc = await import('./dependencies/y-webrtc.js')
         webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(this.identifier, doc,
           {
-            signaling: this.webrtcUrl.split(',').filter(url => url)
+            signaling: this.webrtcUrl.split(',').filter(url => url).map(url => self.decodeURIComponent(url))
           }
         ))
       }
@@ -367,7 +388,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {void}
    */
   connectedCallback () {
-    this.addEventListener(`${this.namespace}api`, this.apiListener)
+    this.addEventListener(`${this.namespace}api`, this.apiEventListener)
+    self.addEventListener('popstate', this.popstateEventListener)
     document.body.setAttribute(`${this.namespace}load`, 'true')
     this.dispatchEvent(new CustomEvent(`${this.namespace}load`, {
       /** @type {LoadEventDetail} */
@@ -387,8 +409,20 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {void}
    */
   disconnectedCallback () {
-    this.removeEventListener(`${this.namespace}api`, this.apiListener)
+    this.removeEventListener(`${this.namespace}api`, this.apiEventListener)
+    self.removeEventListener('popstate', this.popstateEventListener)
     document.body.removeAttribute(`${this.namespace}load`)
+  }
+
+  attributeChangedCallback (name, oldValue, newValue) {
+    if (oldValue && (name === 'websocket-url' || name === 'webrtc-url')) {
+      const oldUrl = this.url.searchParams.get(name)
+      if (oldUrl && oldUrl !== newValue) {
+        this.url.searchParams.set(name, newValue)
+        history.pushState(history.state, document.title, this.url.href)
+      }
+      this.updateProviders()
+    }
   }
 
   /**
@@ -450,7 +484,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @param {string} value
    */
   set webrtcUrl (value) {
-    this.setAttribute('web-rtc-url', value)
+    this.setAttribute('webrtc-url', value)
   }
 
   /**
@@ -458,7 +492,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   get webrtcUrl () {
     // @ts-ignore
-    return this.getAttribute('web-rtc-url')
+    return this.getAttribute('webrtc-url')
   }
 
   /**
