@@ -96,6 +96,7 @@ import * as Y from './dependencies/yjs.js'
 /* global fetch */
 /* global CustomEvent */
 /* global location */
+/* global history */
 
 /**
  * EventDrivenYjs is a helper to bring the docs events into a truly event driven environment
@@ -215,7 +216,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     /**
      * subscribe to url changes
-     * 
+     *
      * trigger this event by history.pushState(state, '', url) + dispatchEvent(new PopStateEvent('popstate', { state: state }))
      * otherwise this is only triggered by the user clicking the history navigation of the browser
      * more: https://stackoverflow.com/questions/10940837/history-pushstate-does-not-trigger-popstate-event
