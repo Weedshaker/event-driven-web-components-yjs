@@ -95,6 +95,7 @@ import * as Y from './dependencies/yjs.js'
 /* global self */
 /* global fetch */
 /* global CustomEvent */
+/* global location */
 
 /**
  * EventDrivenYjs is a helper to bring the docs events into a truly event driven environment
@@ -124,7 +125,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.providers.set('p2pt', new Map()) // NOTE: the p2pt provider is not ready yet and only for test purposes here
     /**
      * keep track of all awareness to which we have an event listener
-     * 
+     *
      * @type {any}
      */
     this.awareness = []
@@ -146,9 +147,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url')
     else if (options.websocketUrl) this.websocketUrl = options.websocketUrl
     else if (!this.websocketUrl && (
-      this.url.searchParams.has('websocket-url')
-      || Object.hasOwnProperty.call(options, 'websocketUrl')
-      || this.hasAttribute('websocket-url')
+      this.url.searchParams.has('websocket-url') ||
+      Object.hasOwnProperty.call(options, 'websocketUrl') ||
+      this.hasAttribute('websocket-url')
     )) this.websocketUrl = 'wss://demos.yjs.dev'
 
     // set attribute web-rtc-url
@@ -156,9 +157,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (this.url.searchParams.get('web-rtc-url')) this.webrtcUrl = this.url.searchParams.get('web-rtc-url')
     else if (options.webrtcUrl) this.webrtcUrl = options.webrtcUrl
     else if (!this.webrtcUrl && (
-      this.url.searchParams.has('web-rtc-url')
-      || Object.hasOwnProperty.call(options, 'webrtcUrl')
-      || this.hasAttribute('web-rtc-url')
+      this.url.searchParams.has('web-rtc-url') ||
+      Object.hasOwnProperty.call(options, 'webrtcUrl') ||
+      this.hasAttribute('web-rtc-url')
     )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
@@ -166,29 +167,33 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     /**
      * consume api commands to yjs through events
-     * 
+     *
      * @param {any & {detail: ApiEventDetail}} event
      */
     this.apiListener = async event => {
       if (event.detail.command && typeof event.detail.command === 'string') {
         const yjs = await this.yjs
         const type = yjs.doc[event.detail.command](...event.detail?.arguments)
-        if (event.detail.observe) type.observe(yjsEvent => this.dispatchEvent(/** @type {ObserveEventDetail} */new CustomEvent(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`, {
-          detail: {
-            yjsEvent,
+        if (event.detail.observe) {
+          type.observe(yjsEvent => this.dispatchEvent(/** @type {ObserveEventDetail} */new CustomEvent(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`, {
+            detail: {
+              yjsEvent,
+              type,
+              id: event.detail.id
+            },
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          })))
+        }
+        if (event.detail.resolve) {
+          return event.detail.resolve({
+            command: event.detail.command,
+            arguments: event.detail.arguments,
             type,
             id: event.detail.id
-          },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        })))
-        if (event.detail.resolve) return event.detail.resolve({
-          command: event.detail.command,
-          arguments: event.detail.arguments,
-          type,
-          id: event.detail.id
-        })
+          })
+        }
         this.dispatchEvent(/** @type {ApiResultEventDetail} */new CustomEvent(`${this.namespace}api-result`, {
           detail: {
             command: event.detail.command,
@@ -209,7 +214,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    *
    * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>}
    */
-  async init () {        
+  async init () {
     const doc = new Y.Doc()
 
     if (this.hasAttribute('indexeddb')) {
@@ -222,7 +227,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         detail: {
           indexeddb,
           indexeddbPersistence,
-          data,
+          data
         },
         bubbles: true,
         cancelable: true,
@@ -232,7 +237,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     this.updateProviders(doc)
 
-    return {doc, providers: this.providers}
+    return { doc, providers: this.providers }
   }
 
   /**
@@ -283,7 +288,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       } else {
         /** @type {import("./dependencies/y-webrtc")} */
         const webrtc = await import('./dependencies/y-webrtc.js')
-        webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(this.identifier, doc, 
+        webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(this.identifier, doc,
           {
             signaling: this.webrtcUrl.split(',').filter(url => url)
           }
@@ -310,7 +315,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     /**
      * awareness
-     * 
+     *
      * @param {ProviderTypes} provider
      * @param {ProviderNames} name
      * @param {string} url
@@ -326,7 +331,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           url,
           awareness: provider.awareness,
           changes,
-          stateValues: Array.from(provider.awareness.getStates().values()),
+          stateValues: Array.from(provider.awareness.getStates().values())
         },
         bubbles: true,
         cancelable: true,
@@ -388,7 +393,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * The namespace is prepended to the custom event names
    * priority of value appliance: options, attribute
-   * 
+   *
    * @param {string} value
    */
   set namespace (value) {
@@ -406,7 +411,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * The identifier is used as the room name
    * priority of value appliance: url param, options, attribute
-   * 
+   *
    * @param {string} value
    */
   set identifier (value) {
@@ -423,7 +428,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * priority of value appliance: url param, options, attribute
-   * 
+   *
    * @param {string} value
    */
   set websocketUrl (value) {
@@ -440,7 +445,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * priority of value appliance: url param, options, attribute
-   * 
+   *
    * @param {string} value
    */
   set webrtcUrl (value) {
@@ -465,7 +470,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       script.textContent = clientJS
       document.head.appendChild(script)
       // @ts-ignore
-      return (new self.ClientJS).getFingerprint()
+      return (new self.ClientJS()).getFingerprint()
     }))
   }
 }

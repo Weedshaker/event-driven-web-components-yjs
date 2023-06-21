@@ -14,11 +14,11 @@ export default [{
   plugins: [
     replace({
       values: {
-        'yjs': './yjs.js'
+        yjs: './yjs.js'
       },
       preventAssignment: true
     }),
-    nodeResolve(),
+    nodeResolve()
   ]
 },
 {
@@ -47,7 +47,7 @@ export default [{
   plugins: [
     replace({
       values: {
-        'yjs': './yjs.js'
+        yjs: './yjs.js'
       },
       preventAssignment: true
     }),
