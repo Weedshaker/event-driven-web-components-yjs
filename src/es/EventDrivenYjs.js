@@ -205,6 +205,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           cancelable: true,
           composed: true
         }))
+        // TODO: also listen on type level
       }
     }
   }
@@ -338,7 +339,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         composed: true
       })))
 
-      // TODO: from here on down
       // TODO: setLocalStateFiled by event ether for particular provider and if not specified for all
       provider.awareness.setLocalStateField('user', {
         name: new Date().getUTCMilliseconds(),
@@ -378,6 +378,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       cancelable: true,
       composed: true
     }))
+    // TODO: event listeners yjs-get
   }
 
   /**
