@@ -6,71 +6,36 @@
 </head>
 <body>
   <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb>
-    <h1>Simple YJS capability example</h1>
-    <yjs-indexeddb-synced></yjs-indexeddb-synced>
-    <hr>
-    <yjs-awareness-change></yjs-awareness-change>
-    <hr>
-    <h2>Received</h2>
-    <yjs-msg></yjs-msg>
-    <h2>Send</h2>
-    <yjs-send></yjs-send>
+    <c-yjs-array>
+      <h1>Simple YJS capability example</h1>
+      <yjs-indexeddb-synced></yjs-indexeddb-synced>
+      <hr>
+      <yjs-awareness-change></yjs-awareness-change>
+      <hr>
+      <h2>Received</h2>
+      <yjs-array-change></yjs-array-change>
+      <h2>Action</h2>
+      <yjs-button action="yjs-array-push">yarray.push([1])</yjs-button>
+      <yjs-button action="yjs-array-delete">yarray.delete(-1)</yjs-button>
+    </c-yjs-array>
   </c-event-driven-yjs>
   <script rel=preload type=module>
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '014'
+    const version = '015'
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
       import(`./exampleOne/AwarenessChange.js?${version}`).then(module => ['yjs-awareness-change', module.default]),
+      import(`./exampleOne/controller/YjsArray.js?${version}`).then(module => ['c-yjs-array', module.default]),
+      import(`./exampleOne/YjsArrayChange.js?${version}`).then(module => ['yjs-array-change', module.default]),
+      import(`./exampleOne/Button.js?${version}`).then(module => ['yjs-button', module.default]),
     ]).then(elements => elements.forEach(element => {
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)
     }))
-
-    // todo: move this into their own components
-    // result
-    const div = document.createElement('div')
-    document.body.appendChild(div)
-    // button
-    const button = document.createElement('button')
-    document.body.appendChild(button)
-    button.textContent = 'yarray.push([1])'
-    const buttonTwo = document.createElement('button')
-    document.body.appendChild(buttonTwo)
-    buttonTwo.textContent = 'yarray.delete(-1)'
-
-    // create test elements
-    document.body.addEventListener('yjs-array-changed', event => {
-      console.log(event.detail.yjsEvent.changes.delta)
-      // print updates when the data changes
-      const text = 'new sum: ' + event.detail.type.toArray().reduce((a,b) => a + b)
-      console.log(text)
-      div.textContent += ' / ' + text
-    })
-    document.body.addEventListener('yjs-load', event => {
-      new Promise(resolve => {
-        document.querySelector('h1').dispatchEvent(new CustomEvent('yjs-api', {
-          detail: {
-            command: 'getArray',
-            arguments: 'count',
-            resolve,
-            observe: 'yjs-array-changed'
-          },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }))
-      }).then(result => {
-        // add 1 to the sum
-        button.addEventListener('click', event => result.type.push([1])) // => "new sum: 1"
-        // add 1 to the sum
-        buttonTwo.addEventListener('click', event => result.type.delete(-1)) // => "new sum: 1"
-      })
-    })
   </script>
-  <code>v.0.0.1</code>
+  <code>v.0.0.2</code>
 </body>
 </html>

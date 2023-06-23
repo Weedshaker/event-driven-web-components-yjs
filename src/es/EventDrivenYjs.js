@@ -98,6 +98,9 @@ import * as Y from './dependencies/yjs.js'
 /* global location */
 /* global history */
 
+// TODO: setAttribute webrtc-url & websocket-url EventListener with history.pushState support according event.detail (update both attribute and url if desired by event)
+// TODO: document a nice overview off all dispatch and listened events above at interface
+
 /**
  * EventDrivenYjs is a helper to bring the docs events into a truly event driven environment
  *
@@ -144,8 +147,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (this.url.searchParams.get('identifier')) this.identifier = this.url.searchParams.get('identifier')
     else if (options.identifier) this.identifier = options.identifier
     else if (!this.identifier) this.identifier = 'weedshakers-event-driven-web-components'
-
-    // TODO: make the urls easily accessible through changes at attribute and url, also allow disconnect and adding on top on the fly
 
     // set attribute websocket-url
     // @ts-ignore
@@ -210,7 +211,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           cancelable: true,
           composed: true
         }))
-        // TODO: also listen on type level
+        // use a separate controller regarding api-actions on the above created type
       }
     }
 
@@ -401,7 +402,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       cancelable: true,
       composed: true
     }))
-    // TODO: event listeners yjs-get
   }
 
   /**
