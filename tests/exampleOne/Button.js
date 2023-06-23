@@ -1,10 +1,11 @@
 /* global HTMLElement */
+/* global CustomEvent */
 
 export default class Button extends HTMLElement {
   constructor (...args) {
     super(...args)
 
-    this.attachShadow({mode: 'open'})
+    this.attachShadow({ mode: 'open' })
     this.shadowRoot.innerHTML = `
       <style>
         :host > button {

@@ -4,7 +4,7 @@ export default class YjsArrayChange extends HTMLElement {
   constructor (...args) {
     super(...args)
 
-    this.attachShadow({mode: 'open'})
+    this.attachShadow({ mode: 'open' })
     const div = document.createElement('div')
     this.shadowRoot.innerHTML = `
       <style>

@@ -1,4 +1,5 @@
 /* global HTMLElement */
+/* global CustomEvent */
 
 // controller for the yjs array object
 export default class YjsArray extends HTMLElement {
@@ -9,7 +10,7 @@ export default class YjsArray extends HTMLElement {
       console.log(event.detail.yjsEvent.changes.delta)
       this.dispatchEvent(new CustomEvent('yjs-array-new-sum', {
         detail: {
-          text: 'new sum: ' + event.detail.type.toArray().reduce((a,b) => a + b),
+          text: 'new sum: ' + event.detail.type.toArray().reduce((a, b) => a + b)
         },
         bubbles: true,
         cancelable: true,
