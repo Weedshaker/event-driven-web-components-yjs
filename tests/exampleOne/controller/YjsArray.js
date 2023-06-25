@@ -25,7 +25,7 @@ export default class YjsArray extends HTMLElement {
     document.body.addEventListener('yjs-array-change', this.changeEventListener)
     document.body.addEventListener('yjs-array-push', this.pushEventListener)
     document.body.addEventListener('yjs-array-delete', this.deleteEventListener)
-    this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-api', {
+    this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-doc', {
       detail: {
         command: 'getArray',
         arguments: 'count',
