@@ -359,7 +359,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       }
     })
 
-
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
     this.yjs = this.init()
   }
