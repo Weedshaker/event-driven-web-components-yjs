@@ -4,13 +4,21 @@ export default class AwarenessChange extends HTMLElement {
   constructor (...args) {
     super(...args)
 
+    this.attachShadow({ mode: 'open' })
     const stateValues = new Map()
     this.eventListener = event => {
       stateValues.set(event.detail.url, JSON.stringify(event.detail.stateValues))
-      this.innerHTML = `Awareness on ${this.getAttribute('key') || 'websocket'} changed with stateValues:`
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host > ul > li {
+            word-break: break-all;
+          }
+        </style>
+        Awareness on ${this.getAttribute('key') || 'websocket'} changed with stateValues:
+      `
       const ul = document.createElement('ul')
       stateValues.forEach((stateValue, url) => (ul.innerHTML += `<li>${url}:<br>${stateValue}</li>`))
-      this.appendChild(ul)
+      this.shadowRoot.appendChild(ul)
     }
   }
 

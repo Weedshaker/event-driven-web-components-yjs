@@ -32,6 +32,16 @@ import * as Y from './dependencies/yjs.js'
  } Providers
 */
 
+/**
+ * initial local state field user
+ @typedef {{
+  epoch: number,
+  sessionEpoch: number,
+  localEpoch: number,
+  fingerprint: string
+  }} InitialUserValue
+*/
+
 // Events:
 /**
  * outgoing event
@@ -56,10 +66,9 @@ import * as Y from './dependencies/yjs.js'
   name: ProviderNames,
   url: string,
   awareness: any,
-  changes: any,
-  stateValues: any,
-  fingerprint: Promise<string>
- }} AwarenessChangeEventDetail
+  changes?: any,
+  stateValues?: any,
+ } & InitialUserValue} AwarenessUpdateChangeEventDetail
 */
 
 /**
@@ -119,6 +128,21 @@ import * as Y from './dependencies/yjs.js'
  }} UpdateProvidersEventDetail
 */
 
+/**
+ * ingoing event
+ @typedef {{
+  value: Object<string, any>,
+ }} SetLocalStateEventDetail
+*/
+
+/**
+ * ingoing event
+ @typedef {{
+  key: string,
+  value: Object<string, any>,
+ }} SetLocalStateFieldEventDetail
+*/
+
 /* global HTMLElement */
 /* global document */
 /* global self */
@@ -171,7 +195,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @type {any}
      */
-    this.awareness = []
+    this.awarenesses = []
+    /**
+     * keep the locale states before blur or unload in this array which is length an pos synced to this.awarenesses
+     *
+     * @type {any}
+     */
+    this.awarenessLocalStates = []
 
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
@@ -203,9 +233,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.hasAttribute('webrtc-url')
     )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
-    /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
-    this.yjs = this.init()
-
     /**
      * consume doc commands to yjs through events
      *
@@ -216,17 +243,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         const yjs = await this.yjs
         const type = yjs.doc[event.detail.command](...event.detail?.arguments)
         if (event.detail.observe) {
-          type.observe(yjsEvent => this.dispatchEvent(new CustomEvent(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`, {
+          type.observe(yjsEvent => this.dispatch(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`,
             /** @type {ObserveEventDetail} */
-            detail: {
+            {
               yjsEvent,
               type,
               id: event.detail.id
-            },
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          })))
+            }
+          ))
         }
         if (event.detail.resolve) {
           return event.detail.resolve({
@@ -236,18 +260,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             id: event.detail.id
           })
         }
-        this.dispatchEvent(new CustomEvent(`${this.namespace}doc-result`, {
+        this.dispatch(`${this.namespace}doc-result`,
           /** @type {DocResultEventDetail} */
-          detail: {
+          {
             command: event.detail.command,
             arguments: event.detail.arguments,
             type,
             id: event.detail.id
-          },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }))
+          }
+        )
         // use a separate controller regarding doc-actions on the above created type
       }
     }
@@ -267,17 +288,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             id: event.detail.id
           })
         }
-        this.dispatchEvent(new CustomEvent(`${this.namespace}doc-result`, {
+        this.dispatch(`${this.namespace}doc-result`,
           /** @type {NewTypeResultEventDetail} */
-          detail: {
+          {
             command: event.detail.command,
             type,
             id: event.detail.id
-          },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }))
+          }
+        )
         // use a separate controller regarding doc-actions on the above created type
       }
     }
@@ -309,6 +327,41 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       if (event.detail.websocketUrl) this.setAttribute('websocket-url', event.detail.websocketUrl)
       if (event.detail.webrtcUrl) this.setAttribute('webrtc-url', event.detail.webrtcUrl)
     }
+
+    /**
+     * set all awarenesses local state
+     *
+     * @param {any & {detail: SetLocalStateEventDetail}} event
+     */
+    this.setLocalStateEventListener = async event => {
+      this.awarenesses.forEach(awareness => awareness.setLocalState(event.detail.value || {}))
+    }
+    /**
+     * set all awarenesses local state field
+     *
+     * @param {any & {detail: SetLocalStateFieldEventDetail}} event
+     */
+    this.setLocalStateFieldEventListener = async event => {
+      this.awarenesses.forEach(awareness => awareness.setLocalStateField(event.detail.key || 'user', event.detail.value || {}))
+    }
+
+    // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
+    // set the last known local state on focus, connected
+    this.focusEventListener = event => this.awarenesses.forEach((awareness, i) => {
+      if (this.awarenessLocalStates[i] && !awareness.getLocalState()) awareness.setLocalState(this.awarenessLocalStates[i])
+    })
+    // save the last known local state and set the local state to null on blur, disconnect or unload
+    this.blurEventListener = event => this.awarenesses.forEach((awareness, i) => {
+      let localState
+      if ((localState = awareness.getLocalState())) {
+        this.awarenessLocalStates[i] = localState
+        awareness.setLocalState(null)
+      }
+    })
+
+
+    /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
+    this.yjs = this.init()
   }
 
   /**
@@ -324,17 +377,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const indexeddb = await import('./dependencies/y-indexeddb.js')
       /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
       const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
-      indexeddbPersistence.whenSynced.then(data => this.dispatchEvent(new CustomEvent(`${this.namespace}indexeddb-synced`, {
+      indexeddbPersistence.whenSynced.then(data => this.dispatch(`${this.namespace}indexeddb-synced`,
         /** @type {IndexeddbSyncedEventDetail} */
-        detail: {
+        {
           indexeddb,
           indexeddbPersistence,
           data
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      })))
+        }
+      ))
     }
 
     this.updateProviders(doc)
@@ -422,38 +472,53 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       }
     }
 
+    /** @type {InitialUserValue} */
+    const initialUserValue = {
+      epoch: this.epoch,
+      sessionEpoch: this.sessionEpoch,
+      localEpoch: this.localEpoch,
+      fingerprint: await this.fingerprint
+    }
+
     /**
-     * awareness
+     * listen to awareness update & change
      *
      * @param {ProviderTypes} provider
      * @param {ProviderNames} name
      * @param {string} url
      */
     const awarenessAddEventListener = async (provider, name, url) => {
-      if (this.awareness.includes(provider.awareness)) return
-      this.awareness.push(provider.awareness)
-      provider.awareness.on('change', changes => this.dispatchEvent(new CustomEvent(`${this.namespace}${name}-awareness-change`, {
-        /** @type {AwarenessChangeEventDetail} */
-        detail: {
-          provider,
-          name,
-          url,
-          awareness: provider.awareness,
+      if (this.awarenesses.includes(provider.awareness)) return
+      this.awarenesses.push(provider.awareness)
+      /** @type {AwarenessUpdateChangeEventDetail} */
+      const detail = {
+        provider,
+        name,
+        url,
+        awareness: provider.awareness,
+        ...initialUserValue
+      }
+      // awareness events
+      // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
+      provider.awareness.on('update', changes => this.dispatch(`${this.namespace}${name}-awareness-update`,
+        /** @type {AwarenessUpdateChangeEventDetail} */
+        {
+          ...detail,
           changes,
-          stateValues: Array.from(provider.awareness.getStates().values()),
-          fingerprint: this.fingerprint
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      })))
+          stateValues: Array.from(provider.awareness.getStates().values())
+        }
+      ))
+      provider.awareness.on('change', changes => this.dispatch(`${this.namespace}${name}-awareness-change`,
+        /** @type {AwarenessUpdateChangeEventDetail} */
+        {
+          ...detail,
+          changes,
+          stateValues: Array.from(provider.awareness.getStates().values())
+        }
+      ))
 
-      // TODO: setLocalStateFiled by event ether for particular provider and if not specified for all
-      // to accomplish the above, create a user controller taking care of the local state field as well as making a user doc map or array
-      provider.awareness.setLocalStateField('user', {
-        name: new Date().getUTCMilliseconds(),
-        fingerprint: await this.fingerprint
-      })
+      // set the initial user local state field
+      provider.awareness.setLocalStateField('user', initialUserValue)
     }
     // loop each provider to add awareness event listener
     this.providers.forEach(
@@ -480,17 +545,20 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}doc`, this.docEventListener)
     this.addEventListener(`${this.namespace}api`, this.newTypeEventListener)
     this.addEventListener(`${this.namespace}update-providers`, this.updateProvidersEventListener)
+    this.addEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
+    this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
+    this.focusEventListener()
+    self.addEventListener('focus', this.focusEventListener)
+    self.addEventListener('blur', this.blurEventListener)
+    self.addEventListener('beforeunload', this.blurEventListener)
     self.addEventListener('popstate', this.popstateEventListener)
     document.body.setAttribute(`${this.namespace}load`, 'true')
-    this.dispatchEvent(new CustomEvent(`${this.namespace}load`, {
+    this.dispatch(`${this.namespace}load`,
       /** @type {LoadEventDetail} */
-      detail: {
+      {
         yjs: this.yjs
-      },
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    }))
+      }
+    )
   }
 
   /**
@@ -502,6 +570,12 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}doc`, this.docEventListener)
     this.removeEventListener(`${this.namespace}api`, this.newTypeEventListener)
     this.removeEventListener(`${this.namespace}update-providers`, this.updateProvidersEventListener)
+    this.removeEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
+    this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
+    this.blurEventListener()
+    self.removeEventListener('focus', this.focusEventListener)
+    self.removeEventListener('blur', this.blurEventListener)
+    self.removeEventListener('beforeunload', this.blurEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
     document.body.removeAttribute(`${this.namespace}load`)
   }
@@ -515,6 +589,23 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       }
       this.updateProviders(undefined, name)
     }
+  }
+
+  /**
+   * dispatchEvent function which chooses to dispatch from document.body, if not connected
+   *
+   * @param {string} name
+   * @param {any} detail
+   * @param {HTMLElement} node
+   * @return {void}
+   */
+  dispatch (name, detail, node = this.isConnected ? this : document.body) {
+    node.dispatchEvent(new CustomEvent(name, {
+      detail,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
   }
 
   /**
@@ -599,5 +690,38 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // @ts-ignore
       return (new self.ClientJS()).getFingerprint()
     }))
+  }
+
+  /**
+   * @return {number}
+   */
+  get epoch () {
+    return this._epoch || (this._epoch = Date.now())
+  }
+
+  /**
+   * @return {number}
+   */
+  get sessionEpoch () {
+    return this._sessionEpoch || (this._sessionEpoch = this.getEpochStorage('session'))
+  }
+
+  /**
+   * @return {number}
+   */
+  get localEpoch () {
+    return this._localEpoch || (this._localEpoch = this.getEpochStorage('local'))
+  }
+
+  /**
+   * @param {'session' | 'local'} name
+   * @return {number}
+   */
+  getEpochStorage (name) {
+    const key = `${this.namespace}${this.identifier}-${name}-epoch`
+    let epoch = Number(self[`${name}Storage`].getItem(key))
+    if (epoch) return epoch
+    self[`${name}Storage`].setItem(key, String(epoch = this.epoch))
+    return epoch
   }
 }
