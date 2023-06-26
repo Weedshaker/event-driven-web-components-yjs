@@ -341,13 +341,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.setLocalStateEventListener = async event => {
       await this.yjs
-      if (event.detail.value) this.awarenesses.forEach(awareness => awareness.setLocalState(event.detail.overwrite
-        ? event.detail.value
-        : {
-          ...(awareness.getLocalState() || {}),
-          ...event.detail.value
-        }
-      ))
+      if (event.detail.value) {
+        this.awarenesses.forEach(awareness => awareness.setLocalState(event.detail.overwrite
+          ? event.detail.value
+          : {
+              ...(awareness.getLocalState() || {}),
+              ...event.detail.value
+            }
+        ))
+      }
     }
     /**
      * set all awarenesses local state field
@@ -356,16 +358,18 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.setLocalStateFieldEventListener = async event => {
       await this.yjs
-      if (event.detail.value) this.awarenesses.forEach(awareness => {
-        const key = event.detail.key || 'user'
-        awareness.setLocalStateField(key, event.detail.overwrite
-          ? event.detail.value
-          : {
-            ...(awareness.getLocalState()[key] || {}),
-            ...event.detail.value
-          }
-        )
-      })
+      if (event.detail.value) {
+        this.awarenesses.forEach(awareness => {
+          const key = event.detail.key || 'user'
+          awareness.setLocalStateField(key, event.detail.overwrite
+            ? event.detail.value
+            : {
+                ...(awareness.getLocalState()[key] || {}),
+                ...event.detail.value
+              }
+          )
+        })
+      }
     }
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
@@ -391,7 +395,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
     this.yjs = this.init()
     // delay indexeddb updates until the document and its docEventListeners are ready
-    this.yjs.then(({doc}) => this.updateIndexeddb(doc))
+    this.yjs.then(({ doc }) => this.updateIndexeddb(doc))
   }
 
   /**

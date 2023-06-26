@@ -1,4 +1,6 @@
 /* global HTMLElement */
+/* global CustomEvent */
+/* global self */
 
 export default class AwarenessChange extends HTMLElement {
   constructor (...args) {
