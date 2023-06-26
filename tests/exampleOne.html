@@ -5,7 +5,7 @@
   <title>YJS Example</title>
 </head>
 <body>
-  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb>
+  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb no-blur>
     <c-yjs-array>
       <h1>Simple YJS capability example</h1>
       <yjs-indexeddb-synced></yjs-indexeddb-synced>
@@ -23,7 +23,7 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '015'
+    const version = '016'
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
@@ -36,6 +36,6 @@
       if (element && !customElements.get(element[0])) customElements.define(...element)
     }))
   </script>
-  <code>v.0.0.2</code>
+  <code>v.0.0.3</code>
 </body>
 </html>

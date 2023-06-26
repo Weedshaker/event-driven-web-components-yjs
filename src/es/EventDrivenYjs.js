@@ -132,14 +132,16 @@ import * as Y from './dependencies/yjs.js'
  * ingoing event
  @typedef {{
   value: Object<string, any>,
+  overwrite?: boolean
  }} SetLocalStateEventDetail
 */
 
 /**
  * ingoing event
  @typedef {{
-  key: string,
+  key?: string,
   value: Object<string, any>,
+  overwrite?: boolean
  }} SetLocalStateFieldEventDetail
 */
 
@@ -157,6 +159,7 @@ import * as Y from './dependencies/yjs.js'
 // Attribute {indexeddb} has use indexeddb
 // Attribute {p2pt} has use p2pt
 // Attribute {no-history} has don't write to the url with history.pushState
+// Attribute {no-blur} don't react with awareness on blur
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
 // Attribute {identifier} string is the room name at webrtc and websocket as well as the key for the indexeddb
 
@@ -233,6 +236,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.hasAttribute('webrtc-url')
     )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
+    // Events:
     /**
      * consume doc commands to yjs through events
      *
@@ -278,7 +282,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {any & {detail: NewTypeEventDetail}} event
      */
-    this.newTypeEventListener = async event => {
+    this.newTypeEventListener = event => {
       if (event.detail.command && typeof event.detail.command === 'string') {
         const type = new Y[event.detail.command]()
         if (event.detail.resolve) {
@@ -309,7 +313,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {PopStateEvent} event
      */
-    this.popstateEventListener = event => {
+    this.popstateEventListener = async event => {
+      await this.yjs
       const oldWebsocketUrl = this.url.searchParams.get('websocket-url')
       const oldWebrtcUrl = this.url.searchParams.get('webrtc-url')
       this.url = new URL(location.href)
@@ -323,6 +328,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {any & {detail: UpdateProvidersEventDetail}} event
      */
     this.updateProvidersEventListener = async event => {
+      await this.yjs
       if (event.detail.noHistory) this.setAttribute('no-history', 'true')
       if (event.detail.websocketUrl) this.setAttribute('websocket-url', event.detail.websocketUrl)
       if (event.detail.webrtcUrl) this.setAttribute('webrtc-url', event.detail.webrtcUrl)
@@ -334,7 +340,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {any & {detail: SetLocalStateEventDetail}} event
      */
     this.setLocalStateEventListener = async event => {
-      this.awarenesses.forEach(awareness => awareness.setLocalState(event.detail.value || {}))
+      await this.yjs
+      if (event.detail.value) this.awarenesses.forEach(awareness => awareness.setLocalState(event.detail.overwrite
+        ? event.detail.value
+        : {
+          ...(awareness.getLocalState() || {}),
+          ...event.detail.value
+        }
+      ))
     }
     /**
      * set all awarenesses local state field
@@ -342,25 +355,43 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {any & {detail: SetLocalStateFieldEventDetail}} event
      */
     this.setLocalStateFieldEventListener = async event => {
-      this.awarenesses.forEach(awareness => awareness.setLocalStateField(event.detail.key || 'user', event.detail.value || {}))
+      await this.yjs
+      if (event.detail.value) this.awarenesses.forEach(awareness => {
+        const key = event.detail.key || 'user'
+        awareness.setLocalStateField(key, event.detail.overwrite
+          ? event.detail.value
+          : {
+            ...(awareness.getLocalState()[key] || {}),
+            ...event.detail.value
+          }
+        )
+      })
     }
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected
-    this.focusEventListener = event => this.awarenesses.forEach((awareness, i) => {
-      if (this.awarenessLocalStates[i] && !awareness.getLocalState()) awareness.setLocalState(this.awarenessLocalStates[i])
-    })
+    this.focusEventListener = async event => {
+      await this.yjs
+      this.awarenesses.forEach((awareness, i) => {
+        if (this.awarenessLocalStates[i] && !awareness.getLocalState()) awareness.setLocalState(this.awarenessLocalStates[i])
+      })
+    }
     // save the last known local state and set the local state to null on blur, disconnect or unload
-    this.blurEventListener = event => this.awarenesses.forEach((awareness, i) => {
-      let localState
-      if ((localState = awareness.getLocalState())) {
-        this.awarenessLocalStates[i] = localState
-        awareness.setLocalState(null)
-      }
-    })
+    this.blurEventListener = async event => {
+      await this.yjs
+      this.awarenesses.forEach((awareness, i) => {
+        let localState
+        if ((localState = awareness.getLocalState())) {
+          this.awarenessLocalStates[i] = localState
+          awareness.setLocalState(null)
+        }
+      })
+    }
 
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
     this.yjs = this.init()
+    // delay indexeddb updates until the document and its docEventListeners are ready
+    this.yjs.then(({doc}) => this.updateIndexeddb(doc))
   }
 
   /**
@@ -370,25 +401,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   async init () {
     const doc = new Y.Doc()
-
-    if (this.hasAttribute('indexeddb')) {
-      /** @type {import("./dependencies/y-indexeddb")} */
-      const indexeddb = await import('./dependencies/y-indexeddb.js')
-      /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
-      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
-      indexeddbPersistence.whenSynced.then(data => this.dispatch(`${this.namespace}indexeddb-synced`,
-        /** @type {IndexeddbSyncedEventDetail} */
-        {
-          indexeddb,
-          indexeddbPersistence,
-          data
-        }
-      ))
-    }
-
-    this.updateProviders(doc)
-
-    return { doc, providers: this.providers }
+    return { doc, providers: await this.updateProviders(doc) }
   }
 
   /**
@@ -396,6 +409,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    *
    * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
    * @param {'websocket-url' | 'webrtc-url'} [name=undefined]
+   * @return {Promise<Providers>}
    */
   async updateProviders (doc, name) {
     if (!doc) doc = (await this.yjs).doc
@@ -486,7 +500,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {ProviderNames} name
      * @param {string} url
      */
-    const awarenessAddEventListener = async (provider, name, url) => {
+    const awarenessAddEventListener = (provider, name, url) => {
       if (this.awarenesses.includes(provider.awareness)) return
       this.awarenesses.push(provider.awareness)
       /** @type {AwarenessUpdateChangeEventDetail} */
@@ -533,6 +547,24 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         (provider, url) => awarenessAddEventListener(provider, name, url)
       )
     )
+    return this.providers
+  }
+
+  async updateIndexeddb (doc) {
+    if (this.hasAttribute('indexeddb')) {
+      /** @type {import("./dependencies/y-indexeddb")} */
+      const indexeddb = await import('./dependencies/y-indexeddb.js')
+      /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
+      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
+      indexeddbPersistence.whenSynced.then(data => this.dispatch(`${this.namespace}indexeddb-synced`,
+        /** @type {IndexeddbSyncedEventDetail} */
+        {
+          indexeddb,
+          indexeddbPersistence,
+          data
+        }
+      ))
+    }
   }
 
   /**
@@ -548,7 +580,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.focusEventListener()
     self.addEventListener('focus', this.focusEventListener)
-    self.addEventListener('blur', this.blurEventListener)
+    if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
     self.addEventListener('beforeunload', this.blurEventListener)
     self.addEventListener('popstate', this.popstateEventListener)
     document.body.setAttribute(`${this.namespace}load`, 'true')
@@ -573,7 +605,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.blurEventListener()
     self.removeEventListener('focus', this.focusEventListener)
-    self.removeEventListener('blur', this.blurEventListener)
+    if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
     self.removeEventListener('beforeunload', this.blurEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
     document.body.removeAttribute(`${this.namespace}load`)
