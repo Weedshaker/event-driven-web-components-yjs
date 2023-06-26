@@ -17,7 +17,15 @@ export default class AwarenessChange extends HTMLElement {
             margin-bottom: 1em;
           }
           :host .username {
-            color: red;
+            color: blue;
+            font-weight: bold;
+          }
+          :host .self {
+            color: orange;
+            font-weight: bold;
+          }
+          :host .certainly-self {
+            color: green;
             font-weight: bold;
           }
         </style>
@@ -28,6 +36,8 @@ export default class AwarenessChange extends HTMLElement {
         stateValue
           .replace('},', '},<br><br>')
           .replace(/"username":"(.*?)"/g, '<span class=username>"username":"$1"</span>')
+          .replace(new RegExp(`"fingerprint":(${event.detail.fingerprint})`, 'g'), '<span class=self>"own-fingerprint":$1</span>')
+          .replace(new RegExp(`"localEpoch":(${event.detail.localEpoch})`, 'g'), '<span class=certainly-self>"own-localEpoch":$1</span>')
       }</li>`))
       this.shadowRoot.appendChild(ul)
     }
