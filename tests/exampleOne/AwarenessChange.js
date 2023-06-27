@@ -45,19 +45,28 @@ export default class AwarenessChange extends HTMLElement {
 
   connectedCallback () {
     document.body.addEventListener(`yjs-${this.getAttribute('key') || 'websocket'}-awareness-change`, this.eventListener)
-    let username = 'no-name'
-    this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
-      /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */
+    new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-identifier', {
       detail: {
-        value: {
-          username: (username = self.localStorage.getItem('username') || self.prompt('username') || username)
-        }
+        resolve
       },
       bubbles: true,
       cancelable: true,
       composed: true
-    }))
-    self.localStorage.setItem('username', username)
+    }))).then(identifier => {
+      let username = 'no-name'
+      this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
+        /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */
+        detail: {
+          value: {
+            username: (username = self.localStorage.getItem(identifier + '-username') || self.prompt('username') || username)
+          }
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+      self.localStorage.setItem(identifier + '-username', username)
+    })
   }
 
   disconnectedCallback () {

@@ -46,7 +46,8 @@ import * as Y from './dependencies/yjs.js'
 /**
  * outgoing event
  @typedef {{
-  yjs: Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>
+  yjs: Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>,
+  identifier: string,
  }} LoadEventDetail
 */
 
@@ -59,6 +60,7 @@ import * as Y from './dependencies/yjs.js'
   awareness: any,
   changes?: any,
   stateValues?: any,
+  identifier: string,
  } & InitialUserValue} AwarenessUpdateChangeEventDetail
 */
 
@@ -79,7 +81,8 @@ import * as Y from './dependencies/yjs.js'
   command: string,
   arguments: any[],
   type: any,
-  id?: string
+  id?: string,
+  identifier: string
  }} DocResultEventDetail
 */
 
@@ -97,7 +100,8 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   command: string,
   type: any,
-  id?: string
+  id?: string,
+  identifier: string
  }} NewTypeResultEventDetail
 */
 
@@ -106,7 +110,8 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   yjsEvent: any,
   type: any,
-  id: string
+  id: string,
+  identifier: string
  }} ObserveEventDetail
 */
 
@@ -131,7 +136,8 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   indexeddb: import("./dependencies/y-indexeddb"),
   indexeddbPersistence: import("./dependencies/y-indexeddb").IndexeddbPersistence,
-  data: any
+  data: any,
+  identifier: string
  }} IndexeddbSyncedEventDetail
 */
 
@@ -150,6 +156,13 @@ import * as Y from './dependencies/yjs.js'
   value: Object<string, any>,
   overwrite?: boolean
  }} SetLocalStateFieldEventDetail
+*/
+
+/**
+ * ingoing event
+ @typedef {{
+  resolve: any,
+ }} GetIdentifierEventDetail
 */
 
 /* global HTMLElement */
@@ -259,7 +272,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             {
               yjsEvent,
               type,
-              id: event.detail.id
+              id: event.detail.id,
+              identifier: this.identifier,
             }
           ))
         }
@@ -277,7 +291,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             command: event.detail.command,
             arguments: event.detail.arguments,
             type,
-            id: event.detail.id
+            id: event.detail.id,
+            identifier: this.identifier,
           }
         )
         // use a separate controller regarding doc-actions on the above created type
@@ -304,7 +319,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           {
             command: event.detail.command,
             type,
-            id: event.detail.id
+            id: event.detail.id,
+            identifier: this.identifier,
           }
         )
         // use a separate controller regarding doc-actions on the above created type
@@ -357,7 +373,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         const detail = {
           indexeddb,
           indexeddbPersistence,
-          data
+          data,
+          identifier: this.identifier,
         }
         if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
         this.dispatch(`${this.namespace}indexeddb-synced`,
@@ -404,6 +421,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         })
       }
     }
+  
+    /**
+     * deliver the identifier
+     *
+     * @param {any & {detail: GetIdentifierEventDetail}} event
+     */
+    this.getIdentifierEventListener = event => event.detail.resolve(this.identifier)
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected
@@ -545,6 +569,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         provider,
         name,
         url,
+        identifier: this.identifier,
         awareness: provider.awareness,
         ...initialUserValue
       }
@@ -555,7 +580,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         {
           ...detail,
           changes,
-          stateValues: Array.from(provider.awareness.getStates().values())
+          stateValues: Array.from(provider.awareness.getStates().values()),
+          identifier: this.identifier
         }
       ))
       provider.awareness.on('change', changes => this.dispatch(`${this.namespace}${name}-awareness-change`,
@@ -563,7 +589,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         {
           ...detail,
           changes,
-          stateValues: Array.from(provider.awareness.getStates().values())
+          stateValues: Array.from(provider.awareness.getStates().values()),
+          identifier: this.identifier
         }
       ))
       // set the initial user local state field
@@ -598,6 +625,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}load-indexeddb`, this.loadIndexeddbEventListener)
     this.addEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
+    this.addEventListener(`${this.namespace}get-identifier`, this.getIdentifierEventListener)
     this.focusEventListener()
     self.addEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
@@ -607,7 +635,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.dispatch(`${this.namespace}load`,
       /** @type {LoadEventDetail} */
       {
-        yjs: this.yjs
+        yjs: this.yjs,
+        identifier: this.identifier
       }
     )
   }
@@ -624,6 +653,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}load-indexeddb`, this.loadIndexeddbEventListener)
     this.removeEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
     this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
+    this.removeEventListener(`${this.namespace}get-identifier`, this.getIdentifierEventListener)
     this.blurEventListener()
     self.removeEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
