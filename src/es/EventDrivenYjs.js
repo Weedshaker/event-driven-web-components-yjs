@@ -53,15 +53,6 @@ import * as Y from './dependencies/yjs.js'
 /**
  * outgoing event
  @typedef {{
-  indexeddb: import("./dependencies/y-indexeddb"),
-  indexeddbPersistence: import("./dependencies/y-indexeddb").IndexeddbPersistence,
-  data: any
- }} IndexeddbSyncedEventDetail
-*/
-
-/**
- * outgoing event
- @typedef {{
   provider: ProviderTypes,
   name: ProviderNames,
   url: string,
@@ -126,6 +117,22 @@ import * as Y from './dependencies/yjs.js'
   webrtcUrl?: string,
   noHistory?: boolean
  }} UpdateProvidersEventDetail
+*/
+
+/**
+ * ingoing event
+ @typedef {{
+  resolve?: any,
+ }} LoadIndexeddbEventDetail
+*/
+
+/**
+ * outgoing event
+ @typedef {{
+  indexeddb: import("./dependencies/y-indexeddb"),
+  indexeddbPersistence: import("./dependencies/y-indexeddb").IndexeddbPersistence,
+  data: any
+ }} IndexeddbSyncedEventDetail
 */
 
 /**
@@ -335,6 +342,32 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     }
 
     /**
+     * @param {any & {detail: LoadIndexeddbEventDetail}} event
+     * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
+     * @return {Promise<void>}
+     */
+    this.loadIndexeddbEventListener  = async (event, doc) => {
+      if (!doc) doc = (await this.yjs).doc
+
+      /** @type {import("./dependencies/y-indexeddb")} */
+      const indexeddb = await import('./dependencies/y-indexeddb.js')
+      /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
+      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
+      indexeddbPersistence.whenSynced.then(data => {
+        const detail = {
+          indexeddb,
+          indexeddbPersistence,
+          data
+        }
+        if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+        this.dispatch(`${this.namespace}indexeddb-synced`,
+          /** @type {IndexeddbSyncedEventDetail} */
+          detail
+        )
+      })
+    }
+
+    /**
      * set all awarenesses local state
      *
      * @param {any & {detail: SetLocalStateEventDetail}} event
@@ -395,7 +428,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
     this.yjs = this.init()
     // delay indexeddb updates until the document and its docEventListeners are ready
-    this.yjs.then(({ doc }) => this.updateIndexeddb(doc))
+    if (this.hasAttribute('indexeddb')) this.yjs.then(({ doc }) => this.loadIndexeddbEventListener(undefined, doc))
   }
 
   /**
@@ -554,23 +587,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     return this.providers
   }
 
-  async updateIndexeddb (doc) {
-    if (this.hasAttribute('indexeddb')) {
-      /** @type {import("./dependencies/y-indexeddb")} */
-      const indexeddb = await import('./dependencies/y-indexeddb.js')
-      /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
-      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
-      indexeddbPersistence.whenSynced.then(data => this.dispatch(`${this.namespace}indexeddb-synced`,
-        /** @type {IndexeddbSyncedEventDetail} */
-        {
-          indexeddb,
-          indexeddbPersistence,
-          data
-        }
-      ))
-    }
-  }
-
   /**
    * Lifecycle callback, triggered when node is attached to the dom
    *
@@ -580,6 +596,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}doc`, this.docEventListener)
     this.addEventListener(`${this.namespace}api`, this.newTypeEventListener)
     this.addEventListener(`${this.namespace}update-providers`, this.updateProvidersEventListener)
+    this.addEventListener(`${this.namespace}load-indexeddb`, this.loadIndexeddbEventListener)
     this.addEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.focusEventListener()
@@ -605,6 +622,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}doc`, this.docEventListener)
     this.removeEventListener(`${this.namespace}api`, this.newTypeEventListener)
     this.removeEventListener(`${this.namespace}update-providers`, this.updateProvidersEventListener)
+    this.removeEventListener(`${this.namespace}load-indexeddb`, this.loadIndexeddbEventListener)
     this.removeEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
     this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.blurEventListener()

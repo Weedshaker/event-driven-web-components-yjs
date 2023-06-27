@@ -7,10 +7,9 @@ export default class YjsArray extends HTMLElement {
     super(...args)
 
     this.changeEventListener = event => {
-      console.log(event.detail.yjsEvent.changes.delta)
       this.dispatchEvent(new CustomEvent('yjs-array-new-sum', {
         detail: {
-          text: 'new sum: ' + event.detail.type.toArray().reduce((a, b) => a + b)
+          text: 'new sum: ' + event.detail.type.toArray().reduce((a, b) => a + b, 0)
         },
         bubbles: true,
         cancelable: true,
@@ -23,8 +22,8 @@ export default class YjsArray extends HTMLElement {
 
   connectedCallback () {
     document.body.addEventListener('yjs-array-change', this.changeEventListener)
-    document.body.addEventListener('yjs-array-push', this.pushEventListener)
-    document.body.addEventListener('yjs-array-delete', this.deleteEventListener)
+    this.addEventListener('yjs-array-push', this.pushEventListener)
+    this.addEventListener('yjs-array-delete', this.deleteEventListener)
     this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-doc', {
       detail: {
         command: 'getArray',
@@ -35,12 +34,15 @@ export default class YjsArray extends HTMLElement {
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(result => result.type)
+    }))).then(result => {
+      this.changeEventListener({detail: {type: result.type}})
+      return result.type
+    })
   }
 
   disconnectedCallback () {
-    document.body.removeEventListener('yjs-array-change', this.eventListener)
-    document.body.removeEventListener('yjs-array-push', this.pushEventListener)
-    document.body.removeEventListener('yjs-array-delete', this.deleteEventListener)
+    document.body.removeEventListener('yjs-array-change', this.changeEventListener)
+    this.removeEventListener('yjs-array-push', this.pushEventListener)
+    this.removeEventListener('yjs-array-delete', this.deleteEventListener)
   }
 }

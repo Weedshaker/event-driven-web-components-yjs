@@ -34,7 +34,7 @@ export default class AwarenessChange extends HTMLElement {
       const ul = document.createElement('ul')
       stateValues.forEach((stateValue, url) => (ul.innerHTML += `<li>${url}:<br>${
         stateValue
-          .replace('},', '},<br><br>')
+          .replace(/},/g, '},<br><br>')
           .replace(/"username":"(.*?)"/g, '<span class=username>"username":"$1"</span>')
           .replace(new RegExp(`"fingerprint":(${event.detail.fingerprint})`, 'g'), '<span class=self>"own-fingerprint":$1</span>')
           .replace(new RegExp(`"localEpoch":(${event.detail.localEpoch})`, 'g'), '<span class=certainly-self>"own-localEpoch":$1</span>')
