@@ -7,20 +7,44 @@
 <body>
   <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" identifier="weedshakers-event-driven-web-components-chat" indexeddb no-blur>
     <c-yjs-chat>
-      <h1>Simple YJS capability example (chat)</h1>
-      <details>
-        <summary>IndexedDB Sync Status</summary>
-        <yjs-indexeddb-synced></yjs-indexeddb-synced>
-      </details>
-      <hr>
-      <yjs-details-awareness-change></yjs-details-awareness-change>
-      <hr>
-      <h2>Received</h2>
-      chat messages
-      <h2>Action</h2>
-      input field
+      <div class="flex">
+        <header>
+          <details>
+            <summary>IndexedDB Sync Status</summary>
+            <yjs-indexeddb-synced></yjs-indexeddb-synced>
+          </details>
+          <hr>
+          <yjs-details-awareness-change></yjs-details-awareness-change>
+          <hr>
+        </header>
+        <yjs-chat-update></yjs-chat-update>
+        <footer>
+          <input placeholder="type your message..." style="height: 3em; width: 70%"></input><button style="padding: 1em; width: 25%">send</button>
+          <br><code>v.0.0.1</code>
+        </footer>
+      </div>
     </c-yjs-chat>
   </c-event-driven-yjs>
+  <style>
+    body {
+      margin: 0;
+    }
+    .flex {
+      display: flex;
+      box-sizing: border-box;
+      flex-direction: column;
+      max-height: 100vh;
+      max-width: 100vw;
+      overflow: hidden;
+      padding: 0.25em
+    }
+    .flex > yjs-chat-update {
+      overflow-y: scroll;
+    }
+    .flex > footer {
+      padding-top: 0.25em;
+    }
+  </style>
   <script rel=preload type=module>
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
@@ -32,11 +56,11 @@
       import(`./exampleOne/AwarenessChange.js?${version}`).then(module => ['yjs-awareness-change', module.default]),
       import(`./exampleTwo/controller/YjsChat.js?${version}`).then(module => ['c-yjs-chat', module.default]),
       import(`./exampleTwo/DetailsAwarenessChange.js?${version}`).then(module => ['yjs-details-awareness-change', module.default]),
+      import(`./exampleTwo/YjsChatUpdate.js?${version}`).then(module => ['yjs-chat-update', module.default]),
     ]).then(elements => elements.forEach(element => {
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)
     }))
   </script>
-  <code>v.0.0.1</code>
 </body>
 </html>

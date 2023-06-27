@@ -566,7 +566,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           stateValues: Array.from(provider.awareness.getStates().values())
         }
       ))
-
       // set the initial user local state field
       provider.awareness.setLocalStateField('user', initialUserValue)
     }

@@ -6,23 +6,38 @@ export default class YjsChat extends HTMLElement {
   constructor (...args) {
     super(...args)
 
-    this.changeEventListener = event => {
-      // event.detail.type.toArray()
+    this.observeEventListener = async event => {
       this.dispatchEvent(new CustomEvent('yjs-chat-update', {
         detail: {
-          yjsEvent: event.detail.yjsEvent
+          chat: await Promise.all(event.detail.type.toArray().map(async textObj => ({...textObj, isSelf: textObj.username === await this.username})))
         },
         bubbles: true,
         cancelable: true,
         composed: true
       }))
     }
-    this.inputEventListener = async event => (await this.array).delete(-1)
+    this.changeEventListener = async event => {
+      const input = event.composedPath()[0]
+      if (input.value) {
+        (await this.array).push([{
+          username: await this.username,
+          text: input.value,
+          timestamp: Date.now()
+        }])
+        input.value = ''
+      }
+    }
+    let usernameResolve
+    this.username = new Promise(resolve => (usernameResolve = resolve))
+    this.usernameEventListener = event => {
+      const username = event?.detail?.value?.username
+      if (username) usernameResolve(username)
+    }
   }
 
   connectedCallback () {
-    this.addEventListener('input', this.inputEventListener)
-    document.body.addEventListener('yjs-chat-observe', this.changeEventListener)
+    this.addEventListener('change', this.changeEventListener)
+    document.body.addEventListener('yjs-chat-observe', this.observeEventListener)
     this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-doc', {
       detail: {
         command: 'getArray',
@@ -33,11 +48,16 @@ export default class YjsChat extends HTMLElement {
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(result => result.type)
+    }))).then(result => {
+      this.observeEventListener({detail: {type: result.type}})
+      return result.type
+    })
+    // todo: a proper user controller to which can be listened here
+    document.body.addEventListener('yjs-set-local-state-field', this.usernameEventListener, {once: true})
   }
 
   disconnectedCallback () {
-    this.removeEventListener('input', this.inputEventListener)
-    document.body.removeEventListener('yjs-map-change', this.changeEventListener)
+    this.removeEventListener('change', this.changeEventListener)
+    document.body.removeEventListener('yjs-map-change', this.observeEventListener)
   }
 }
