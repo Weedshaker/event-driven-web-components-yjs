@@ -25,7 +25,7 @@ export default class DetailsAwarenessChange extends HTMLElement {
           return (prev += curr.user.localEpoch !== event.detail.localEpoch ? 1 : 0)
         }, 0)
       })
-      this.shadowRoot.querySelector('summary').innerHTML = `Active Users: ${length < 1 ? '<span class=warning>only own user is active</span>' : length}`
+      this.shadowRoot.querySelector('summary').innerHTML = `Active Users: ${length < 1 ? '<span class=warning>You are alone!</span>' : length}`
     }
   }
 

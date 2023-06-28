@@ -176,6 +176,7 @@ import * as Y from './dependencies/yjs.js'
  * ingoing event
  @typedef {{
   room: string,
+  resolve?: any
  }} SetRoomEventDetail
 
  /**
@@ -258,6 +259,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     else if (options.room) this.room = Promise.resolve(options.room)
     // @ts-ignore
     else if (this.hasAttribute('room')) this.room = Promise.resolve(this.getAttribute('room'))
+    // @ts-ignore
+    this.room.done = false
+    // @ts-ignore
+    this.room.finally(() => this.room.done = true)
 
     // set attribute websocket-url
     // @ts-ignore
@@ -454,14 +459,17 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {any & {detail: SetRoomEventDetail}} event
      */
-    this.setRoomEventListener = event => this.roomResolve(event.detail.room)
+    this.setRoomEventListener = event => {
+      this.roomResolve(event.detail.room)
+      event.detail.resolve({room: this.room})
+    }
 
     /**
      * deliver the room
      *
      * @param {any & {detail: GetRoomEventDetail}} event
      */
-    this.getRoomEventListener = event => event.detail.resolve(this.room)
+    this.getRoomEventListener = event => event.detail.resolve({room: this.room})
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected
@@ -674,8 +682,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         room: this.room
       }
     )
-    if (!this.room) {
-      this.dispatch(`${this.namespace}-request-room`,
+    // @ts-ignore
+    if (!this.room.done) {
+      this.dispatch(`${this.namespace}request-room`,
       /** @type {RequestRoomEventDetail} */
         {
           resolve: this.roomResolve
@@ -709,14 +718,26 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   attributeChangedCallback (name, oldValue, newValue) {
     if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue && oldValue !== newValue) {
-      const oldParam = this.url.searchParams.get(name)
-      if (!this.hasAttribute('no-history') && oldParam !== newValue) {
-        this.url.searchParams.set(name, newValue)
-        history.pushState(history.state, document.title, this.url.href)
-      }
+      this.pushState(name, newValue)
       this.updateProviders(undefined, name)
     } else if (name === 'room' && !oldValue && newValue) {
+      this.pushState(name, newValue)
       this.roomResolve(newValue)
+    }
+  }
+
+  /**
+   * pushState to History
+   *
+   * @param {string} key
+   * @param {string} value
+   * @return {void}
+   */
+  pushState (key, value) {
+    const oldValue = this.url.searchParams.get(key)
+    if (!this.hasAttribute('no-history') && oldValue !== value) {
+      this.url.searchParams.set(key, value)
+      history.pushState(history.state, document.title, this.url.href)
     }
   }
 
