@@ -262,7 +262,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     // @ts-ignore
     this.room.done = false
     // @ts-ignore
-    this.room.finally(() => this.room.done = true)
+    this.room.finally(() => (this.room.done = true))
 
     // set attribute websocket-url
     // @ts-ignore
@@ -461,7 +461,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.setRoomEventListener = event => {
       this.roomResolve(event.detail.room)
-      event.detail.resolve({room: this.room})
+      event.detail.resolve({ room: this.room })
     }
 
     /**
@@ -469,7 +469,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {any & {detail: GetRoomEventDetail}} event
      */
-    this.getRoomEventListener = event => event.detail.resolve({room: this.room})
+    this.getRoomEventListener = event => event.detail.resolve({ room: this.room })
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected

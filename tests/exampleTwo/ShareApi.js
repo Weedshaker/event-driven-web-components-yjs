@@ -1,5 +1,6 @@
 /* global HTMLElement */
-/* global CustomEvent */
+/* global location */
+/* global alert */
 
 export default class ShareApi extends HTMLElement {
   constructor (...args) {

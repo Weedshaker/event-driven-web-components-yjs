@@ -52,7 +52,7 @@ export default class AwarenessChange extends HTMLElement {
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(async ({room}) => {
+    }))).then(async ({ room }) => {
       if (!room.done) {
         await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-set-room', {
           detail: {
