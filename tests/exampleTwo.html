@@ -23,7 +23,7 @@
         <yjs-chat-update></yjs-chat-update>
         <footer>
           <input placeholder="type your message..." style="height: 3em; width: 70%"></input><button style="padding: 1em; width: 25%">send</button>
-          <br><code>v.0.0.2</code>
+          <br><code>v.0.0.3</code>
         </footer>
       </div>
     </c-yjs-chat>
@@ -60,7 +60,7 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '002'
+    const version = '003'
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
