@@ -35,7 +35,7 @@ export default class YjsArray extends HTMLElement {
       cancelable: true,
       composed: true
     }))).then(result => {
-      this.changeEventListener({detail: {type: result.type}})
+      this.changeEventListener({ detail: { type: result.type } })
       return result.type
     })
   }

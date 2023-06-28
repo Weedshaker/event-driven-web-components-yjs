@@ -184,13 +184,13 @@ import * as Y from './dependencies/yjs.js'
   resolve: any,
  }} RequestRoomEventDetail
 
-/* global HTMLElement */
 /* global document */
 /* global self */
 /* global fetch */
 /* global CustomEvent */
 /* global location */
 /* global history */
+/* global HTMLElement */
 
 // Supported attributes:
 // Attribute {websocket-url} string comma separated list of all websocket urls
@@ -296,7 +296,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
               yjsEvent,
               type,
               id: event.detail.id,
-              room: this.room,
+              room: this.room
             }
           ))
         }
@@ -327,7 +327,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             command: event.detail.command,
             type,
             id: event.detail.id,
-            room: this.room,
+            room: this.room
           })
         }
         this.dispatch(`${this.namespace}doc-result`,
@@ -336,7 +336,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             command: event.detail.command,
             type,
             id: event.detail.id,
-            room: this.room,
+            room: this.room
           }
         )
         // use a separate controller regarding doc-actions on the above created type
@@ -391,7 +391,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
      * @return {Promise<void>}
      */
-    this.loadIndexeddbEventListener  = async (event, doc) => {
+    this.loadIndexeddbEventListener = async (event, doc) => {
       if (!doc) doc = (await this.yjs).doc
 
       /** @type {import("./dependencies/y-indexeddb")} */
@@ -404,7 +404,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           indexeddb,
           indexeddbPersistence,
           data,
-          room: this.room,
+          room: this.room
         }
         if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
         this.dispatch(`${this.namespace}indexeddb-synced`, detail)
@@ -455,7 +455,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {any & {detail: SetRoomEventDetail}} event
      */
     this.setRoomEventListener = event => this.roomResolve(event.detail.room)
-  
+
     /**
      * deliver the room
      *
@@ -674,12 +674,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         room: this.room
       }
     )
-    if (!this.room) this.dispatch(`${this.namespace}-request-room`,
+    if (!this.room) {
+      this.dispatch(`${this.namespace}-request-room`,
       /** @type {RequestRoomEventDetail} */
-      {
-        resolve: this.roomResolve
-      }
-    )
+        {
+          resolve: this.roomResolve
+        }
+      )
+    }
   }
 
   /**

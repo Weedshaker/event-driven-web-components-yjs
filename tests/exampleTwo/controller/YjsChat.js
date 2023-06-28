@@ -9,7 +9,7 @@ export default class YjsChat extends HTMLElement {
     this.observeEventListener = async event => {
       this.dispatchEvent(new CustomEvent('yjs-chat-update', {
         detail: {
-          chat: await Promise.all(event.detail.type.toArray().map(async textObj => ({...textObj, isSelf: textObj.nickname === await this.nickname})))
+          chat: await Promise.all(event.detail.type.toArray().map(async textObj => ({ ...textObj, isSelf: textObj.nickname === await this.nickname })))
         },
         bubbles: true,
         cancelable: true,
@@ -49,11 +49,11 @@ export default class YjsChat extends HTMLElement {
       cancelable: true,
       composed: true
     }))).then(result => {
-      this.observeEventListener({detail: {type: result.type}})
+      this.observeEventListener({ detail: { type: result.type } })
       return result.type
     })
     // todo: a proper user controller to which can be listened here
-    document.body.addEventListener('yjs-set-local-state-field', this.nicknameEventListener, {once: true})
+    document.body.addEventListener('yjs-set-local-state-field', this.nicknameEventListener, { once: true })
   }
 
   disconnectedCallback () {

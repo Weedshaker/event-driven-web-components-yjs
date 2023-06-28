@@ -21,9 +21,9 @@ export default class DetailsAwarenessChange extends HTMLElement {
       stateValues.set(event.detail.url, event.detail.stateValues)
       let length = 0
       stateValues.forEach((stateValues, url) => {
-          length += stateValues.reduce((prev, curr) => {
-            return (prev += curr.user.localEpoch !== event.detail.localEpoch ? 1 : 0)
-          }, 0)
+        length += stateValues.reduce((prev, curr) => {
+          return (prev += curr.user.localEpoch !== event.detail.localEpoch ? 1 : 0)
+        }, 0)
       })
       this.shadowRoot.querySelector('summary').innerHTML = `Active Users: ${length < 1 ? '<span class=warning>only own user is active</span>' : length}`
     }
