@@ -37,7 +37,7 @@ export default class YjsChatUpdate extends HTMLElement {
     this.shadowRoot.appendChild(ul)
     this.eventListener = event => {
       ul.innerHTML = ''
-      event.detail.chat.forEach(entry => {
+      event.detail.chat.sort((a, b) => a.timestamp-b.timestamp).forEach(entry => {
         const li = document.createElement('li')
         if (entry.isSelf) li.classList.add('self')
         li.innerHTML = `<span class="user">${entry.nickname}: </span><br><span class="text">${entry.text}</span><br><span class="timestamp">${(new Date(entry.timestamp)).toLocaleString(navigator.language)}</span>`

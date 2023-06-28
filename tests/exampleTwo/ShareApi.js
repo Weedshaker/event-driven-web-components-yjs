@@ -1,7 +1,7 @@
 /* global HTMLElement */
 /* global CustomEvent */
 
-export default class Button extends HTMLElement {
+export default class ShareApi extends HTMLElement {
   constructor (...args) {
     super(...args)
 
@@ -14,13 +14,18 @@ export default class Button extends HTMLElement {
           font-size: 20px;
         }
       </style>
-      <button>${this.textContent}</button>
+      <button>${this.textContent} 💌</button>
     `
-    this.eventListener = event => this.dispatchEvent(new CustomEvent(this.getAttribute('action'), {
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    }))
+    this.eventListener = async event => {
+      try {
+        await navigator.share({
+          title: document.title,
+          url: location.href
+        })
+      } catch (err) {
+        alert(`share this link 👉 ${location.href}`)
+      }
+    }
   }
 
   connectedCallback () {
