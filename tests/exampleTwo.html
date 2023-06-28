@@ -29,6 +29,11 @@
     </c-yjs-chat>
   </c-event-driven-yjs>
   <style>
+    /* iphone nav bar workaround */
+    /* https://stackoverflow.com/questions/58886797/how-to-access-the-real-100vh-on-ios-in-css */
+    :root {
+      --real100vh: 100vh;
+    }
     body {
       margin: 0;
     }
@@ -36,7 +41,7 @@
       display: flex;
       box-sizing: border-box;
       flex-direction: column;
-      max-height: 100vh;
+      max-height: var(--real100vh);
       max-width: 100vw;
       overflow: hidden;
       padding: 0.25em
@@ -68,6 +73,20 @@
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)
     }))
+    /* iphone nav bar workaround */
+    /* https://stackoverflow.com/questions/58886797/how-to-access-the-real-100vh-on-ios-in-css */
+    const set100vhVar = () => {
+        // If less than most tablets, set CSS var to window height.
+        let value = '100vh'
+
+        // If window size is iPad or smaller, then use JS to set screen height.
+        if (self.innerWidth && self.innerWidth <= 1024) {
+            value = `${self.innerHeight}px`
+        }
+        document.documentElement.style.setProperty('--real100vh', value)
+    }
+    self.addEventListener('resize', set100vhVar)
+    set100vhVar()
   </script>
 </body>
 </html>
