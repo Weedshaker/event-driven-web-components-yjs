@@ -40,7 +40,7 @@ export default class YjsChatUpdate extends HTMLElement {
       event.detail.chat.forEach(entry => {
         const li = document.createElement('li')
         if (entry.isSelf) li.classList.add('self')
-        li.innerHTML = `<span class="user">${entry.username}: </span><br><span class="text">${entry.text}</span><br><span class="timestamp">${(new Date(entry.timestamp)).toLocaleString(navigator.language)}</span>`
+        li.innerHTML = `<span class="user">${entry.nickname}: </span><br><span class="text">${entry.text}</span><br><span class="timestamp">${(new Date(entry.timestamp)).toLocaleString(navigator.language)}</span>`
         ul.appendChild(li)
       })
       this.scroll(0, this.scrollHeight)

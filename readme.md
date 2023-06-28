@@ -25,17 +25,10 @@ at forks, clones or any reuse of code the right to place three links on each sli
 Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## TODO:
-- [ ] url params and file src params for connection options and other props
-- [ ] all callbacks as events
-- [ ] simple text chat example
+- [ ] User controller including connected ProviderNames + urls on user props
+- [ ] User controller if not connected offer to connect to other urls max. 2 per socket
 
 
 ## Credit
 
 Created by [Edmgb](https://github.com/Edmgb) + [スィルヴァン aka. Weedshaker](https://github.com/Weedshaker)
-
-## not working stuff...
-"build-y-indexeddb": "npx parcel build ./node_modules/y-indexeddb/src/y-indexeddb.js --no-source-maps --dist-dir ./dist/y-indexeddb/",
-"build-y-webrtc": "npx parcel build ./node_modules/y-webrtc/src/y-webrtc.js --no-source-maps --dist-dir ./dist/y-webrtc/",
-"build-y-websocket": "npx parcel build ./node_modules/y-websocket/src/y-websocket.js --no-source-maps --dist-dir ./dist/y-websocket/",
-"build-yjs": "npx parcel ./src/yjs/dist/yjs.cjs --no-source-maps --dist-dir ./dist/yjs/"

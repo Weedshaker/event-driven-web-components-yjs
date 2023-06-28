@@ -7,7 +7,7 @@ import * as Y from './dependencies/yjs.js'
  * Constructor options
  @typedef {{
   namespace?: string,
-  identifier?: string,
+  room?: string,
   websocketUrl?: string,
   webrtcUrl?: string
  }} options
@@ -47,7 +47,7 @@ import * as Y from './dependencies/yjs.js'
  * outgoing event
  @typedef {{
   yjs: Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>,
-  identifier: string,
+  room: Promise<string>,
  }} LoadEventDetail
 */
 
@@ -60,7 +60,7 @@ import * as Y from './dependencies/yjs.js'
   awareness: any,
   changes?: any,
   stateValues?: any,
-  identifier: string,
+  room: string,
  } & InitialUserValue} AwarenessUpdateChangeEventDetail
 */
 
@@ -82,7 +82,7 @@ import * as Y from './dependencies/yjs.js'
   arguments: any[],
   type: any,
   id?: string,
-  identifier: string
+  room: string
  }} DocResultEventDetail
 */
 
@@ -101,7 +101,7 @@ import * as Y from './dependencies/yjs.js'
   command: string,
   type: any,
   id?: string,
-  identifier: string
+  room: Promise<string>
  }} NewTypeResultEventDetail
 */
 
@@ -111,8 +111,15 @@ import * as Y from './dependencies/yjs.js'
   yjsEvent: any,
   type: any,
   id: string,
-  identifier: string
+  room: Promise<string>
  }} ObserveEventDetail
+*/
+
+/**
+ * ingoing event
+ @typedef {{
+  resolve: any;
+ }} GetProvidersEventDetail
 */
 
 /**
@@ -137,7 +144,7 @@ import * as Y from './dependencies/yjs.js'
   indexeddb: import("./dependencies/y-indexeddb"),
   indexeddbPersistence: import("./dependencies/y-indexeddb").IndexeddbPersistence,
   data: any,
-  identifier: string
+  room: Promise<string>
  }} IndexeddbSyncedEventDetail
 */
 
@@ -162,8 +169,20 @@ import * as Y from './dependencies/yjs.js'
  * ingoing event
  @typedef {{
   resolve: any,
- }} GetIdentifierEventDetail
+ }} GetRoomEventDetail
 */
+
+/**
+ * ingoing event
+ @typedef {{
+  room: string,
+ }} SetRoomEventDetail
+
+ /**
+ * outgoing event
+ @typedef {{
+  resolve: any,
+ }} RequestRoomEventDetail
 
 /* global HTMLElement */
 /* global document */
@@ -181,7 +200,7 @@ import * as Y from './dependencies/yjs.js'
 // Attribute {no-history} has don't write to the url with history.pushState
 // Attribute {no-blur} don't react with awareness on blur
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
-// Attribute {identifier} string is the room name at webrtc and websocket as well as the key for the indexeddb
+// Attribute {room} string is the room name at webrtc and websocket as well as the key for the indexeddb
 
 /**
  * EventDrivenYjs is a helper to bring the docs events into a truly event driven environment
@@ -193,16 +212,16 @@ import * as Y from './dependencies/yjs.js'
  */
 export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDrivenYjs extends ChosenHTMLElement {
   static get observedAttributes () {
-    return ['websocket-url', 'webrtc-url']
+    return ['websocket-url', 'webrtc-url', 'room']
   }
 
   /**
    * Creates an instance of EventDrivenYjs. The constructor will be called for every custom element using this class when initially created.
    *
-   * @param {options} [options = {namespace=undefined, identifier=undefined}]
+   * @param {options} [options = {namespace=undefined, room=undefined}]
    * @param {*} args
    */
-  constructor (options = { namespace: undefined, identifier: undefined }, ...args) {
+  constructor (options = { namespace: undefined, room: undefined }, ...args) {
     super(...args)
 
     this.url = new URL(location.href)
@@ -230,11 +249,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
-    // set attribute identifier
+    // set attribute room, which must be available at init/updateProvider and can only be set once
+    /** @type {(any)=>void} */
+    this.roomResolve = room => room
+    this.room = new Promise(resolve => (this.roomResolve = resolve))
     // @ts-ignore
-    if (this.url.searchParams.get('identifier')) this.identifier = this.url.searchParams.get('identifier')
-    else if (options.identifier) this.identifier = options.identifier
-    else if (!this.identifier) this.identifier = 'weedshakers-event-driven-web-components'
+    if (this.url.searchParams.get('room')) this.room = Promise.resolve(this.url.searchParams.get('room'))
+    else if (options.room) this.room = Promise.resolve(options.room)
+    // @ts-ignore
+    else if (this.hasAttribute('room')) this.room = Promise.resolve(this.getAttribute('room'))
 
     // set attribute websocket-url
     // @ts-ignore
@@ -273,28 +296,20 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
               yjsEvent,
               type,
               id: event.detail.id,
-              identifier: this.identifier,
+              room: this.room,
             }
           ))
         }
-        if (event.detail.resolve) {
-          return event.detail.resolve({
-            command: event.detail.command,
-            arguments: event.detail.arguments,
-            type,
-            id: event.detail.id
-          })
+        /** @type {DocResultEventDetail} */
+        const detail = {
+          command: event.detail.command,
+          arguments: event.detail.arguments,
+          type,
+          id: event.detail.id,
+          room: await this.room
         }
-        this.dispatch(`${this.namespace}doc-result`,
-          /** @type {DocResultEventDetail} */
-          {
-            command: event.detail.command,
-            arguments: event.detail.arguments,
-            type,
-            id: event.detail.id,
-            identifier: this.identifier,
-          }
-        )
+        if (event.detail.resolve) return event.detail.resolve(detail)
+        this.dispatch(`${this.namespace}doc-result`, detail)
         // use a separate controller regarding doc-actions on the above created type
       }
     }
@@ -311,7 +326,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           return event.detail.resolve({
             command: event.detail.command,
             type,
-            id: event.detail.id
+            id: event.detail.id,
+            room: this.room,
           })
         }
         this.dispatch(`${this.namespace}doc-result`,
@@ -320,7 +336,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             command: event.detail.command,
             type,
             id: event.detail.id,
-            identifier: this.identifier,
+            room: this.room,
           }
         )
         // use a separate controller regarding doc-actions on the above created type
@@ -337,12 +353,25 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {PopStateEvent} event
      */
     this.popstateEventListener = async event => {
+      const newUrl = new URL(location.href)
+      const oldRoom = this.url.searchParams.get('room')
+      if (!oldRoom && newUrl.searchParams.get('room')) this.roomResolve(newUrl.searchParams.get('room'))
       await this.yjs
       const oldWebsocketUrl = this.url.searchParams.get('websocket-url')
       const oldWebrtcUrl = this.url.searchParams.get('webrtc-url')
-      this.url = new URL(location.href)
+      this.url = newUrl
       if (oldWebsocketUrl !== this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url') || ''
       if (oldWebrtcUrl !== this.url.searchParams.get('webrtc-url')) this.webrtcUrl = this.url.searchParams.get('webrtc-url') || ''
+    }
+
+    /**
+     * setAttribute webrtc-url & websocket-url through event
+     *
+     * @param {any & {detail: GetProvidersEventDetail}} event
+     */
+    this.getProvidersEventListener = async event => {
+      await this.yjs
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(this.providers)
     }
 
     /**
@@ -368,19 +397,17 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       /** @type {import("./dependencies/y-indexeddb")} */
       const indexeddb = await import('./dependencies/y-indexeddb.js')
       /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
-      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(this.identifier, doc)
+      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(await this.room, doc)
       indexeddbPersistence.whenSynced.then(data => {
+        /** @type {IndexeddbSyncedEventDetail} */
         const detail = {
           indexeddb,
           indexeddbPersistence,
           data,
-          identifier: this.identifier,
+          room: this.room,
         }
         if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
-        this.dispatch(`${this.namespace}indexeddb-synced`,
-          /** @type {IndexeddbSyncedEventDetail} */
-          detail
-        )
+        this.dispatch(`${this.namespace}indexeddb-synced`, detail)
       })
     }
 
@@ -421,13 +448,20 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         })
       }
     }
+
+    /**
+     * set the room
+     *
+     * @param {any & {detail: SetRoomEventDetail}} event
+     */
+    this.setRoomEventListener = event => this.roomResolve(event.detail.room)
   
     /**
-     * deliver the identifier
+     * deliver the room
      *
-     * @param {any & {detail: GetIdentifierEventDetail}} event
+     * @param {any & {detail: GetRoomEventDetail}} event
      */
-    this.getIdentifierEventListener = event => event.detail.resolve(this.identifier)
+    this.getRoomEventListener = event => event.detail.resolve(this.room)
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected
@@ -474,6 +508,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   async updateProviders (doc, name) {
     if (!doc) doc = (await this.yjs).doc
+    const room = await this.room
 
     if (!name || name === 'websocket-url') {
       /** @type {Map<string, ProviderTypes>} */
@@ -486,7 +521,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           if (websocketMap.has(websocketUrl)) {
             websocketMap.get(websocketUrl)?.connect()
           } else {
-            websocketMap.set(websocketUrl, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl), this.identifier, doc))
+            websocketMap.set(websocketUrl, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl), room, doc))
           }
         })
         websocketMap.forEach(
@@ -518,7 +553,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         } else {
           /** @type {import("./dependencies/y-webrtc")} */
           const webrtc = await import('./dependencies/y-webrtc.js')
-          webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(this.identifier, doc,
+          webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
             {
               signaling: this.webrtcUrl.split(',').filter(url => url).map(url => self.decodeURIComponent(url))
             }
@@ -539,7 +574,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         } else {
           /** @type {import("./dependencies/y-p2pt")} */
           const p2pt = await import('./dependencies/y-p2pt.js')
-          p2ptMap.set('p2pt', new p2pt.P2ptProvider(this.identifier, doc))
+          p2ptMap.set('p2pt', new p2pt.P2ptProvider(room, doc))
         }
       } else if (p2ptMap.has('p2pt')) {
         p2ptMap.get('p2pt')?.disconnect()
@@ -549,8 +584,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     /** @type {InitialUserValue} */
     const initialUserValue = {
       epoch: this.epoch,
-      sessionEpoch: this.sessionEpoch,
-      localEpoch: this.localEpoch,
+      sessionEpoch: await this.getEpochStorage('session'),
+      localEpoch: await this.getEpochStorage('local'),
       fingerprint: await this.fingerprint
     }
 
@@ -569,7 +604,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         provider,
         name,
         url,
-        identifier: this.identifier,
+        room,
         awareness: provider.awareness,
         ...initialUserValue
       }
@@ -580,8 +615,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         {
           ...detail,
           changes,
-          stateValues: Array.from(provider.awareness.getStates().values()),
-          identifier: this.identifier
+          stateValues: Array.from(provider.awareness.getStates().values())
         }
       ))
       provider.awareness.on('change', changes => this.dispatch(`${this.namespace}${name}-awareness-change`,
@@ -589,8 +623,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         {
           ...detail,
           changes,
-          stateValues: Array.from(provider.awareness.getStates().values()),
-          identifier: this.identifier
+          stateValues: Array.from(provider.awareness.getStates().values())
         }
       ))
       // set the initial user local state field
@@ -621,11 +654,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   connectedCallback () {
     this.addEventListener(`${this.namespace}doc`, this.docEventListener)
     this.addEventListener(`${this.namespace}api`, this.newTypeEventListener)
+    this.addEventListener(`${this.namespace}get-providers`, this.getProvidersEventListener)
     this.addEventListener(`${this.namespace}update-providers`, this.updateProvidersEventListener)
     this.addEventListener(`${this.namespace}load-indexeddb`, this.loadIndexeddbEventListener)
     this.addEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
-    this.addEventListener(`${this.namespace}get-identifier`, this.getIdentifierEventListener)
+    this.addEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
+    this.addEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
     this.focusEventListener()
     self.addEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
@@ -636,7 +671,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       /** @type {LoadEventDetail} */
       {
         yjs: this.yjs,
-        identifier: this.identifier
+        room: this.room
+      }
+    )
+    if (!this.room) this.dispatch(`${this.namespace}-request-room`,
+      /** @type {RequestRoomEventDetail} */
+      {
+        resolve: this.roomResolve
       }
     )
   }
@@ -649,11 +690,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   disconnectedCallback () {
     this.removeEventListener(`${this.namespace}doc`, this.docEventListener)
     this.removeEventListener(`${this.namespace}api`, this.newTypeEventListener)
+    this.removeEventListener(`${this.namespace}get-providers`, this.getProvidersEventListener)
     this.removeEventListener(`${this.namespace}update-providers`, this.updateProvidersEventListener)
     this.removeEventListener(`${this.namespace}load-indexeddb`, this.loadIndexeddbEventListener)
     this.removeEventListener(`${this.namespace}set-local-state`, this.setLocalStateEventListener)
     this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
-    this.removeEventListener(`${this.namespace}get-identifier`, this.getIdentifierEventListener)
+    this.removeEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
+    this.removeEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
     this.blurEventListener()
     self.removeEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
@@ -663,13 +706,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   attributeChangedCallback (name, oldValue, newValue) {
-    if (oldValue && oldValue !== newValue && (name === 'websocket-url' || name === 'webrtc-url')) {
+    if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue && oldValue !== newValue) {
       const oldParam = this.url.searchParams.get(name)
       if (!this.hasAttribute('no-history') && oldParam !== newValue) {
         this.url.searchParams.set(name, newValue)
         history.pushState(history.state, document.title, this.url.href)
       }
       this.updateProviders(undefined, name)
+    } else if (name === 'room' && !oldValue && newValue) {
+      this.roomResolve(newValue)
     }
   }
 
@@ -709,21 +754,24 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
-   * The identifier is used as the room name
+   * The room is used as the room name
    * priority of value appliance: url param, options, attribute
    *
-   * @param {string} value
+   * @param {Promise<string>} value
    */
-  set identifier (value) {
-    if (value) this.setAttribute('identifier', value)
+  set room (value) {
+    this._room = value
+    value.then(room => {
+      if (room) this.setAttribute('room', room)
+    })
   }
 
   /**
-   * @return {string}
+   * @return {Promise<string>}
    */
-  get identifier () {
+  get room () {
     // @ts-ignore
-    return this.getAttribute('identifier')
+    return this._room
   }
 
   /**
@@ -782,25 +830,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
-   * @return {number}
-   */
-  get sessionEpoch () {
-    return this._sessionEpoch || (this._sessionEpoch = this.getEpochStorage('session'))
-  }
-
-  /**
-   * @return {number}
-   */
-  get localEpoch () {
-    return this._localEpoch || (this._localEpoch = this.getEpochStorage('local'))
-  }
-
-  /**
    * @param {'session' | 'local'} name
-   * @return {number}
+   * @return {Promise<number>}
    */
-  getEpochStorage (name) {
-    const key = `${this.namespace}${this.identifier}-${name}-epoch`
+  async getEpochStorage (name) {
+    const key = `${this.namespace}${await this.room}-${name}-epoch`
     let epoch = Number(self[`${name}Storage`].getItem(key))
     if (epoch) return epoch
     self[`${name}Storage`].setItem(key, String(epoch = this.epoch))

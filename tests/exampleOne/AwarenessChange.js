@@ -16,7 +16,7 @@ export default class AwarenessChange extends HTMLElement {
             word-break: break-all;
             margin-bottom: 1em;
           }
-          :host .username {
+          :host .nickname {
             color: blue;
             font-weight: bold;
           }
@@ -35,7 +35,7 @@ export default class AwarenessChange extends HTMLElement {
       stateValues.forEach((stateValue, url) => (ul.innerHTML += `<li>${url}:<br>${
         stateValue
           .replace(/},/g, '},<br><br>')
-          .replace(/"username":"(.*?)"/g, '<span class=username>"username":"$1"</span>')
+          .replace(/"nickname":"(.*?)"/g, '<span class=nickname>"nickname":"$1"</span>')
           .replace(new RegExp(`"fingerprint":(${event.detail.fingerprint})`, 'g'), '<span class=self>"own-fingerprint":$1</span>')
           .replace(new RegExp(`"localEpoch":(${event.detail.localEpoch})`, 'g'), '<span class=certainly-self>"own-localEpoch":$1</span>')
       }</li>`))
@@ -45,27 +45,27 @@ export default class AwarenessChange extends HTMLElement {
 
   connectedCallback () {
     document.body.addEventListener(`yjs-${this.getAttribute('key') || 'websocket'}-awareness-change`, this.eventListener)
-    new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-identifier', {
+    new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-room', {
       detail: {
         resolve
       },
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(identifier => {
-      let username = 'no-name'
+    }))).then(room => {
+      let nickname = 'no-name'
       this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
         /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */
         detail: {
           value: {
-            username: (username = self.localStorage.getItem(identifier + '-username') || self.prompt('username') || username)
+            nickname: (nickname = self.localStorage.getItem(room + '-nickname') || self.prompt('nickname') || nickname)
           }
         },
         bubbles: true,
         cancelable: true,
         composed: true
       }))
-      self.localStorage.setItem(identifier + '-username', username)
+      self.localStorage.setItem(room + '-nickname', nickname)
     })
   }
 
