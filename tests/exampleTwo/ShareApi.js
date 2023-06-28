@@ -41,7 +41,10 @@ export default class ShareApi extends HTMLElement {
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(async ({ room }) => (this.shadowRoot.querySelector('#room-name').textContent = await room))
+    }))).then(async ({ room }) => {
+      this.shadowRoot.querySelector('#room-name').textContent = await room
+      document.title = await room
+    })
   }
 
   disconnectedCallback () {
