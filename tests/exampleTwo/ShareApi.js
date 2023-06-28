@@ -12,10 +12,13 @@ export default class ShareApi extends HTMLElement {
         :host > button {
           cursor: pointer;
           padding: 0.5em 1em;
-          font-size: 20px;
+          font-size: 1.2em;
+        }
+        :host > button > #room-name {
+          font-size: 0.8em;
         }
       </style>
-      <button>${this.textContent} 💌</button>
+      <button>💌<br>${this.textContent} 👉 [<span id=room-name></span>]</button>
     `
     this.eventListener = async event => {
       try {
@@ -24,13 +27,21 @@ export default class ShareApi extends HTMLElement {
           url: location.href
         })
       } catch (err) {
-        alert(`share this link 👉 ${location.href}`)
+        alert(`use this link 👉 ${location.href}`)
       }
     }
   }
 
   connectedCallback () {
     this.addEventListener('click', this.eventListener)
+    new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-room', {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))).then(async ({ room }) => (this.shadowRoot.querySelector('#room-name').textContent = await room))
   }
 
   disconnectedCallback () {

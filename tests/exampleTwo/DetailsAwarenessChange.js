@@ -12,7 +12,7 @@ export default class DetailsAwarenessChange extends HTMLElement {
         }
       </style>
       <details>
-        <summary>Active Users</summary>
+        <summary>Directly connected Users</summary>
         <yjs-awareness-change></yjs-awareness-change>
       </details>
     `
@@ -25,7 +25,7 @@ export default class DetailsAwarenessChange extends HTMLElement {
           return (prev += curr.user.localEpoch !== event.detail.localEpoch ? 1 : 0)
         }, 0)
       })
-      this.shadowRoot.querySelector('summary').innerHTML = `Active Users: ${length < 1 ? '<span class=warning>You are alone!</span>' : length}`
+      this.shadowRoot.querySelector('summary').innerHTML = `Directly connected Users: ${length < 1 ? '<span class=warning>You are alone!</span>' : length}`
     }
   }
 
