@@ -1,5 +1,6 @@
 /* global HTMLElement */
 /* global CustomEvent */
+/* global self */
 
 export default class Input extends HTMLElement {
   constructor (...args) {
@@ -39,14 +40,14 @@ export default class Input extends HTMLElement {
       }))
     }
     this.clickEventListener = event => {
-      if(event.composedPath()[0].getAttribute('id') === 'peer-web-site') self.open('https://peerweb.site/')
+      if (event.composedPath()[0].getAttribute('id') === 'peer-web-site') self.open('https://peerweb.site/')
     }
   }
 
   connectedCallback () {
     this.shadowRoot.addEventListener('change', this.changeEventListener)
     this.shadowRoot.addEventListener('click', this.clickEventListener)
-    self.addEventListener("message", event => {
+    self.addEventListener('message', event => {
       this.shadowRoot.querySelector('input').value = `<a href="${event.data.href}" target="_blank">👉 ${event.data.title} 👈 <span class=peer-web-site>(temporary hosted media content @peerweb.site)</span></a>`
       this.changeEventListener(undefined, this.shadowRoot.querySelector('input'))
     })

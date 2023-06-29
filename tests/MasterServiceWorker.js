@@ -20,9 +20,9 @@ class MasterServiceWorker {
   }
 
   run () {
-    //this.addInstallEventListener()
-    //this.addActivateEventListener()
-    //this.addFetchEventListener()
+    // this.addInstallEventListener()
+    // this.addActivateEventListener()
+    // this.addFetchEventListener()
     this.addMessageChannelEventListener()
   }
 
@@ -74,29 +74,29 @@ class MasterServiceWorker {
     )
   }
 
-  addMessageChannelEventListener() {
+  addMessageChannelEventListener () {
     // Notify 24h after last document.visibilityState === 'visible'
-		self.addEventListener('message', event => {
+    self.addEventListener('message', event => {
       let data = null
       try {
         data = JSON.parse(event.data) || null
       } catch (e) {
-        return data = null
+        return (data = null)
       }
       if (data.visibilityState === 'visible') return
       clearTimeout(this.messageTimeoutId)
       this.messageTimeoutId = setTimeout(() => {
         self.registration.showNotification(`decentral chat user ${data.nickname} wrote:`, {
           body: data.text,
-          /*icon: `${location.origin}/img/android-icon-192x192.png`,
-          badge: `${location.origin}/img/android-icon-96x96.png`,*/
+          /* icon: `${location.origin}/img/android-icon-192x192.png`,
+          badge: `${location.origin}/img/android-icon-96x96.png`, */
           lang: navigator.language,
           requireInteraction: true,
           vibrate: [300, 100, 400]
         })
       }, 1000)
-		})
-	}
+    })
+  }
 
   async getCache (event) {
     return caches.match(event.request)

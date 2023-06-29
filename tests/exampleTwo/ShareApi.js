@@ -1,6 +1,8 @@
 /* global HTMLElement */
 /* global location */
 /* global alert */
+/* global self */
+/* global CustomEvent */
 
 export default class ShareApi extends HTMLElement {
   constructor (...args) {
@@ -29,7 +31,7 @@ export default class ShareApi extends HTMLElement {
       <button id=qr>&#9783;<br>generate a qr code</button>
     `
     this.eventListener = async event => {
-      if(event.composedPath()[0].getAttribute('id') === 'share') {
+      if (event.composedPath()[0].getAttribute('id') === 'share') {
         try {
           await navigator.share({
             title: document.title,
@@ -38,9 +40,9 @@ export default class ShareApi extends HTMLElement {
         } catch (err) {
           alert(`use this link 👉 ${location.href}`)
         }
-      } else if(event.composedPath()[0].getAttribute('id') === 'qr') {
-        self.open(`https://api.qrserver.com/v1/create-qr-code/?data="${location.href}"`)
-      } else if(event.composedPath()[0].getAttribute('id') === 'reload') {
+      } else if (event.composedPath()[0].getAttribute('id') === 'qr') {
+        self.open(`https://api.qrserver.com/v1/create-qr-code/?data="${self.encodeURIComponent(location.href)}"`)
+      } else if (event.composedPath()[0].getAttribute('id') === 'reload') {
         self.open(location.origin + location.pathname)
       }
     }

@@ -1,4 +1,5 @@
 /* global HTMLElement */
+/* global self */
 
 export default class YjsChatUpdate extends HTMLElement {
   constructor (...args) {
@@ -46,7 +47,7 @@ export default class YjsChatUpdate extends HTMLElement {
     this.shadowRoot.appendChild(ul)
     this.timeoutID = null
     this.eventListener = event => {
-      const isScrolledBottom = this.scrollHeight < this.scrollTop +  this.offsetHeight + 200 /* tollerance */
+      const isScrolledBottom = this.scrollHeight < this.scrollTop + this.offsetHeight + 200 /* tollerance */
       let lastEntryIsSelf = false
       let lastMessage = null
       ul.innerHTML = ''
@@ -59,11 +60,13 @@ export default class YjsChatUpdate extends HTMLElement {
         if (chat.length === i + 1) lastMessage = entry
       })
       if (lastEntryIsSelf || isScrolledBottom) this.scroll(0, this.scrollHeight)
-      if (this.registration && !lastEntryIsSelf) this.registration.active.postMessage(`{
+      if (lastMessage && this.registration && !lastEntryIsSelf) {
+        this.registration.active.postMessage(`{
         "nickname": "${lastMessage.nickname}",
         "text": "${lastMessage.text}",
         "visibilityState": "${document.visibilityState}"
       }`)
+      }
     }
   }
 
@@ -75,12 +78,12 @@ export default class YjsChatUpdate extends HTMLElement {
       // Service Worker
       this.registration = null
       navigator.serviceWorker.register('./MasterServiceWorker.js', { scope: './' }).then(registration => {
-        Notification.requestPermission(result => {
-          if (result === "granted") this.registration = registration
+        self.Notification.requestPermission(result => {
+          if (result === 'granted') this.registration = registration
         })
         registration.update()
       }).catch(error => console.error(error))
-    }, 3000);
+    }, 3000)
   }
 
   disconnectedCallback () {
