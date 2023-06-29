@@ -20,6 +20,7 @@ export default class Input extends HTMLElement {
           cursor: pointer;
           flex-grow: 1;
           min-height: 100%;
+          word-break: break-all;
         }
         :host > button#peer-web-site {
           flex-grow: 2;

@@ -376,7 +376,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.getProvidersEventListener = async event => {
       await this.yjs
-      if (event && event.detail && event.detail.resolve) return event.detail.resolve(this.providers)
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve({
+        providers: this.providers,
+        websocketUrl: this.websocketUrl,
+        webrtcUrl: this.webrtcUrl
+      })
     }
 
     /**
