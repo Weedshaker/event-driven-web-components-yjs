@@ -25,7 +25,8 @@ at forks, clones or any reuse of code the right to place three links on each sli
 Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## TODO:
-- [ ] User controller including connected ProviderNames + urls on user props
+- [ ] own heroku webrtc testing
+- [ ] User controller with CRDT User object including connected ProviderNames + urls on user props
 - [ ] User controller if not connected offer to connect to other urls max. 2 per socket
 
 

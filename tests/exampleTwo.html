@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
   <title>YJS Event Driven Example Two (chat)</title>
 </head>
 <body>
@@ -12,18 +13,18 @@
         <header>
           <yjs-share-api>share this room:</yjs-share-api>
           <hr>
-          <details>
-            <summary>IndexedDB Sync Status</summary>
-            <yjs-indexeddb-synced></yjs-indexeddb-synced>
-          </details>
-          <hr>
-          <yjs-details-awareness-change></yjs-details-awareness-change>
-          <hr>
         </header>
         <yjs-chat-update></yjs-chat-update>
         <footer>
-          <input placeholder="type your message..." style="height: 3em; width: 70%"></input><button style="padding: 1em; width: 25%">send</button>
-          <br><code>v.0.0.5</code>
+          <yjs-input></yjs-input>
+          <details>
+            <summary><code>v.0.0.0</code></summary>
+            <details>
+              <summary>IndexedDB Sync Status</summary>
+              <yjs-indexeddb-synced></yjs-indexeddb-synced>
+            </details>
+            <yjs-details-awareness-change></yjs-details-awareness-change>
+          </details>
         </footer>
       </div>
     </c-yjs-chat>
@@ -49,6 +50,9 @@
     .flex > header {
       text-align: center;
     }
+    .flex > footer > details {
+      font-size: 0.7em;
+    }
     .flex > yjs-chat-update {
       overflow-y: scroll;
     }
@@ -60,7 +64,8 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '005'
+    const version = '006'
+    document.querySelector('code').textContent = version.split('').join('.')
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
@@ -69,6 +74,7 @@
       import(`./exampleTwo/DetailsAwarenessChange.js?${version}`).then(module => ['yjs-details-awareness-change', module.default]),
       import(`./exampleTwo/YjsChatUpdate.js?${version}`).then(module => ['yjs-chat-update', module.default]),
       import(`./exampleTwo/ShareApi.js?${version}`).then(module => ['yjs-share-api', module.default]),
+      import(`./exampleTwo/Input.js?${version}`).then(module => ['yjs-input', module.default]),
     ]).then(elements => elements.forEach(element => {
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)

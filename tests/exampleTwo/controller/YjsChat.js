@@ -16,8 +16,8 @@ export default class YjsChat extends HTMLElement {
         composed: true
       }))
     }
-    this.changeEventListener = async event => {
-      const input = event.composedPath()[0]
+    this.inputEventListener = async event => {
+      const input = event.detail.input
       if (input.value) {
         (await this.array).push([{
           nickname: await this.nickname,
@@ -36,7 +36,7 @@ export default class YjsChat extends HTMLElement {
   }
 
   connectedCallback () {
-    this.addEventListener('change', this.changeEventListener)
+    this.addEventListener('yjs-input', this.inputEventListener)
     document.body.addEventListener('yjs-chat-observe', this.observeEventListener)
     this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-doc', {
       detail: {
@@ -57,7 +57,7 @@ export default class YjsChat extends HTMLElement {
   }
 
   disconnectedCallback () {
-    this.removeEventListener('change', this.changeEventListener)
+    this.removeEventListener('yjs-input', this.inputEventListener)
     document.body.removeEventListener('yjs-map-change', this.observeEventListener)
   }
 }

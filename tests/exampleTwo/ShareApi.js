@@ -9,25 +9,39 @@ export default class ShareApi extends HTMLElement {
     this.attachShadow({ mode: 'open' })
     this.shadowRoot.innerHTML = `
       <style>
+        :host {
+          display: flex;
+          align-items: stretch;
+          gap: 0.3em;
+        }
         :host > button {
           cursor: pointer;
-          padding: 0.5em 1em;
-          font-size: 1.2em;
+          flex-grow: 1;
+          min-height: max(3em, 100%);
         }
         :host > button > #room-name {
           font-size: 0.8em;
         }
       </style>
-      <button>💌<br>${this.textContent} 👉 [<span id=room-name></span>]</button>
+      <iframe class="gh-button" src="https://ghbtns.com/github-btn.html?user=Weedshaker&amp;repo=event-driven-web-components-yjs&amp;type=star&amp;count=true&amp;size=large" scrolling="0" width="130px" height="30px" frameborder="0"></iframe>
+      <button id=reload>&#9842;<br>new room</button>
+      <button id=share>💌<br>${this.textContent} [<span id=room-name></span>]</button>
+      <button id=qr>&#9783;<br>generate a qr code</button>
     `
     this.eventListener = async event => {
-      try {
-        await navigator.share({
-          title: document.title,
-          url: location.href
-        })
-      } catch (err) {
-        alert(`use this link 👉 ${location.href}`)
+      if(event.composedPath()[0].getAttribute('id') === 'share') {
+        try {
+          await navigator.share({
+            title: document.title,
+            url: location.href
+          })
+        } catch (err) {
+          alert(`use this link 👉 ${location.href}`)
+        }
+      } else if(event.composedPath()[0].getAttribute('id') === 'qr') {
+        self.open(`https://api.qrserver.com/v1/create-qr-code/?data="${location.href}"`)
+      } else if(event.composedPath()[0].getAttribute('id') === 'reload') {
+        self.open(location.origin + location.pathname)
       }
     }
   }
