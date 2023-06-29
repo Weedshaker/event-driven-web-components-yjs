@@ -9,9 +9,6 @@ export default class YjsChatUpdate extends HTMLElement {
     const ul = document.createElement('ul')
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          -webkit-mask-image: -webkit-gradient(linear, left 15%, left top, from(rgba(0,0,0,1)), to(rgba(0,0,0,0)));
-        }
         :host > ul {
           margin: 0;
           padding: 0;
