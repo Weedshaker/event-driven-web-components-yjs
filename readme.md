@@ -26,6 +26,7 @@ Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## TODO:
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
+- [ ] providers map by room + url as key to allow connect disconnect with different room
 - [ ] own heroku webrtc testing
 - [ ] User controller with CRDT User object including connected ProviderNames + urls on user props
 - [ ] User controller if not connected offer to connect to other urls max. 2 per socket
