@@ -26,6 +26,13 @@ import * as Y from './dependencies/yjs.js'
 */
 
 /**
+ * Provider attribute names
+ @typedef {
+  'websocket-url' | 'webrtc-url' | 'p2pt'
+ } ProviderAttributeNames
+*/
+
+/**
  * Provider container
  @typedef {
   Map<ProviderNames, Map<string, ProviderTypes>>
@@ -199,6 +206,7 @@ import * as Y from './dependencies/yjs.js'
 // Attribute {indexeddb} has use indexeddb
 // Attribute {p2pt} has use p2pt
 // Attribute {no-history} has don't write to the url with history.pushState
+// Attribute {no-url-params} has don't use the url params
 // Attribute {no-blur} don't react with awareness on blur
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
 // Attribute {room} string is the room name at webrtc and websocket as well as the key for the indexeddb
@@ -255,7 +263,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.roomResolve = room => room
     this.room = new Promise(resolve => (this.roomResolve = resolve))
     // @ts-ignore
-    if (this.url.searchParams.get('room')) this.room = Promise.resolve(this.url.searchParams.get('room'))
+    if (!this.hasAttribute('no-url-params') && this.url.searchParams.get('room')) this.room = Promise.resolve(this.url.searchParams.get('room'))
     else if (options.room) this.room = Promise.resolve(options.room)
     // @ts-ignore
     else if (this.hasAttribute('room')) this.room = Promise.resolve(this.getAttribute('room'))
@@ -266,20 +274,20 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     // set attribute websocket-url
     // @ts-ignore
-    if (this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url')
+    if (!this.hasAttribute('no-url-params') && this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url')
     else if (options.websocketUrl) this.websocketUrl = options.websocketUrl
     else if (!this.websocketUrl && (
-      this.url.searchParams.has('websocket-url') ||
+      (!this.hasAttribute('no-url-params') && this.url.searchParams.has('websocket-url')) ||
       Object.hasOwnProperty.call(options, 'websocketUrl') ||
       this.hasAttribute('websocket-url')
     )) this.websocketUrl = 'wss://demos.yjs.dev'
 
     // set attribute webrtc-url
     // @ts-ignore
-    if (this.url.searchParams.get('webrtc-url')) this.webrtcUrl = this.url.searchParams.get('webrtc-url')
+    if (!this.hasAttribute('no-url-params') && this.url.searchParams.get('webrtc-url')) this.webrtcUrl = this.url.searchParams.get('webrtc-url')
     else if (options.webrtcUrl) this.webrtcUrl = options.webrtcUrl
     else if (!this.webrtcUrl && (
-      this.url.searchParams.has('webrtc-url') ||
+      (!this.hasAttribute('no-url-params') && this.url.searchParams.has('webrtc-url')) ||
       Object.hasOwnProperty.call(options, 'webrtcUrl') ||
       this.hasAttribute('webrtc-url')
     )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
@@ -659,6 +667,52 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
+   * sets all providers (related attributes) to empty strings
+   *
+   * @return {void}
+   */
+  disconnectAllProviders () {
+    /**
+     * @param {ProviderAttributeNames} name
+     * @param {Map<ProviderAttributeNames, string | null>} memory
+     * @return {Map<ProviderAttributeNames, string | null>}
+     */
+    const removeAttributes = (name, memory) => {
+      if (this.hasAttribute(name)) {
+        memory.set(name, this.getAttribute(name))
+        this.removeAttribute(name)
+      }
+      return memory
+    }
+    /** @type {Map<ProviderAttributeNames, string | null>} */
+    this.removedAttributes = new Map()
+    removeAttributes('p2pt', this.removedAttributes)
+    removeAttributes('websocket-url', this.removedAttributes)
+    removeAttributes('webrtc-url', this.removedAttributes)
+    this.updateProviders()
+  }
+
+  /**
+   * recovers all providers
+   *
+   * @return {void}
+   */
+  reconnectAllProviders () {
+    if (!this.removedAttributes) return
+    this.removedAttributes.forEach(
+      /**
+       * @param {string | null} value
+       * @param {ProviderAttributeNames} name
+       */
+      (value, name) => {
+        if (!this.hasAttribute(name)) this.setAttribute(name, value || '')
+      }
+    )
+    delete this.removedAttributes
+    this.updateProviders()
+  }
+
+  /**
    * Lifecycle callback, triggered when node is attached to the dom
    *
    * @return {void}
@@ -695,6 +749,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         }
       )
     }
+    this.reconnectAllProviders()
   }
 
   /**
@@ -718,10 +773,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     self.removeEventListener('beforeunload', this.blurEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
     document.body.removeAttribute(`${this.namespace}load`)
+    this.disconnectAllProviders()
   }
 
   attributeChangedCallback (name, oldValue, newValue) {
-    if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue && oldValue !== newValue) {
+    if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue && newValue && oldValue !== newValue) {
       this.pushState(name, newValue)
       this.updateProviders(undefined, name)
     } else if (name === 'room' && !oldValue && newValue) {
