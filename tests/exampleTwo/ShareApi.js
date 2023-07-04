@@ -3,6 +3,8 @@
 /* global alert */
 /* global self */
 /* global CustomEvent */
+/* global confirm */
+/* global prompt */
 
 export default class ShareApi extends HTMLElement {
   constructor (...args) {
@@ -59,23 +61,27 @@ export default class ShareApi extends HTMLElement {
           composed: true
         }))).then(async ({ websocketUrl, webrtcUrl }) => {
           const newWebsocketUrls = prompt('websocketUrls separated with a "," and no spaces in between', websocketUrl || '')
-          if (newWebsocketUrls && newWebsocketUrls !== websocketUrl) this.dispatchEvent(new CustomEvent('yjs-update-providers', {
-            detail: {
-              websocketUrl: newWebsocketUrls
-            },
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }))
+          if (newWebsocketUrls && newWebsocketUrls !== websocketUrl) {
+            this.dispatchEvent(new CustomEvent('yjs-update-providers', {
+              detail: {
+                websocketUrl: newWebsocketUrls
+              },
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }))
+          }
           const newWebrtcUrls = prompt('webrtcUrls separated with a "," and no spaces in between', webrtcUrl || '')
-          if (newWebrtcUrls && newWebrtcUrls !== webrtcUrl) this.dispatchEvent(new CustomEvent('yjs-update-providers', {
-            detail: {
-              webrtcUrl: newWebrtcUrls
-            },
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }))
+          if (newWebrtcUrls && newWebrtcUrls !== webrtcUrl) {
+            this.dispatchEvent(new CustomEvent('yjs-update-providers', {
+              detail: {
+                webrtcUrl: newWebrtcUrls
+              },
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }))
+          }
         })
       }
     }
