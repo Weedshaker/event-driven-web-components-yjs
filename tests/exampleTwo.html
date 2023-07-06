@@ -66,7 +66,7 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '009'
+    const version = '0010'
     document.querySelector('code').textContent = version.split('').join('.')
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),

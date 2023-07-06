@@ -27,7 +27,7 @@ export default class YjsArray extends HTMLElement {
     this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-doc', {
       detail: {
         command: 'getArray',
-        arguments: 'count',
+        arguments: ['count'],
         observe: 'yjs-array-change',
         resolve
       },

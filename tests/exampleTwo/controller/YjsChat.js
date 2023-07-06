@@ -41,7 +41,7 @@ export default class YjsChat extends HTMLElement {
     this.array = new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-doc', {
       detail: {
         command: 'getArray',
-        arguments: 'chat',
+        arguments: ['chat-test-1'],
         observe: 'yjs-chat-observe',
         resolve
       },

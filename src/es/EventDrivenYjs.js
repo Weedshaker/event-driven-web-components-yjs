@@ -78,6 +78,7 @@ import * as Y from './dependencies/yjs.js'
   arguments: any[],
   resolve?: any,
   observe?: boolean | string,
+  observeDeep?: boolean,
   id?: string
  }} DocEventDetail
 */
@@ -301,9 +302,17 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.docEventListener = async event => {
       if (event.detail.command && typeof event.detail.command === 'string') {
         const yjs = await this.yjs
-        const type = yjs.doc[event.detail.command](...event.detail?.arguments)
+        if (['getMap', 'getArray', 'getText', 'getXmlFragment'].includes(event.detail.command)) {
+          if (!Array.isArray(event.detail.arguments)) return console.error('EventDrivenYjs expects an arguments array with the command string at [0]', event.detail.arguments)
+          // namespace the yjs objects name with the room name
+          event.detail.arguments[0] = `${await this.room}-${event.detail?.arguments[0]}`
+        }
+        const type = yjs.doc[event.detail.command](...event.detail.arguments)
         if (event.detail.observe) {
-          type.observe(yjsEvent => this.dispatch(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`,
+          type[event.detail.observeDeep
+            ? 'observeDeep'
+            : 'observe'
+          ](yjsEvent => this.dispatch(typeof event.detail.observe === 'string' ? event.detail.observe : `${this.namespace}observe`,
             /** @type {ObserveEventDetail} */
             {
               yjsEvent,
@@ -335,23 +344,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.newTypeEventListener = event => {
       if (event.detail.command && typeof event.detail.command === 'string') {
         const type = new Y[event.detail.command]()
-        if (event.detail.resolve) {
-          return event.detail.resolve({
-            command: event.detail.command,
-            type,
-            id: event.detail.id,
-            room: this.room
-          })
+        /** @type {NewTypeResultEventDetail} */
+        const detail = {
+          command: event.detail.command,
+          type,
+          id: event.detail.id,
+          room: this.room
         }
-        this.dispatch(`${this.namespace}doc-result`,
-          /** @type {NewTypeResultEventDetail} */
-          {
-            command: event.detail.command,
-            type,
-            id: event.detail.id,
-            room: this.room
-          }
-        )
+        if (event.detail.resolve) return event.detail.resolve(detail)
+        this.dispatch(`${this.namespace}doc-result`, detail)
         // use a separate controller regarding doc-actions on the above created type
       }
     }
@@ -552,7 +553,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            * @param {string} url
            */
           (provider, url) => {
-            if (!this.websocketUrl.includes(url)) provider.disconnect()
+            if (!this.websocketUrl.includes(url)) provider?.disconnect()
           }
         )
       } else {
@@ -560,7 +561,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           /**
            * @param {ProviderTypes} provider
            */
-          provider => provider.disconnect()
+          provider => provider?.disconnect()
         )
       }
     }
