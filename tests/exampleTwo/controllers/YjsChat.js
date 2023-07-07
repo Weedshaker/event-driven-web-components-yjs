@@ -52,7 +52,6 @@ export default class YjsChat extends HTMLElement {
       this.observeEventListener({ detail: { type: result.type } })
       return result.type
     })
-    // todo: a proper user controller to which can be listened here
     document.body.addEventListener('yjs-set-local-state-field', this.nicknameEventListener, { once: true })
   }
 

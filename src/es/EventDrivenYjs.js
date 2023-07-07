@@ -45,7 +45,8 @@ import * as Y from './dependencies/yjs.js'
   epoch: string,
   sessionEpoch: string,
   localEpoch: string,
-  fingerprint: string
+  fingerprint: string,
+  uid: string
   }} InitialUserValue
 */
 
@@ -67,7 +68,7 @@ import * as Y from './dependencies/yjs.js'
   awareness: any,
   changes?: any,
   stateValues?: any,
-  room: string,
+  room: string
  } & InitialUserValue} AwarenessUpdateChangeEventDetail
 */
 
@@ -609,7 +610,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       epoch: this.epoch,
       sessionEpoch: await this.getEpochStorage('session'),
       localEpoch: await this.getEpochStorage('local'),
-      fingerprint: await this.fingerprint
+      fingerprint: await this.fingerprint,
+      uid: JSON.stringify({...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint})
     }
 
     /**
@@ -905,7 +907,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       document.head.appendChild(script)
       // @ts-ignore
       return (new self.ClientJS()).getFingerprint()
-    }))
+    }).catch(error => 'no-fingerprint'))
   }
 
   /**
