@@ -28,17 +28,26 @@ export default class AwarenessChange extends HTMLElement {
             color: green;
             font-weight: bold;
           }
+          :host .certainly-self::after {
+            color: black;
+            content: ' <- this is your own user';
+            font-weight: normal;
+            text-decoration: underline;
+          }
         </style>
         Awareness on ${this.getAttribute('key') || 'websocket'} changed with stateValues:
       `
       const ul = document.createElement('ul')
-      stateValues.forEach((stateValue, url) => (ul.innerHTML += `<li>${url}:<br>${
-        stateValue
-          .replace(/},/g, '},<br><br>')
-          .replace(/"nickname":"(.*?)"/g, '<span class=nickname>"nickname":"$1"</span>')
-          .replace(new RegExp(`"fingerprint":(${event.detail.fingerprint})`, 'g'), '<span class=self>"own-fingerprint":$1</span>')
-          .replace(new RegExp(`"localEpoch":(${event.detail.localEpoch})`, 'g'), '<span class=certainly-self>"own-localEpoch":$1</span>')
-      }</li>`))
+      stateValues.forEach((stateValue, url) => {
+        const uuid = JSON.parse(event.detail.localEpoch).uuid
+        JSON.parse(stateValue).forEach(user => ul.innerHTML += `<li class=${JSON.parse(user.user.localEpoch).uuid === uuid ? 'certainly-self' : ''}>${url}:<br>${
+          JSON.stringify(user)
+            .replace(/},/g, '},<br><br>')
+            .replace(/"nickname":"(.*?)"/g, '<span class=nickname>"nickname":"$1"</span>')
+            .replace(new RegExp(`"fingerprint":(${event.detail.fingerprint})`, 'g'), '<span class=self>"own-fingerprint":$1</span>')
+          }</li>`
+        )
+      })
       this.shadowRoot.appendChild(ul)
     }
   }

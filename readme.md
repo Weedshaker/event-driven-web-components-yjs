@@ -5,26 +5,22 @@
 
 ### Installation
 
-- no stack!
+- git submodule init
+- git submodule update
+- npm install
 
-
-### TODO
-
-Everything, just started...
+(no stack repo)
 
 ### Rough Roadmap
 
 Dezentral Chat, Dezentral Chat with Video, Dezentral Game (voxel.js, or other stuff) with Chat + Video
-
-### License Idea for resulting App
-
-at forks, clones or any reuse of code the right to place three links on each slide/frame/image in any form or shape
 
 ## Implementation
 
 Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## TODO:
+
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
 - [ ] providers map by room + url as key to allow connect disconnect with different room
 - [ ] own heroku webrtc testing
@@ -35,4 +31,4 @@ Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## Credit
 
-Created by [Edmgb](https://github.com/Edmgb) + [スィルヴァン aka. Weedshaker](https://github.com/Weedshaker)
+Created by [Edmgb](https://github.com/Edmgb) + [Weedshaker](https://github.com/Weedshaker)

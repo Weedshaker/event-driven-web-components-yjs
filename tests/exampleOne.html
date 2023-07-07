@@ -30,7 +30,7 @@
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
       import(`./exampleOne/AwarenessChange.js?${version}`).then(module => ['yjs-awareness-change', module.default]),
-      import(`./exampleOne/controller/YjsArray.js?${version}`).then(module => ['c-yjs-array', module.default]),
+      import(`./exampleOne/controllers/YjsArray.js?${version}`).then(module => ['c-yjs-array', module.default]),
       import(`./exampleOne/YjsArrayChange.js?${version}`).then(module => ['yjs-array-change', module.default]),
       import(`./exampleOne/Button.js?${version}`).then(module => ['yjs-button', module.default]),
     ]).then(elements => elements.forEach(element => {

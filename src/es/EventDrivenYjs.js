@@ -42,9 +42,9 @@ import * as Y from './dependencies/yjs.js'
 /**
  * initial local state field user
  @typedef {{
-  epoch: number,
-  sessionEpoch: number,
-  localEpoch: number,
+  epoch: string,
+  sessionEpoch: string,
+  localEpoch: string,
   fingerprint: string
   }} InitialUserValue
 */
@@ -909,19 +909,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
-   * @return {number}
+   * @return {string}
    */
   get epoch () {
-    return this._epoch || (this._epoch = Date.now())
+    return this._epoch || (this._epoch = JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID()}))
   }
 
   /**
    * @param {'session' | 'local'} name
-   * @return {Promise<number>}
+   * @return {Promise<string>}
    */
   async getEpochStorage (name) {
     const key = `${this.namespace}${await this.room}-${name}-epoch`
-    let epoch = Number(self[`${name}Storage`].getItem(key))
+    let epoch = self[`${name}Storage`].getItem(key)
     if (epoch) return epoch
     self[`${name}Storage`].setItem(key, String(epoch = this.epoch))
     return epoch
