@@ -16,7 +16,7 @@
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
 
 /**
- * Users is a helper to keep all user object in a yjs array and forwarding the proper events helping having an overview of all participants
+ * Users is a helper to keep all user object in a yjs map and forwarding the proper events helping having an overview of all participants
  *
  * @export
  * @function Users
@@ -37,9 +37,13 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
+    this.awarenessChangeEventListenerOnce = event => {
+      this.uidResolve(event.detail.uid)
+      this.awarenessChangeEventListenerOnce = () => {}
+    }
     this.awarenessChangeEventListener = async event => {
-      const yArray = (await this.yArray).type
-      const users = yArray.toArray()
+      this.awarenessChangeEventListenerOnce(event)
+      const yMap = (await this.yMap).type
       const stateValueUsers = event.detail.stateValues.map(stateValue => stateValue.user)
       const selfUser = {
         epoch: event.detail.epoch,
@@ -52,21 +56,22 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}), // get all updates on own user
       }
-      let selfUserIndex
-      if ((selfUserIndex = users.findIndex(user => (user.uid === selfUser.uid))) === -1) {
-        // TODO: push this user
+      if (yMap.has(selfUser.uid)) {
+        // TODO: update this user in the map
+        console.log('extend users')
       } else {
-        // TODO: update this user in the array
+        yMap.set(selfUser.uid, selfUser)
+        console.log('set user', selfUser.uid);
       }
-      console.log('awarenessChangeEventListener', {detail: event.detail, users, selfUser})
+      console.log('awarenessChangeEventListener', {detail: event.detail, selfUser, yMap, size: yMap.size})
     }
 
     this.awarenessUsersEventListener = async event => {
-      console.log('awarenessUsersEventListener', event.detail.type);
+      console.log('awarenessUsersEventListener', event.detail.type, event.detail.type.size);
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         detail: {
-          // TODO: Enrich the objects here
-          users: event.detail.type.toArray()
+          // TODO: Enrich the objects here, especially its own detected with await this.uid
+          users: event.detail.type
         },
         bubbles: true,
         cancelable: true,
@@ -75,9 +80,14 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     }
 
     /** @type {(any)=>void} */
-    this.yArrayResolve = array => array
-    /** @type {Promise<{type: import("../dependencies/yjs").Array}>} */
-    this.yArray = new Promise(resolve => (this.yArrayResolve = resolve))
+    this.uidResolve = map => map
+    /** @type {Promise<string>} */
+    this.uid = new Promise(resolve => (this.uidResolve = resolve))
+
+    /** @type {(any)=>void} */
+    this.yMapResolve = map => map
+    /** @type {Promise<{type: import("../dependencies/yjs").Map}>} */
+    this.yMap = new Promise(resolve => (this.yMapResolve = resolve))
   }
 
   connectedCallback () {
@@ -87,10 +97,10 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     document.body.addEventListener(`${this.namespace}awareness-users`, this.awarenessUsersEventListener)
     this.dispatchEvent(new CustomEvent(`${this.namespace}doc`, {
       detail: {
-        command: 'getArray',
+        command: 'getMap',
         arguments: ['users'],
         observe: `${this.namespace}awareness-users`,
-        resolve: this.yArrayResolve
+        resolve: this.yMapResolve
       },
       bubbles: true,
       cancelable: true,
@@ -102,7 +112,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     document.body.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     document.body.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     document.body.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.removeEventListener(`${this.namespace}users`, this.awarenessUsersEventListener)
+    document.body.removeEventListener(`${this.namespace}awareness-users`, this.awarenessUsersEventListener)
   }
 
   /**
