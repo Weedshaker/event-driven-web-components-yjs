@@ -37,10 +37,12 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
+    // get the own user uid once for further use at this.awarenessUsersEventListener
     this.awarenessChangeEventListenerOnce = event => {
       this.uidResolve(event.detail.uid)
       this.awarenessChangeEventListenerOnce = () => {}
     }
+    // receive on awareness change event the details of the own user as well as the awareness stateValueUsers with all direct connections and save itself into the user ymap
     this.awarenessChangeEventListener = async event => {
       this.awarenessChangeEventListenerOnce(event)
       const yMap = (await this.yMap).type
@@ -57,17 +59,19 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}), // get all updates on own user
       }
       if (yMap.has(selfUser.uid)) {
-        // TODO: update this user in the map
-        console.log('extend users')
+        // merge the map user with the awareness user
+        const selfUserFromMap = yMap.get(selfUser.uid)
+        for (const key in selfUser) {
+          if (typeof selfUser[key] === 'object') selfUser[key] = {...selfUserFromMap[key], ...selfUser[key]}
+        }
+        yMap.set(selfUser.uid, {...selfUserFromMap, ...selfUser})
       } else {
+        // newly set the first timer
         yMap.set(selfUser.uid, selfUser)
-        console.log('set user', selfUser.uid);
       }
-      console.log('awarenessChangeEventListener', {detail: event.detail, selfUser, yMap, size: yMap.size})
     }
 
     this.awarenessUsersEventListener = async event => {
-      console.log('awarenessUsersEventListener', event.detail.type, event.detail.type.size);
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         detail: {
           // TODO: Enrich the objects here, especially its own detected with await this.uid
@@ -100,6 +104,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         command: 'getMap',
         arguments: ['users'],
         observe: `${this.namespace}awareness-users`,
+        observeDeep: true,
         resolve: this.yMapResolve
       },
       bubbles: true,

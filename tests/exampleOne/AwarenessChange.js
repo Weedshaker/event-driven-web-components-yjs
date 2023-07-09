@@ -65,7 +65,7 @@ export default class AwarenessChange extends HTMLElement {
       if (!room.done) {
         await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-set-room', {
           detail: {
-            room: self.prompt('room-name', `random-room-${Date.now()}`) || 'weedshakers-event-driven-web-components-chat-test-2',
+            room: self.prompt('room-name', `random-room-${Date.now()}`) || 'weedshakers-event-driven-web-components-chat-test-4',
             resolve
           },
           bubbles: true,
@@ -73,7 +73,7 @@ export default class AwarenessChange extends HTMLElement {
           composed: true
         })))
       }
-      let nickname = 'no-name'
+      let nickname = 'no-name' + Date.now()
       this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
         /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */
         detail: {
