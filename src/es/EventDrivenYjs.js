@@ -210,6 +210,7 @@ import * as Y from './dependencies/yjs.js'
 // Attribute {no-history} has don't write to the url with history.pushState
 // Attribute {no-url-params} has don't use the url params
 // Attribute {no-blur} don't react with awareness on blur
+// Attribute {keep-alive} don't disconnect providers on disconnected callback
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
 // Attribute {room} string is the room name at webrtc and websocket as well as the key for the indexeddb
 
@@ -778,7 +779,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     self.removeEventListener('beforeunload', this.blurEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
     document.body.removeAttribute(`${this.namespace}load`)
-    this.disconnectAllProviders()
+    if (!this.hasAttribute('keep-alive')) this.disconnectAllProviders()
   }
 
   attributeChangedCallback (name, oldValue, newValue) {
