@@ -32,11 +32,6 @@
     </c-users>
   </c-event-driven-yjs>
   <style>
-    /* iphone nav bar workaround */
-    /* https://stackoverflow.com/questions/58886797/how-to-access-the-real-100vh-on-ios-in-css */
-    :root {
-      --real100vh: 100vh;
-    }
     body {
       margin: 0;
     }
@@ -45,9 +40,9 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      max-height: min(100vh, var(--real100vh));
+      max-height: min(100vh, 100dvh);
       max-width: 100vw;
-      min-height: min(100vh, var(--real100vh));
+      min-height: min(100vh, 100dvh);
       overflow: hidden;
       padding: 0.25em;
     }
@@ -68,7 +63,7 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '0011'
+    const version = '0012'
     document.querySelector('code').textContent = version.split('').join('.')
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
@@ -84,20 +79,6 @@
       // don't define already existing customElements
       if (element && !customElements.get(element[0])) customElements.define(...element)
     }))
-    /* iphone nav bar workaround */
-    /* https://stackoverflow.com/questions/58886797/how-to-access-the-real-100vh-on-ios-in-css */
-    const set100vhVar = () => {
-        // If less than most tablets, set CSS var to window height.
-        let value = '100vh'
-
-        // If window size is iPad or smaller, then use JS to set screen height.
-        if (self.innerWidth && self.innerWidth <= 1024) {
-            value = `${self.innerHeight}px`
-        }
-        document.documentElement.style.setProperty('--real100vh', value)
-    }
-    self.addEventListener('resize', set100vhVar)
-    set100vhVar()
   </script>
 </body>
 </html>
