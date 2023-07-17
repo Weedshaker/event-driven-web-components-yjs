@@ -21,14 +21,30 @@ Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## TODO:
 
+- [ ] activate text link as html a tag (https://github.com/meyt/linkable.js)
+- [ ] user local state field through user controller
+- [ ] users view component evtl. with https://github.com/feross/p2p-graph
+- [ ] draw.io representation
+- [ ] developer tutorials and tools
+- [x] User controller with CRDT User object including connected ProviderNames + urls on user props
+
+Websocket/RTC
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
 - [ ] own heroku webrtc testing
 
-- [x] User controller with CRDT User object including connected ProviderNames + urls on user props
-- [ ] https://github.com/feross/p2p-graph
+At decentralweb App level
+- [ ] ipfs and webtorrent integrations
+- [ ] User controller if not connected offer to connect to other urls max. 2 per socket / connecting to other servers according user crdt data
+- [ ] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/Weedshaker/y-websocket)
+- [ ] security and text & room link encryption 
+- [ ] search/crawl
+- [ ] id, room administrators
+- [ ] dns (link board) / dns crdt
+- [ ] websocket push, notifications and service worker controller with cache and evtl. own yjs doc instance
 
-- [ ] At decentralweb App level, User controller if not connected offer to connect to other urls max. 2 per socket
-- [ ] At decentralweb App level, allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/Weedshaker/y-websocket)
+Vision
+- creativity (app types: draw, chat, one way chat (web site builder), miro like, 2d platformer, add voice & video, simple games, heartbeat games)
+
 
 
 ## Credit

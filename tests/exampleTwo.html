@@ -7,7 +7,7 @@
   <title>YJS Event Driven Example Two (chat)</title>
 </head>
 <body>
-  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb no-blur>
+  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb>
     <c-users>
       <c-yjs-chat>
         <div class="flex">
@@ -45,9 +45,9 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      max-height: var(--real100vh);
+      max-height: min(100vh, var(--real100vh));
       max-width: 100vw;
-      min-height: 100vh;
+      min-height: min(100vh, var(--real100vh));
       overflow: hidden;
       padding: 0.25em;
     }
@@ -68,7 +68,7 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '0010'
+    const version = '0011'
     document.querySelector('code').textContent = version.split('').join('.')
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),

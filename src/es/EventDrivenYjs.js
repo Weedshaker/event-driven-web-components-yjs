@@ -73,6 +73,15 @@ import * as Y from './dependencies/yjs.js'
 */
 
 /**
+ * outgoing event
+ @typedef {{
+  providers: Providers,
+  websocketUrl: string,
+  webrtcUrl: string
+ }} ProvidersUpdateEventDetail
+*/
+
+/**
  * ingoing event
  @typedef {{
   command: string,
@@ -381,7 +390,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     }
 
     /**
-     * setAttribute webrtc-url & websocket-url through event
+     * getAttribute webrtc-url & websocket-url through event
      *
      * @param {any & {detail: GetProvidersEventDetail}} event
      */
@@ -668,6 +677,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
          */
         (provider, url) => awarenessAddEventListener(provider, name, url)
       )
+    )
+    this.dispatch(`${this.namespace}${name}-providers-update`,
+      /** @type {ProvidersUpdateEventDetail} */
+      {
+        providers: this.providers,
+        websocketUrl: this.websocketUrl,
+        webrtcUrl: this.webrtcUrl
+      }
     )
     return this.providers
   }
