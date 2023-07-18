@@ -21,9 +21,9 @@ Frontend Event Driven Architecture works basically like the DOM itself...
 
 ## TODO:
 
-- [ ] activate text link as html a tag (https://github.com/meyt/linkable.js)
+- [x] activate text link as html a tag (https://github.com/meyt/linkable.js)
 - [ ] user local state field through user controller
-- [ ] users view component evtl. with https://github.com/feross/p2p-graph
+- [ ] replace tests/exampleOne/AwarenessChange.js with users view component evtl. with https://github.com/feross/p2p-graph
 - [ ] draw.io representation
 - [ ] developer tutorials and tools
 - [x] User controller with CRDT User object including connected ProviderNames + urls on user props
