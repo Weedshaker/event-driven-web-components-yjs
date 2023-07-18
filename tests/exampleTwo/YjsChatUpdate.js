@@ -93,7 +93,7 @@ export default class YjsChatUpdate extends HTMLElement {
     document.body.removeEventListener('yjs-chat-update', this.eventListener)
   }
 
-  //https://github.com/meyt/linkable.js/blob/master/src/patterns.js#L21
+  // https://github.com/meyt/linkable.js/blob/master/src/patterns.js#L21
   get urlPattern () {
     const ipMiddleOctet = '(\\.(1?\\d{1,2}|2[0-4]\\d|25[0-5]))'
     const ipLastOctet = '(\\.([1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))'
@@ -172,7 +172,7 @@ export default class YjsChatUpdate extends HTMLElement {
       // query string
       '(\\?\\S*)?' +
       // fragment
-      '(#\\S*)?' + '[^\s\n]{0,1}', 'ui'
+      '(#\\S*)?' + '[^s\n]{0,1}', 'ui'
     )
   }
 }

@@ -621,7 +621,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       sessionEpoch: await this.getEpochStorage('session'),
       localEpoch: await this.getEpochStorage('local'),
       fingerprint: await this.fingerprint,
-      uid: JSON.stringify({...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint})
+      uid: JSON.stringify({ ...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint })
     }
 
     /**
@@ -925,14 +925,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       document.head.appendChild(script)
       // @ts-ignore
       return (new self.ClientJS()).getFingerprint()
-    }).catch(error => 'no-fingerprint'))
+    }).catch(error => 'no-fingerprint:' + error))
   }
 
   /**
    * @return {string}
    */
   get epoch () {
-    return this._epoch || (this._epoch = JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID()}))
+    return this._epoch || (this._epoch = JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID() }))
   }
 
   /**

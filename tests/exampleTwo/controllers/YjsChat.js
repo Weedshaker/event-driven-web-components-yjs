@@ -9,7 +9,7 @@ export default class YjsChat extends HTMLElement {
     this.observeEventListener = async event => {
       this.dispatchEvent(new CustomEvent('yjs-chat-update', {
         detail: {
-          // enrich the chat object with the info if it has been self 
+          // enrich the chat object with the info if it has been self
           chat: await Promise.all(event.detail.type.toArray().map(async textObj => ({ ...textObj, isSelf: textObj.nickname === await this.nickname })))
         },
         bubbles: true,

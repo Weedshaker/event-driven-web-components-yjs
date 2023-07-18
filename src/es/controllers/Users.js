@@ -10,7 +10,6 @@
 
 /* global HTMLElement */
 /* global CustomEvent */
-/* global self */
 
 // Supported attributes:
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
@@ -56,15 +55,15 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         connectedUsers: {
           [event.detail.url]: stateValueUsers.filter(user => (user.uid !== event.detail.uid))
         },
-        ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}), // get all updates on own user
+        ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
       if (yMap.has(selfUser.uid)) {
         // merge the map user with the awareness user
         const selfUserFromMap = yMap.get(selfUser.uid)
         for (const key in selfUser) {
-          if (typeof selfUser[key] === 'object') selfUser[key] = {...selfUserFromMap[key], ...selfUser[key]}
+          if (typeof selfUser[key] === 'object') selfUser[key] = { ...selfUserFromMap[key], ...selfUser[key] }
         }
-        yMap.set(selfUser.uid, {...selfUserFromMap, ...selfUser})
+        yMap.set(selfUser.uid, { ...selfUserFromMap, ...selfUser })
       } else {
         // newly set the first timer
         yMap.set(selfUser.uid, selfUser)
