@@ -8,6 +8,13 @@
  }} options
 */
 
+/**
+ * outgoing event
+ @typedef {{
+  users: Map<string,import("../EventDrivenYjs").InitialUserValue>
+ }} UsersEventDetail
+*/
+
 /* global HTMLElement */
 /* global CustomEvent */
 
@@ -71,10 +78,24 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     }
 
     this.awarenessUsersEventListener = async event => {
+      /** @type {Map<string,import("../EventDrivenYjs").InitialUserValue>} */
+      const users = new Map()
+      const uid = await this.uid
+      // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
+      // analyze and enrich each user, if that object is this clients user. "isSelf"
+      event.detail.type.forEach((user, key) => {
+        if (user.connectedUsers) {
+          for (const url in user.connectedUsers) {
+              user.connectedUsers[url].forEach(connectedUser => (connectedUser.isSelf = connectedUser.uid === uid))
+          }
+        }
+        users.set(key, {...user, isSelf: user.uid === uid})
+      })
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
+        /** @type {UsersEventDetail} */
         detail: {
-          // TODO: Enrich the objects here, especially its own detected with await this.uid
-          users: event.detail.type
+          users,
+          /* type: event.detail.type */ // protect the original users map
         },
         bubbles: true,
         cancelable: true,

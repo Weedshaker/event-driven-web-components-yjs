@@ -7,7 +7,7 @@
   <title>YJS Event Driven Example Two (chat)</title>
 </head>
 <body>
-  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb>
+  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com" indexeddb no-blur>
     <c-users>
       <c-yjs-chat>
         <div class="flex">
@@ -25,6 +25,7 @@
                 <yjs-indexeddb-synced></yjs-indexeddb-synced>
               </details>
               <yjs-details-awareness-change></yjs-details-awareness-change>
+              <yjs-room></yjs-room>
             </details>
           </footer>
         </div>
@@ -74,6 +75,7 @@
       import(`./exampleOne/AwarenessChange.js?${version}`).then(module => ['yjs-awareness-change', module.default]),
       import(`./exampleTwo/controllers/YjsChat.js?${version}`).then(module => ['c-yjs-chat', module.default]),
       import(`./exampleTwo/DetailsAwarenessChange.js?${version}`).then(module => ['yjs-details-awareness-change', module.default]),
+      import(`./exampleTwo/Room.js?${version}`).then(module => ['yjs-room', module.default]),
       import(`./exampleTwo/YjsChatUpdate.js?${version}`).then(module => ['yjs-chat-update', module.default]),
       import(`./exampleTwo/ShareApi.js?${version}`).then(module => ['yjs-share-api', module.default]),
       import(`./exampleTwo/Input.js?${version}`).then(module => ['yjs-input', module.default]),
