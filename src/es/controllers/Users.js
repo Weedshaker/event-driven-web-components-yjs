@@ -9,9 +9,23 @@
 */
 
 /**
+ * Provider container
+ @typedef {
+  Map<import("../EventDrivenYjs").ProviderNames, Map<string, UsersContainer>>
+ } Providers
+*/
+
+/**
+ * User container
+ @typedef {
+  Map<string, import("../EventDrivenYjs").InitialUserValue>
+ } UsersContainer
+*/
+
+/**
  * outgoing event
  @typedef {{
-  users: Map<string,import("../EventDrivenYjs").InitialUserValue>
+  getData: (includeAllUsers: boolean) => {users: UsersContainer, providers: Providers}
  }} UsersEventDetail
 */
 
@@ -39,6 +53,8 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
   constructor (options = { namespace: undefined }, ...args) {
     super(...args)
 
+    const separator = '<>'
+
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
@@ -60,7 +76,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
         connectedUsers: {
-          [event.detail.url]: stateValueUsers.filter(user => (user.uid !== event.detail.uid))
+          [`${event.detail.name}${separator}${event.detail.url}`]: stateValueUsers.filter(user => (user.uid !== event.detail.uid))
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
@@ -78,23 +94,47 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     }
 
     this.awarenessUsersEventListener = async event => {
-      /** @type {Map<string,import("../EventDrivenYjs").InitialUserValue>} */
-      const users = new Map()
       const uid = await this.uid
-      // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
-      // analyze and enrich each user, if that object is this clients user. "isSelf"
-      event.detail.type.forEach((user, key) => {
-        if (user.connectedUsers) {
-          for (const url in user.connectedUsers) {
-              user.connectedUsers[url].forEach(connectedUser => (connectedUser.isSelf = connectedUser.uid === uid))
+      const getData = (includeAllUsers = true) => {
+        /** @type {UsersContainer} */
+        const users = new Map()
+        /** @type {Providers} */
+        const providers = new Map()
+        // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
+        // analyze and enrich each user, if that object is this clients user. "isSelf"
+        event.detail.type.forEach((user, key) => {
+          user = self.structuredClone(user)
+          let connectedUsersCount = 0
+          let mutuallyConnectedUsersCount = 0
+          if (user.connectedUsers) {
+            user.mutuallyConnectedUsers = {}
+            for (const url in user.connectedUsers) {
+              connectedUsersCount += user.connectedUsers[url].length || 0
+              user.connectedUsers[url].forEach(connectedUser => {
+                connectedUser.isSelf = connectedUser.uid === uid
+                // look for the user on the yjs type map and check if it also contains this user in its connectedUsers
+                let connectedUserType
+                if ((connectedUserType = event.detail.type.get(connectedUser.uid)) && connectedUserType.connectedUsers[url]?.find(connectedUser => (connectedUser.uid === user.uid))) {
+                  user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
+                  mutuallyConnectedUsersCount += user.connectedUsers[url].length || 0
+                }
+              })
+              // give an overview from providers perspective
+              /** @type {[import("../EventDrivenYjs").ProviderNames, string] | any} */
+              const [name, realUrl] = url.split(separator)
+              /** @type {any} */
+              const provider = providers.get(name) || providers.set(name, new Map()).get(name)
+              provider.set(realUrl, [...provider.get(realUrl) || [], ...user.mutuallyConnectedUsers[url] || []])
+            }
           }
-        }
-        users.set(key, {...user, isSelf: user.uid === uid})
-      })
+          if (includeAllUsers || mutuallyConnectedUsersCount > 0) users.set(key, {...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid})
+        })
+        return {users, providers}
+      }
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
         detail: {
-          users,
+          getData,
           /* type: event.detail.type */ // protect the original users map
         },
         bubbles: true,

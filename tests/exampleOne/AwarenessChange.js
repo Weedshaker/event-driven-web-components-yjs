@@ -65,7 +65,7 @@ export default class AwarenessChange extends HTMLElement {
       if (!room.done) {
         await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-set-room', {
           detail: {
-            room: `chat-${self.prompt('room-name', `random-room-${Date.now()}`) || 'weedshakers-event-driven-web-components-test-2'}`,
+            room: `chat-${self.prompt('room-name', `random-room-${Date.now()}`) || 'weedshakers-event-driven-web-components-test-10'}`,
             resolve
           },
           bubbles: true,
@@ -73,12 +73,19 @@ export default class AwarenessChange extends HTMLElement {
           composed: true
         })))
       }
-      let nickname = 'no-name' + Date.now()
+      let nickname =  'no-name' + Date.now()
+      if (self.localStorage.getItem(await room + '-nickname')) {
+        nickname = self.localStorage.getItem(await room + '-nickname')
+      } else {
+        // browser issue with two prompts too close, so we wait a moment here
+        await new Promise(resolve => setTimeout(() => resolve(), 200))
+        nickname = self.prompt('nickname', `${nickname}-${new Date().getUTCMilliseconds()}`)
+      }
       this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
         /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */
         detail: {
           value: {
-            nickname: (nickname = self.localStorage.getItem(await room + '-nickname') || self.prompt('nickname', `${nickname}-${new Date().getUTCMilliseconds()}`) || nickname)
+            nickname
           }
         },
         bubbles: true,
