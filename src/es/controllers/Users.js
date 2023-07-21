@@ -31,6 +31,7 @@
 
 /* global HTMLElement */
 /* global CustomEvent */
+/* global self */
 
 // Supported attributes:
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
@@ -132,16 +133,16 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
               provider.set(realUrl, [...provider.get(realUrl) || [], ...user.mutuallyConnectedUsers[url] || []])
             }
           }
-          user = {...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid}
+          user = { ...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid }
           allUsers.set(key, user)
           if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
         })
-        return (getDataResult = {allUsers, users, providers})
+        return (getDataResult = { allUsers, users, providers })
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
         detail: {
-          getData,
+          getData
           /* type: event.detail.type */ // protect the original users map
         },
         bubbles: true,

@@ -73,7 +73,7 @@ export default class AwarenessChange extends HTMLElement {
           composed: true
         })))
       }
-      let nickname =  'no-name' + Date.now()
+      let nickname = 'no-name' + Date.now()
       if (self.localStorage.getItem(await room + '-nickname')) {
         nickname = self.localStorage.getItem(await room + '-nickname')
       } else {

@@ -1,7 +1,6 @@
 // @ts-check
 
 /* global HTMLElement */
-/* global CustomEvent */
 
 export default class Room extends HTMLElement {
   constructor (...args) {
