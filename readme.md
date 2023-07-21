@@ -44,7 +44,7 @@ At decentralweb App level
 - [ ] websocket push, notifications and service worker controller with cache and evtl. own yjs doc instance
 
 Vision
-- creativity (app types: draw, chat, one way chat (web site builder), miro like, 2d platformer, add voice & video, simple games, heartbeat games)
+- creativity (app types: bullet board, wiki, draw, chat, one way chat (web site builder), miro like, 2d platformer, add voice & video, simple games, heartbeat games)
 
 
 
