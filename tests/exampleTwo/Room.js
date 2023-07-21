@@ -7,7 +7,9 @@ export default class Room extends HTMLElement {
   constructor (...args) {
     super(...args)
 
-    this.usersEventListener = event => console.log('users', event.detail.getData(/*false*/))
+    this.usersEventListener = event => {
+      console.log('users', event.detail.getData())
+    }
   }
 
   connectedCallback () {

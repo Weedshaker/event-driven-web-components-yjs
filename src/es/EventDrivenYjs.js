@@ -593,8 +593,22 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             }
           ))
         }
-      } else if (webrtcMap.has(this.webrtcUrl)) {
-        webrtcMap.get(this.webrtcUrl)?.disconnect()
+        webrtcMap.forEach(
+          /**
+           * @param {ProviderTypes} provider
+           * @param {string} url
+           */
+          (provider, url) => {
+            if (this.webrtcUrl !== url) provider?.disconnect()
+          }
+        )
+      } else {
+        webrtcMap.forEach(
+          /**
+           * @param {ProviderTypes} provider
+           */
+          provider => provider?.disconnect()
+        )
       }
     }
 

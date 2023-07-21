@@ -95,9 +95,14 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
 
     this.awarenessUsersEventListener = async event => {
       const uid = await this.uid
-      const getData = (includeAllUsers = true) => {
+      /** @type {null | {allUsers: UsersContainer,users: UsersContainer, providers: Providers}} */
+      let getDataResult = null
+      const getData = () => {
+        if (getDataResult) return getDataResult
         /** @type {UsersContainer} */
         const users = new Map()
+        /** @type {UsersContainer} */
+        const allUsers = new Map()
         /** @type {Providers} */
         const providers = new Map()
         // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
@@ -116,7 +121,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
                 let connectedUserType
                 if ((connectedUserType = event.detail.type.get(connectedUser.uid)) && connectedUserType.connectedUsers[url]?.find(connectedUser => (connectedUser.uid === user.uid))) {
                   user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
-                  mutuallyConnectedUsersCount += user.connectedUsers[url].length || 0
+                  mutuallyConnectedUsersCount++
                 }
               })
               // give an overview from providers perspective
@@ -127,9 +132,11 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
               provider.set(realUrl, [...provider.get(realUrl) || [], ...user.mutuallyConnectedUsers[url] || []])
             }
           }
-          if (includeAllUsers || mutuallyConnectedUsersCount > 0) users.set(key, {...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid})
+          user = {...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid}
+          allUsers.set(key, user)
+          if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
         })
-        return {users, providers}
+        return (getDataResult = {allUsers, users, providers})
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
