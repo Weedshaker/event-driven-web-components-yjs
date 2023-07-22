@@ -16,3 +16,6 @@
 [submodule "src/es/dependencies/clientjs"]
 	path = src/es/dependencies/clientjs
 	url = https://github.com/jackspirou/clientjs.git
+[submodule "servers/y-websocket"]
+	path = servers/y-websocket
+	url = https://github.com/Weedshaker/y-websocket.git

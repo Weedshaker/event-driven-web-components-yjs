@@ -22,6 +22,7 @@ Frontend Event Driven Architecture works basically like the DOM itself...
 ## TODO:
 
 - [x] activate text link as html a tag (https://github.com/meyt/linkable.js)
+- [ ] save to leveldb and decide when to kill
 - [ ] check out more solid fingerprint library (https://github.com/fingerprintjs/fingerprintjs/tree/master)
 - [ ] user local state field through user controller
 - [ ] replace tests/exampleOne/AwarenessChange.js with users view component evtl. with https://github.com/feross/p2p-graph
