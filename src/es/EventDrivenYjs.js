@@ -64,7 +64,7 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   provider: ProviderTypes,
   name: ProviderNames,
-  url: string,
+  url: URL,
   awareness: any,
   changes?: any,
   stateValues?: any,
@@ -549,13 +549,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // @ts-ignore
       const websocketMap = this.providers.get('websocket')
       if (this.websocketUrl) {
+        const websocketUrls = this.websocketUrl.split(',').filter(websocketUrl => websocketUrl).map(websocketUrl => new URL(websocketUrl))
         /** @type {import("./dependencies/y-websocket")} */
         const websocket = await import('./dependencies/y-websocket.js')
-        this.websocketUrl.split(',').filter(url => url).forEach(websocketUrl => {
-          if (websocketMap.has(websocketUrl)) {
-            websocketMap.get(websocketUrl)?.connect()
+        websocketUrls.forEach(websocketUrl => {
+          if (websocketMap.has(websocketUrl.href)) {
+            websocketMap.get(websocketUrl.href)?.connect()
           } else {
-            websocketMap.set(websocketUrl, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl), room, doc))
+            // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
+            websocketMap.set(websocketUrl.href, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc))
           }
         })
         websocketMap.forEach(
@@ -564,7 +566,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            * @param {string} url
            */
           (provider, url) => {
-            if (!this.websocketUrl.includes(url)) provider?.disconnect()
+            if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) provider?.disconnect()
           }
         )
       } else {
@@ -652,7 +654,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const detail = {
         provider,
         name,
-        url,
+        url: new URL(url),
         room,
         awareness: provider.awareness,
         ...initialUserValue
