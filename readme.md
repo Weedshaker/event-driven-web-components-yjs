@@ -22,7 +22,7 @@ Frontend Event Driven Architecture works basically like the DOM itself...
 ## TODO:
 
 - [x] activate text link as html a tag (https://github.com/meyt/linkable.js)
-- [ ] save to leveldb (servers/y-websocket/bin/server.js) with timeout to be deleted https://github.com/yjs/y-leveldb/tree/master persistence.clearDocument
+- [x] save to leveldb (servers/y-websocket/bin/server.js) with timeout to be deleted https://github.com/yjs/y-leveldb/tree/master persistence.clearDocument
 - [ ] check out more solid fingerprint library (https://github.com/fingerprintjs/fingerprintjs/tree/master)
 - [ ] user local state field through user controller
 - [ ] replace tests/exampleOne/AwarenessChange.js with users view component evtl. with https://github.com/feross/p2p-graph
@@ -35,6 +35,7 @@ Websocket/RTC
 - [ ] own heroku webrtc testing
 
 At decentralweb App level
+- [ ] submodule views: rooms (own rooms or with controller analog users), users and providers (with initial providers fetched from gist or separate repo json)
 - [ ] ipfs and webtorrent integrations
 - [ ] User controller if not connected offer to connect to other urls max. 2 per socket / connecting to other servers according user crdt data
 - [ ] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/Weedshaker/y-websocket)
