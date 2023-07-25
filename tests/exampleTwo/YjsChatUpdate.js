@@ -53,7 +53,7 @@ export default class YjsChatUpdate extends HTMLElement {
         const li = document.createElement('li')
         if (entry.isSelf) li.classList.add('self')
         // make aTags with href when first link is detected https://stackoverflow.com/questions/1500260/detect-urls-in-text-with-javascript
-        entry.text = entry.text.replace(/([https?:\/\/|www\.][^\s]+)/g, url => `<a href="${url.replace(/^www/, 'http://www')}" target="_blank">${url}</a>`)
+        entry.text = entry.text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank">${url}</a>`)
         li.innerHTML = `<span class="user">${entry.nickname}: </span><br><span class="text">${entry.text}</span><br><span class="timestamp">${(new Date(entry.timestamp)).toLocaleString(navigator.language)}</span>`
         ul.appendChild(li)
         if (chat.length === i + 1 && entry.isSelf) lastEntryIsSelf = true
