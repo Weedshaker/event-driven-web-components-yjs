@@ -8,29 +8,31 @@
 </head>
 <body>
   <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com?keep-alive=86400000" indexeddb no-blur>
-    <c-users>
-      <c-yjs-chat>
-        <div class="flex">
-          <header>
-            <yjs-share-api>share this room:</yjs-share-api>
-            <hr>
-          </header>
-          <yjs-chat-update></yjs-chat-update>
-          <footer>
-            <yjs-input></yjs-input>
-            <details open>
-              <summary><code>v.0.0.0</code></summary>
-              <details>
-                <summary>IndexedDB Sync Status</summary>
-                <yjs-indexeddb-synced></yjs-indexeddb-synced>
+    <c-providers>
+      <c-users>
+        <c-yjs-chat>
+          <div class="flex">
+            <header>
+              <yjs-share-api>share this room:</yjs-share-api>
+              <hr>
+            </header>
+            <yjs-chat-update></yjs-chat-update>
+            <footer>
+              <yjs-input></yjs-input>
+              <details open>
+                <summary><code>v.0.0.0</code></summary>
+                <details>
+                  <summary>IndexedDB Sync Status</summary>
+                  <yjs-indexeddb-synced></yjs-indexeddb-synced>
+                </details>
+                <yjs-details-awareness-change></yjs-details-awareness-change>
+                <yjs-room></yjs-room>
               </details>
-              <yjs-details-awareness-change></yjs-details-awareness-change>
-              <yjs-room></yjs-room>
-            </details>
-          </footer>
-        </div>
-      </c-yjs-chat>
-    </c-users>
+            </footer>
+          </div>
+        </c-yjs-chat>
+      </c-users>
+    </c-providers>
   </c-event-driven-yjs>
   <style>
     body {
@@ -66,10 +68,11 @@
     /**
      * First level controllers and organisms are loaded and defined here then they may loadChildComponents
      */
-    const version = '0017'
+    const version = '0018'
     document.querySelector('code').textContent = version.split('').join('.')
     Promise.all([
       import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
+      import(`../src/es/controllers/Providers.js?${version}`).then(module => ['c-providers', module.Providers()]),
       import(`../src/es/controllers/Users.js?${version}`).then(module => ['c-users', module.Users()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),
       import(`./exampleOne/AwarenessChange.js?${version}`).then(module => ['yjs-awareness-change', module.default]),

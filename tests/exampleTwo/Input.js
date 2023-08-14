@@ -50,7 +50,7 @@ export default class Input extends HTMLElement {
     this.shadowRoot.addEventListener('click', this.clickEventListener)
     self.addEventListener('message', event => {
       if (!event.data.title || !event.data.href || event.origin !== 'https://peerweb.site') return
-      this.shadowRoot.querySelector('input').value = `<a href="${event.data.href}" target="_blank">👉 ${event.data.title} 👈 <span class=peer-web-site>(temporary hosted media content @peerweb.site)</span></a>`
+      this.shadowRoot.querySelector('input').value = `${event.data.title} 👉 ${event.data.href} <span class=peer-web-site>(temporary hosted media content @peerweb.site)</span></a>`
       this.changeEventListener(undefined, this.shadowRoot.querySelector('input'))
     })
   }

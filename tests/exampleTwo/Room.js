@@ -9,14 +9,19 @@ export default class Room extends HTMLElement {
     this.usersEventListener = event => {
       console.log('users', event.detail.getData())
     }
+    this.providersEventListener = event => {
+      console.log('providers', event.detail.getData())
+    }
   }
 
   connectedCallback () {
     document.body.addEventListener('yjs-users', this.usersEventListener)
+    document.body.addEventListener('yjs-providers', this.providersEventListener)
   }
 
   disconnectedCallback () {
     document.body.removeEventListener('yjs-users', this.usersEventListener)
+    document.body.removeEventListener('yjs-providers', this.providersEventListener)
   }
 
   /**

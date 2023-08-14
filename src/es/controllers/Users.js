@@ -9,29 +9,30 @@
 */
 
 /**
- * Provider container
- @typedef {
-  Map<import("../EventDrivenYjs").ProviderNames, Map<string, UsersContainer>>
- } Providers
-*/
-
-/**
  * User container
  @typedef {
-  Map<string, import("../EventDrivenYjs").InitialUserValue>
+  Map<string, import("../EventDrivenYjs").InitialUserValue & {
+    connectedUsers: {string: import("../EventDrivenYjs").InitialUserValue},
+    connectedUsersCount: number,
+    isSelf: boolean,
+    mutuallyConnectedUsers: {string: import("../EventDrivenYjs").InitialUserValue},
+    mutuallyConnectedUsersCount: number
+  }>
  } UsersContainer
 */
 
 /**
  * outgoing event
  @typedef {{
-  getData: (includeAllUsers: boolean) => {users: UsersContainer, providers: Providers}
+  getData: () => {allUsers: UsersContainer, users: UsersContainer}
  }} UsersEventDetail
 */
 
 /* global HTMLElement */
 /* global CustomEvent */
 /* global self */
+
+export const separator = '<>'
 
 // Supported attributes:
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
@@ -53,8 +54,6 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
    */
   constructor (options = { namespace: undefined }, ...args) {
     super(...args)
-
-    const separator = '<>'
 
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
@@ -96,7 +95,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
 
     this.awarenessUsersEventListener = async event => {
       const uid = await this.uid
-      /** @type {null | {allUsers: UsersContainer,users: UsersContainer, providers: Providers}} */
+      /** @type {null | {allUsers: UsersContainer,users: UsersContainer}} */
       let getDataResult = null
       const getData = () => {
         if (getDataResult) return getDataResult
@@ -104,8 +103,6 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         const users = new Map()
         /** @type {UsersContainer} */
         const allUsers = new Map()
-        /** @type {Providers} */
-        const providers = new Map()
         // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
         // analyze and enrich each user, if that object is this clients user. "isSelf"
         event.detail.type.forEach((user, key) => {
@@ -125,19 +122,13 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
                   mutuallyConnectedUsersCount++
                 }
               })
-              // give an overview from providers perspective
-              /** @type {[import("../EventDrivenYjs").ProviderNames, string] | any} */
-              const [name, realUrl] = url.split(separator)
-              /** @type {any} */
-              const provider = providers.get(name) || providers.set(name, new Map()).get(name)
-              provider.set(realUrl, [...provider.get(realUrl) || [], ...user.mutuallyConnectedUsers[url] || []])
             }
           }
           user = { ...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid }
           allUsers.set(key, user)
           if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
         })
-        return (getDataResult = { allUsers, users, providers })
+        return (getDataResult = { allUsers, users })
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
