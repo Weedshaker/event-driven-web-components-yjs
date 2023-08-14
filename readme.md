@@ -37,7 +37,7 @@ Frontend
 
 Websocket/RTC
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
-- [ ] value for value (v4v)
+- [ ] value for value (v4v): https://github.com/monero-ecosystem/monero-javascript ...
 - [ ] websocket push (https://developer.mozilla.org/en-US/docs/Web/API/Push_API/Best_Practices | https://medium.com/swlh/building-a-browser-push-notification-service-the-challenges-with-the-websocket-server-8cf9b1827e24), notifications (https://astral.ninja/notifications) and service worker controller with cache and evtl. own yjs doc instance
 - [ ] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/
 - [ ] verification service (badge analog twitter verification badge) through SMS or post card with qr codce
