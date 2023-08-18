@@ -80,7 +80,7 @@ export default class Input extends HTMLElement {
     this.input.placeholder = 'Loading speech...'
     
     const channel = new MessageChannel();
-    const model = await Vosk.createModel(`${location.origin}/tests/exampleThree/vosk-model-small-en-us-0.15.tar.gz`);
+    const model = await Vosk.createModel('https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz' || `${location.origin}/tests/exampleThree/vosk-model-small-en-us-0.15.tar.gz`);
     model.registerPort(channel.port1);
 
     const sampleRate = 48000;
