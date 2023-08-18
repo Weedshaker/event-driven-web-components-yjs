@@ -80,7 +80,7 @@ export default class Input extends HTMLElement {
     this.input.placeholder = 'Loading speech...'
     
     const channel = new MessageChannel();
-    const model = await Vosk.createModel(`${location.origin}/tests/exampleThree/vosk-model-small-en-us-0.15.tar.gz`);
+    const model = await Vosk.createModel(`${import.meta.url.replace(/(.*\/)(.*)$/, '$1')}vosk-model-small-en-us-0.15.tar.gz`);
     model.registerPort(channel.port1);
 
     const sampleRate = 48000;
@@ -137,7 +137,7 @@ export default class Input extends HTMLElement {
         },
     });
     this.audioContext = new AudioContext();
-    await this.audioContext.audioWorklet.addModule(`${location.origin}/tests/exampleThree/recognizer-processor.js`)
+    await this.audioContext.audioWorklet.addModule(`${import.meta.url.replace(/(.*\/)(.*)$/, '$1')}recognizer-processor.js`)
     const recognizerProcessor = new AudioWorkletNode(this.audioContext, 'recognizer-processor', { channelCount: 1, numberOfInputs: 1, numberOfOutputs: 1 });
     recognizerProcessor.port.postMessage({action: 'init', recognizerId: recognizer.id}, [ channel.port2 ])
     recognizerProcessor.connect(this.audioContext.destination);
