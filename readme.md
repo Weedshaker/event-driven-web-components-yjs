@@ -1,6 +1,7 @@
 # Event Driven Web Components yjs
 
 > yjs web components wrapper
+https://weedshaker.github.io/event-driven-web-components-yjs/
 
 
 ### Installation
