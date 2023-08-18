@@ -49,7 +49,8 @@ Websocket/RTC
 At decentralweb App level
 - [ ] choose license (https://www.infoworld.com/article/3703768/the-open-source-licensing-war-is-over.html?utm_source=changelog-news)
 - [ ] organization (DOA?)
-- [ ] ipfs and webtorrent integrations
+- [ ] ipfs and webtorrent integrations (https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler?retiredLocale=de)
+- [ ] speech (tests/exampleThree.html) see tests/exampleThree/Input.js
 - [ ] security and text & room link encryption 
 - [ ] search/crawl
 - [ ] id, room administrators (nostr)
