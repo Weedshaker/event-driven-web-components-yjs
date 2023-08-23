@@ -29,7 +29,7 @@ Frontend
 - [ ] draw.io representation
 - [x] implement more solid fingerprint library (https://github.com/fingerprintjs/fingerprintjs/tree/master)
 - [ ] user local state field through user controller event at controllers/Users.js
-- [ ] EventDrivenYjs.js localstorage analog breathing app
+- [ ] EventDrivenYjs.js localstorage analog breathing app in one object with epoch per room and general local epoch without room ref. but just first contact
 - [ ] replace tests/exampleOne/AwarenessChange.js with users, etc.  at tests/exampleFour.html or App (live-share)
 - [ ] view component for controllers/Users.js + controllers/Providers.js with https://github.com/feross/p2p-graph
 - [ ] developer tutorials and tools
