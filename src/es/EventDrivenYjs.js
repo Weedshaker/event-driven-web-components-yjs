@@ -934,14 +934,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {Promise<string>}
    */
   get fingerprint () {
-    // ClientJS does not work with ES6 Imports and for that we fetch it
-    return this._fingerprint || (this._fingerprint = fetch(`${import.meta.url.replace(/(.*\/)(.*)$/, '$1')}dependencies/clientjs/dist/client.min.js`).then(response => response.text()).then(clientJS => {
-      const script = document.createElement('script')
-      script.textContent = clientJS
-      document.head.appendChild(script)
-      // @ts-ignore
-      return (new self.ClientJS()).getFingerprint()
-    }).catch(error => 'no-fingerprint:' + error))
+    // FingerprintJS does not work with ES6 Imports and for that we fetch it
+    return this._fingerprint || (this._fingerprint = import(`${import.meta.url.replace(/(.*\/)(.*)$/, '$1')}dependencies/fp.min.js`).then(
+      FingerprintJS => FingerprintJS.load()
+    ).then(
+      fp => fp.get()
+    ).then(
+      result => result.visitorId
+    ).catch(error => 'no-fingerprint:' + error))
   }
 
   /**

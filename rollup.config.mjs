@@ -1,6 +1,10 @@
 import nodeResolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
 import replace from '@rollup/plugin-replace'
+import nodeResolvePlugin from '@rollup/plugin-node-resolve'
+import jsonPlugin from '@rollup/plugin-json'
+import typescriptPlugin from '@rollup/plugin-typescript'
+import terserPlugin from '@rollup/plugin-terser'
 
 export default [{
   input: './src/y-indexeddb/src/y-indexeddb.js',
@@ -82,4 +86,22 @@ export default [{
   plugins: [
     nodeResolve()
   ]
+},
+{
+  input: './src/fingerprint/src/index.ts',
+  plugins: [nodeResolvePlugin(), jsonPlugin(), typescriptPlugin()],
+  output: {
+    exports: 'named',
+    file: './src/es/dependencies/fp.min.js',
+    format: 'esm',
+    name: 'FingerprintJS',
+    plugins: [
+      terserPlugin({
+        format: {
+          comments: false,
+        },
+        safari10: true,
+      }),
+    ],
+  }
 }]

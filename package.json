@@ -16,6 +16,11 @@
     "@rollup/plugin-node-resolve": "*",
     "@rollup/plugin-commonjs": "*",
     "@rollup/plugin-replace": "*",
+    "@rollup/plugin-node-resolve": "*",
+    "@rollup/plugin-json": "*",
+    "@rollup/plugin-typescript": "*",
+    "@rollup/plugin-terser": "*",
+    "tslib": "*",
     "standard": "*"
   },
   "standard": {
