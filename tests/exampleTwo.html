@@ -7,7 +7,7 @@
   <title>YJS Event Driven Example Two (chat)</title>
 </head>
 <body>
-  <c-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com?keep-alive=86400000" indexeddb no-blur>
+  <sw-event-driven-yjs websocket-url="wss://the-decentral-web.herokuapp.com?keep-alive=86400000" indexeddb no-blur>
     <c-providers>
       <c-users>
         <c-yjs-chat>
@@ -33,7 +33,7 @@
         </c-yjs-chat>
       </c-users>
     </c-providers>
-  </c-event-driven-yjs>
+  </sw-event-driven-yjs>
   <style>
     body {
       margin: 0;
@@ -71,7 +71,7 @@
     const version = '0019'
     document.querySelector('code').textContent = version.split('').join('.')
     Promise.all([
-      import(`../src/es/EventDrivenYjs.js?${version}`).then(module => ['c-event-driven-yjs', module.EventDrivenYjs()]),
+      import(`../src/es/SwEventDrivenYjs.js?${version}`).then(module => ['sw-event-driven-yjs', module.SwEventDrivenYjs()]),
       import(`../src/es/controllers/Providers.js?${version}`).then(module => ['c-providers', module.Providers()]),
       import(`../src/es/controllers/Users.js?${version}`).then(module => ['c-users', module.Users()]),
       import(`./exampleOne/IndexeddbSynced.js?${version}`).then(module => ['yjs-indexeddb-synced', module.default]),

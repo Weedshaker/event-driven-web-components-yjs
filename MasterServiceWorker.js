@@ -22,11 +22,11 @@ class MasterServiceWorker {
     this.doNotIntercept = []
     this.doIntercept = [location.origin]
 
-    this.eventDrivenYjs = new (EventDrivenYjs(class {
-      getAttribute(){}
-      setAttribute(){}
-      hasAttribute(){}
-    }))()
+    this.eventDrivenYjs = class {
+      getAttribute(name){return this.attributes[name]}
+      setAttribute(name, value){this.attributes[name] = value}
+      hasAttribute(name){return !!this.attributes[name]}
+    }
   }
 
   run () {
@@ -34,8 +34,6 @@ class MasterServiceWorker {
     // this.addActivateEventListener()
     // this.addFetchEventListener()
     this.addMessageChannelEventListener()
-    console.log('hi', this.eventDrivenYjs.initTwo().then(yjs => console.log('yjs', yjs)))
-    //this.eventDrivenYjs.room = Promise.resolve('chat-sw')
   }
 
   // onInstall init cache
@@ -95,18 +93,22 @@ class MasterServiceWorker {
       } catch (e) {
         return (data = null)
       }
-      if (data.visibilityState === 'visible') return
-      clearTimeout(this.messageTimeoutId)
-      this.messageTimeoutId = setTimeout(() => {
-        self.registration.showNotification(`decentral chat user ${data.nickname} wrote:`, {
-          body: data.text,
-          /* icon: `${location.origin}/img/android-icon-192x192.png`,
-          badge: `${location.origin}/img/android-icon-96x96.png`, */
-          lang: navigator.language,
-          requireInteraction: true,
-          vibrate: [300, 100, 400]
-        })
-      }, 1000)
+      console.log('sw got message', data, import.meta.url);
+      data.forEach(command => {
+        if (command.target === 'eventDrivenYjs') {
+          switch (command.type) {
+            case 'set':
+              this.eventDrivenYjs.prototype[command.name] = command.value
+              break;
+            case 'new':
+              this.eventDrivenYjs = new (EventDrivenYjs(this.eventDrivenYjs))()
+              break;
+            default:
+              break;
+          }
+        }
+      })
+      console.log('eventDrivenYjs', this.eventDrivenYjs.getAttribute('namespace'));
     })
   }
 
