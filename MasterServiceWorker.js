@@ -1,3 +1,7 @@
+// @ts-check
+
+import { EventDrivenYjs } from "./src/es/EventDrivenYjs.js"
+
 /* global location */
 /* global self */
 /* global caches */
@@ -17,6 +21,12 @@ class MasterServiceWorker {
     ]
     this.doNotIntercept = []
     this.doIntercept = [location.origin]
+
+    this.eventDrivenYjs = new (EventDrivenYjs(class {
+      getAttribute(){}
+      setAttribute(){}
+      hasAttribute(){}
+    }))()
   }
 
   run () {
@@ -24,6 +34,8 @@ class MasterServiceWorker {
     // this.addActivateEventListener()
     // this.addFetchEventListener()
     this.addMessageChannelEventListener()
+    console.log('hi', this.eventDrivenYjs.initTwo().then(yjs => console.log('yjs', yjs)))
+    //this.eventDrivenYjs.room = Promise.resolve('chat-sw')
   }
 
   // onInstall init cache

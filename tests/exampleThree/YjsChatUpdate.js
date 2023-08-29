@@ -83,7 +83,7 @@ export default class YjsChatUpdate extends HTMLElement {
       // use a service worker for notifications
       // Service Worker
       this.registration = null
-      navigator.serviceWorker.register('./MasterServiceWorker.js', { scope: './' }).then(registration => {
+      navigator.serviceWorker.register('../MasterServiceWorker.js', { scope: './', type: 'module' }).then(registration => {
         self.Notification.requestPermission(result => {
           if (result === 'granted') this.registration = registration
         })
