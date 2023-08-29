@@ -28,6 +28,8 @@ Frontend
 - [x] User controller with CRDT User object including connected ProviderNames + urls on user props
 - [ ] draw.io representation
 - [x] implement more solid fingerprint library (https://github.com/fingerprintjs/fingerprintjs/tree/master)
+- [ ] default offline but on set providers offer default servers fetched from file from github pages
+- [ ] fingerprint is still not consistent, consider to remove fingerprint from the uid
 - [ ] user local state field through user controller event at controllers/Users.js
 - [ ] EventDrivenYjs.js localstorage analog breathing app in one object with epoch per room and general local epoch without room ref. but just first contact
 - [ ] replace tests/exampleOne/AwarenessChange.js with users, etc.  at tests/exampleFour.html or App (live-share)
@@ -39,7 +41,7 @@ Frontend
 
 Websocket/RTC
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
-- [ ] **websocket push (https://developer.mozilla.org/en-US/docs/Web/API/Push_API/Best_Practices | https://medium.com/swlh/building-a-browser-push-notification-service-the-challenges-with-the-websocket-server-8cf9b1827e24), notifications (https://astral.ninja/notifications) and service worker controller with cache and evtl. own yjs doc instance**
+- [ ] **websocket push (https://web.dev/push-notifications-subscribing-a-user/), notifications (https://astral.ninja/notifications) and service worker controller with cache and evtl. own yjs doc instance**
 - [ ] value for value (v4v): https://github.com/monero-ecosystem/monero-javascript ...
 - [ ] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/
 - [ ] verification service (badge analog twitter verification badge) through SMS or post card with qr codce
@@ -60,7 +62,8 @@ At decentralweb App level
 - [ ] dns (link board) / dns crdt
 
 Vision
-- creativity (app types: bullet board, wiki, draw, chat, one way chat (web site builder), doodle, sudoku, miro like, 2d platformer, add voice & video, simple games, heartbeat games)
+- Principles: 100% Open Source, Offline First (decentralized content [CRDT] === decentralized ownership), as decentralized in all aspects as feasible
+- creativity (app types: bullet board, wiki, draw, chat, one way chat (web site builder), doodle, sudoku, miro like, 2d platformer, add voice & video, simple games, heartbeat game, breathing app lobby to breath and meditate together afterwards staying in touch in own chat room)
 
 
 
