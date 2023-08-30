@@ -292,7 +292,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       (!this.hasAttribute('no-url-params') && this.url.searchParams.has('websocket-url')) ||
       Object.hasOwnProperty.call(options, 'websocketUrl') ||
       this.hasAttribute('websocket-url')
-    )) this.websocketUrl = 'wss://demos.yjs.dev'
+    )) this.websocketUrl = '' //'wss://demos.yjs.dev'
 
     // set attribute webrtc-url
     // @ts-ignore
@@ -302,7 +302,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       (!this.hasAttribute('no-url-params') && this.url.searchParams.has('webrtc-url')) ||
       Object.hasOwnProperty.call(options, 'webrtcUrl') ||
       this.hasAttribute('webrtc-url')
-    )) this.webrtcUrl = 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
+    )) this.webrtcUrl = '' //'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
     // Events:
     /**
@@ -517,7 +517,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       })
     }
 
-    /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>} */
+    /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Promise<Providers>}>} */
     this.yjs = this.init()
     // delay indexeddb updates until the document and its docEventListeners are ready
     if (this.hasAttribute('indexeddb')) this.yjs.then(({ doc }) => this.loadIndexeddbEventListener(undefined, doc))
@@ -526,11 +526,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * initialize the yjs doc
    *
-   * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Providers}>}
+   * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Promise<Providers>}>}
    */
   async init () {
     const doc = new Y.Doc()
-    return { doc, providers: await this.updateProviders(doc) }
+    return { doc, providers: this.updateProviders(doc) }
   }
 
   /**
@@ -637,7 +637,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       sessionEpoch: await this.getEpochStorage('session'),
       localEpoch: await this.getEpochStorage('local'),
       fingerprint: await this.fingerprint,
-      uid: JSON.stringify({ ...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint })
+      // TODO: Already tried: https://github.com/jackspirou/clientjs and now https://fingerprintjs.github.io/fingerprintjs/ but both libraries do not deliver consistent fingerprints, means the same browser with the same localStorage would get different fingerprints assigned. Conclusion: Using the uuid with the timestamp for this uid property.
+      //uid: JSON.stringify({ ...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint })
+      uid: await this.getEpochStorage('local')
     }
 
     /**
@@ -816,7 +818,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   attributeChangedCallback (name, oldValue, newValue) {
-    if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue && newValue && oldValue !== newValue) {
+    if ((name === 'websocket-url' || name === 'webrtc-url') && newValue && oldValue !== newValue) {
       this.pushState(name, newValue)
       this.updateProviders(undefined, name)
     } else if (name === 'room' && !oldValue && newValue) {

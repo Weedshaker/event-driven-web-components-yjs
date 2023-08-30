@@ -28,16 +28,16 @@ Frontend
 - [x] User controller with CRDT User object including connected ProviderNames + urls on user props
 - [ ] draw.io representation
 - [x] implement more solid fingerprint library (https://github.com/fingerprintjs/fingerprintjs/tree/master)
-- [ ] default offline but on set providers offer default servers fetched from file from github pages
-- [ ] fingerprint is still not consistent, consider to remove fingerprint from the uid
+- [x] default offline but on set providers offer default servers fetched from file from github pages
+- [x] fingerprint is still not consistent, consider to remove fingerprint from the uid
 - [ ] user local state field through user controller event at controllers/Users.js
 - [ ] EventDrivenYjs.js localstorage analog breathing app in one object with epoch per room and general local epoch without room ref. but just first contact
 - [ ] replace tests/exampleOne/AwarenessChange.js with users, etc.  at tests/exampleFour.html or App (live-share)
 - [ ] view component for controllers/Users.js + controllers/Providers.js with https://github.com/feross/p2p-graph
-- [ ] developer tutorials and tools
 - [ ] controllers/Providers.js when on automatic connect look for the most favorable connections and avoid orphans else allow manual choice at Providers view (User controller if not connected offer to connect to other urls max. 2 per socket / connecting to other servers according user crdt data [provider has mutually connected users with some connected to other providers with mutually connected users and vice versa]) + handle on error ws connection at provider
 - [ ] controllers/Rooms.js getting a room event from EventDrivenYjs.js and maintaining the rooms at local storage for further consumption at Rooms view
 - [ ] document.body should not be an absolute event listener target (https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener) (shadow.js add event target choose function || document.body)
+- [ ] developer tutorials and tools
 
 Websocket/RTC
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
