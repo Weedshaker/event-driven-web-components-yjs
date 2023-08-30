@@ -1,6 +1,10 @@
 // @ts-check
 
 import * as Y from './dependencies/yjs.js'
+import * as indexeddb from './dependencies/y-indexeddb.js'
+import * as websocket from './dependencies/y-websocket.js'
+import * as webrtc from './dependencies/y-webrtc.js'
+import * as p2pt from './dependencies/y-p2pt.js'
 
 // https://github.com/yjs
 /**
@@ -426,7 +430,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       if (!doc) doc = (await this.yjs).doc
 
       /** @type {import("./dependencies/y-indexeddb")} */
-      const indexeddb = await import('./dependencies/y-indexeddb.js')
+      //const indexeddb = await import('./dependencies/y-indexeddb.js')
       /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
       const indexeddbPersistence = new indexeddb.IndexeddbPersistence(await this.room, doc)
       indexeddbPersistence.whenSynced.then(data => {
@@ -551,7 +555,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       if (this.websocketUrl) {
         const websocketUrls = this.websocketUrl.split(',').filter(websocketUrl => websocketUrl).map(websocketUrl => new URL(websocketUrl))
         /** @type {import("./dependencies/y-websocket")} */
-        const websocket = await import('./dependencies/y-websocket.js')
+        //const websocket = await import('./dependencies/y-websocket.js')
         websocketUrls.forEach(websocketUrl => {
           if (websocketMap.has(websocketUrl.href)) {
             websocketMap.get(websocketUrl.href)?.connect()
@@ -588,7 +592,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           webrtcMap.get(this.webrtcUrl)?.connect()
         } else {
           /** @type {import("./dependencies/y-webrtc")} */
-          const webrtc = await import('./dependencies/y-webrtc.js')
+          //const webrtc = await import('./dependencies/y-webrtc.js')
           webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
             {
               signaling: this.webrtcUrl.split(',').filter(url => url).map(url => self.decodeURIComponent(url))
@@ -623,7 +627,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           p2ptMap.get('p2pt')?.connect()
         } else {
           /** @type {import("./dependencies/y-p2pt")} */
-          const p2pt = await import('./dependencies/y-p2pt.js')
+          //const p2pt = await import('./dependencies/y-p2pt.js')
           p2ptMap.set('p2pt', new p2pt.P2ptProvider(room, doc))
         }
       } else if (p2ptMap.has('p2pt')) {
@@ -848,13 +852,16 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @param {HTMLElement} node
    * @return {void}
    */
-  dispatch (name, detail, node = this.isConnected ? this : document.body) {
-    node.dispatchEvent(new CustomEvent(name, {
+  //dispatch (name, detail, node = this.isConnected ? this : document.body) {
+  dispatch (name, detail, node = this) {
+    // TODO forward these
+    /*node.dispatchEvent(new CustomEvent(name, {
       detail,
       bubbles: true,
       cancelable: true,
       composed: true
-    }))
+    }))*/
+    console.log('dispatch');
   }
 
   /**
@@ -956,6 +963,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {Promise<string>}
    */
   async getEpochStorage (name) {
+    return Promise.resolve('{"epoch": "hi"}')
+    // TODO: message this between sw and dom
     const key = `${this.namespace}${await this.room}-${name}-epoch`
     let epoch = self[`${name}Storage`].getItem(key)
     if (epoch) return epoch
