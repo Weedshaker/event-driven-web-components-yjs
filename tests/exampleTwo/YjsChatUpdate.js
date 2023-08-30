@@ -61,31 +61,11 @@ export default class YjsChatUpdate extends HTMLElement {
       })
       // scroll to new entry
       if (lastEntryIsSelf || isScrolledBottom) this.scroll(0, this.scrollHeight)
-      // notification
-      if (lastMessage && this.registration && !lastEntryIsSelf) {
-        this.registration.active.postMessage(`{
-        "nickname": "${lastMessage.nickname}",
-        "text": "${lastMessage.text}",
-        "visibilityState": "${document.visibilityState}"
-      }`)
-      }
     }
   }
 
   connectedCallback () {
     document.body.addEventListener('yjs-chat-update', this.eventListener)
-    // wait shortly with registering also until the first message sync happend, which certainly could be solved nicer than with a timeout
-    setTimeout(() => {
-      // use a service worker for notifications
-      // Service Worker
-      this.registration = null
-      navigator.serviceWorker.register('./MasterServiceWorker.js', { scope: './' }).then(registration => {
-        self.Notification.requestPermission(result => {
-          if (result === 'granted') this.registration = registration
-        })
-        registration.update()
-      }).catch(error => console.error(error))
-    }, 3000)
   }
 
   disconnectedCallback () {

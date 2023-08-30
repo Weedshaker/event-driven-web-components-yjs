@@ -23,7 +23,8 @@ class MasterServiceWorker {
     // this.addInstallEventListener()
     // this.addActivateEventListener()
     // this.addFetchEventListener()
-    this.addMessageChannelEventListener()
+    // this.addMessageChannelEventListener()
+    this.addPushEventListener()
   }
 
   // onInstall init cache
@@ -94,6 +95,29 @@ class MasterServiceWorker {
           requireInteraction: true,
           vibrate: [300, 100, 400]
         })
+      }, 1000)
+    })
+  }
+
+  addPushEventListener () {
+    self.addEventListener('push', event => {
+      let data = null
+      try {
+        data = JSON.parse(event.data.json()) || null
+      } catch (e) {
+        return (data = null)
+      }
+      clearTimeout(this.pushTimeoutId)
+      this.pushTimeoutId = setTimeout(() => {
+        self.registration.showNotification(
+          data.title,
+          {
+            body: data.body,
+            lang: navigator.language,
+            requireInteraction: true,
+            vibrate: [300, 100, 400]
+          }
+        )
       }, 1000)
     })
   }

@@ -14,6 +14,11 @@ import * as Y from './dependencies/yjs.js'
 */
 
 /**
+ * this.init() result with Yjs, Providers and Notification
+ @typedef {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Promise<Providers>, notification: Promise<{subscription: PushSubscription | null, registration: ServiceWorkerRegistrationEventMap | null}>}>} YJS
+*/
+
+/**
  * Different Providers
  @typedef {import("./dependencies/y-websocket").WebsocketProvider | import("./dependencies/y-webrtc").WebrtcProvider | import("./dependencies/y-p2pt").P2ptProvider} ProviderTypes
 */
@@ -517,7 +522,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       })
     }
 
-    /** @type {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Promise<Providers>}>} */
+    /** @type {YJS} */
     this.yjs = this.init()
     // delay indexeddb updates until the document and its docEventListeners are ready
     if (this.hasAttribute('indexeddb')) this.yjs.then(({ doc }) => this.loadIndexeddbEventListener(undefined, doc))
@@ -526,11 +531,12 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * initialize the yjs doc
    *
-   * @return {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Promise<Providers>}>}
+   * @return {YJS}
    */
   async init () {
     const doc = new Y.Doc()
-    return { doc, providers: this.updateProviders(doc) }
+    const providers = this.updateProviders(doc)
+    return { doc, providers, notification: providers.then(() => this.initServiceWorker()) }
   }
 
   /**
@@ -559,6 +565,16 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
             websocketMap.set(websocketUrl.href, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc))
           }
+          // Subscribe for notifications
+          if (this.subscription) {
+            fetch(`${websocketUrl.origin.replace('ws:', 'http:').replace('wss:', 'https:')}/subscribe`,{
+              method: "POST",
+              body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(this.subscription)), {room})),
+              headers: {
+                "Content-Type": "application/json",
+              }
+            })
+          }
         })
         websocketMap.forEach(
           /**
@@ -566,7 +582,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            * @param {string} url
            */
           (provider, url) => {
-            if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) provider?.disconnect()
+            if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
+              provider?.disconnect()
+              // Subscribe for notifications
+              if (this.subscription) {
+                fetch(`${(new URL(url)).origin.replace('ws:', 'http:').replace('wss:', 'https:')}/unsubscribe`,{
+                  method: "POST",
+                  body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(this.subscription)), {room})),
+                  headers: {
+                    "Content-Type": "application/json",
+                  }
+                })
+              }
+            }
           }
         )
       } else {
@@ -862,6 +890,42 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       cancelable: true,
       composed: true
     }))
+  }
+
+  /**
+   * start the service worker and get ready for subscription to notifications
+   *
+   * @return {{subscription: PushSubscription | null, registration: ServiceWorkerRegistrationEventMap | null}}
+   */
+  initServiceWorker () {
+    // use a service worker for notifications
+    // Service Worker
+    this.registration = null
+    this.subscription = null
+    navigator.serviceWorker.ready.then(registration => {
+      self.Notification.requestPermission(async (result) => {
+        if (result === 'granted') {
+          this.registration = registration
+          registration.update()
+          // register Notification
+          this.subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4',
+          })
+          this.updateProviders()
+        }
+        /*
+        // message channel
+        registration.active.postMessage(`{
+          "nickname": "${lastMessage.nickname}",
+          "text": "${lastMessage.text}",
+          "visibilityState": "${document.visibilityState}"
+        }`)
+        */
+      })
+    }).catch(error => console.error(error))
+    navigator.serviceWorker.register('../../MasterServiceWorker.js', { scope: './' })
+    return {registration: this.registration, subscription: this.subscription}
   }
 
   /**
