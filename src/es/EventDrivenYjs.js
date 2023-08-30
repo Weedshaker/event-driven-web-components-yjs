@@ -251,6 +251,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     super(...args)
 
     this.url = new URL(location.href)
+    this.importMetaUrl = import.meta.url.replace(/(.*\/)(.*)$/, '$1')
     /**
      * @type {Providers}
      */
@@ -924,7 +925,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         */
       })
     }).catch(error => console.error(error))
-    navigator.serviceWorker.register('../../MasterServiceWorker.js', { scope: './' })
+    navigator.serviceWorker.register(`${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: './' })
     return {registration: this.registration, subscription: this.subscription}
   }
 
@@ -1006,7 +1007,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   get fingerprint () {
     // FingerprintJS does not work with ES6 Imports and for that we fetch it
-    return this._fingerprint || (this._fingerprint = import(`${import.meta.url.replace(/(.*\/)(.*)$/, '$1')}dependencies/fp.min.js`).then(
+    return this._fingerprint || (this._fingerprint = import(`${this.importMetaUrl}dependencies/fp.min.js`).then(
       FingerprintJS => FingerprintJS.load()
     ).then(
       fp => fp.get()
