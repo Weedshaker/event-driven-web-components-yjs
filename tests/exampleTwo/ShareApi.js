@@ -61,7 +61,7 @@ export default class ShareApi extends HTMLElement {
           composed: true
         }))).then(async ({ websocketUrl, webrtcUrl }) => {
           const newWebsocketUrls = prompt('websocketUrls separated with a "," and no spaces in between', websocketUrl || '')
-          if (newWebsocketUrls && newWebsocketUrls !== websocketUrl) {
+          if (newWebsocketUrls !== null && newWebsocketUrls !== websocketUrl) {
             this.dispatchEvent(new CustomEvent('yjs-update-providers', {
               detail: {
                 websocketUrl: newWebsocketUrls
@@ -72,7 +72,7 @@ export default class ShareApi extends HTMLElement {
             }))
           }
           const newWebrtcUrls = prompt('webrtcUrls separated with a "," and no spaces in between', webrtcUrl || '')
-          if (newWebrtcUrls && newWebrtcUrls !== webrtcUrl) {
+          if (newWebrtcUrls !== null && newWebrtcUrls !== webrtcUrl) {
             this.dispatchEvent(new CustomEvent('yjs-update-providers', {
               detail: {
                 webrtcUrl: newWebrtcUrls

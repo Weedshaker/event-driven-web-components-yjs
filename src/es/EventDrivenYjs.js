@@ -412,9 +412,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.updateProvidersEventListener = async event => {
       await this.yjs
-      if (event.detail.noHistory) this.setAttribute('no-history', 'true')
-      if (event.detail.websocketUrl) this.setAttribute('websocket-url', event.detail.websocketUrl)
-      if (event.detail.webrtcUrl) this.setAttribute('webrtc-url', event.detail.webrtcUrl)
+      if (event.detail.noHistory) this.setAttribute('no-history', event.detail.noHistory)
+      if (event.detail.websocketUrl !== undefined) this.setAttribute('websocket-url', event.detail.websocketUrl)
+      if (event.detail.webrtcUrl !== undefined) this.setAttribute('webrtc-url', event.detail.webrtcUrl)
     }
 
     /**
@@ -818,7 +818,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   attributeChangedCallback (name, oldValue, newValue) {
-    if ((name === 'websocket-url' || name === 'webrtc-url') && newValue && oldValue !== newValue) {
+    newValue = this.getAttribute(name) // the new value eventually already changed, here we make sure to work with the most recent
+    if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue !== newValue) {
       this.pushState(name, newValue)
       this.updateProviders(undefined, name)
     } else if (name === 'room' && !oldValue && newValue) {
@@ -837,7 +838,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   pushState (key, value) {
     const oldValue = this.url.searchParams.get(key)
     if (!this.hasAttribute('no-history') && oldValue !== value) {
-      this.url.searchParams.set(key, value)
+      if (!value) {
+        this.url.searchParams.delete(key)
+      } else {
+        this.url.searchParams.set(key, value)
+      }
       history.pushState(history.state, document.title, this.url.href)
     }
   }
