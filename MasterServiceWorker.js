@@ -109,6 +109,7 @@ class MasterServiceWorker {
       }
       clearTimeout(this.pushTimeoutId)
       this.pushTimeoutId = setTimeout(() => {
+        console.log('push', data.title, data.body);
         self.registration.showNotification(
           data.title,
           {

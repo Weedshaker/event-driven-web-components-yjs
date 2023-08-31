@@ -511,6 +511,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         if (this.awarenessLocalStates[i] && !awareness.getLocalState()) awareness.setLocalState(this.awarenessLocalStates[i])
       })
     }
+    this.beforeunloadEventListener = async event => {
+      this.blurEventListener()
+      // TODO: Send message to MasterServiceWorker.js to ignore the notifications for the next 2min
+      // reason: when connection aka. tab closes the user object updates and triggers an immediate notification, which by itself outsets further relevant notifications.
+    }
     // save the last known local state and set the local state to null on blur, disconnect or unload
     this.blurEventListener = async event => {
       await this.yjs
@@ -574,7 +579,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
               headers: {
                 "Content-Type": "application/json",
               }
-            })
+            }).then(resp => resp.text()).then(text => console.log({this: this, text, url: websocketUrl.origin}))
           }
         })
         websocketMap.forEach(
@@ -593,7 +598,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
                   headers: {
                     "Content-Type": "application/json",
                   }
-                })
+                }).then(resp => resp.text()).then(text => console.log({this: this, text, url}))
               }
             }
           }
@@ -800,7 +805,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.focusEventListener()
     self.addEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
-    self.addEventListener('beforeunload', this.blurEventListener)
+    self.addEventListener('beforeunload', this.beforeunloadEventListener)
     self.addEventListener('popstate', this.popstateEventListener)
     document.body.setAttribute(`${this.namespace}load`, 'true')
     this.dispatch(`${this.namespace}load`,
@@ -840,7 +845,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.blurEventListener()
     self.removeEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
-    self.removeEventListener('beforeunload', this.blurEventListener)
+    self.removeEventListener('beforeunload', this.beforeunloadEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
     document.body.removeAttribute(`${this.namespace}load`)
     if (!this.hasAttribute('keep-alive')) this.disconnectAllProviders()
