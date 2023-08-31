@@ -103,7 +103,7 @@ class MasterServiceWorker {
     self.addEventListener('push', event => {
       let data = null
       try {
-        data = JSON.parse(event.data.json()) || null
+        data = event.data.json() || null
       } catch (e) {
         return (data = null)
       }

@@ -910,6 +910,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.subscription = null
     navigator.serviceWorker.ready.then(registration => {
       self.Notification.requestPermission(async (result) => {
+        console.log('Notification', result);
         if (result === 'granted') {
           this.registration = registration
           registration.update()
