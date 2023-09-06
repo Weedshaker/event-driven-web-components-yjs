@@ -610,9 +610,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.sendNotificationEventListener = event => {
       self.Notification.requestPermission(async (result) => {
         if (result === 'granted') {
-          this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
+          this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
             if (!serviceWorkerRegistration.active) return
             serviceWorkerRegistration.active.postMessage(JSON.stringify({
+              room: await this.room,
+              type: 'message',
               visibilityState: document.visibilityState,
               ...(event.detail.data || {})
             }))

@@ -5,11 +5,15 @@
 
 class MasterServiceWorker {
   constructor () {
-    this.location = null
+    this.showNotificationTimeout = 60 * 1000
+    this.location = {}
+    this.notificationData = null
+    this.pushWaitUntilResolve = null // https://stackoverflow.com/questions/66318926/how-to-avoid-showing-a-notification-in-service-worker-push-event
 
     this.addInstallEventListener()
     this.addActivateEventListener()
-    this.addMessageChannelEventListener()
+    this.addNotificationclickEventListener()
+    this.addMessageEventListener()
     this.addPushEventListener()
   }
 
@@ -21,7 +25,27 @@ class MasterServiceWorker {
     self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))
   }
 
-  addMessageChannelEventListener () {
+  addNotificationclickEventListener () {
+    self.addEventListener('notificationclick', event => {
+      if (!this.location.href) return
+      event.notification.close()
+      event.waitUntil(
+        clients.matchAll({
+          type: 'window',
+          includeUncontrolled: true
+        }).then(clientList => {
+          let client
+          if ((client = clientList.find(client => client.url === this.location.href)) && typeof client.focus === 'function') {
+            client.focus()
+          } else {
+            clients.openWindow(this.location.href)
+          }
+        })
+      )
+    })
+  }
+
+  addMessageEventListener () {
     // Notify 24h after last document.visibilityState === 'visible'
     self.addEventListener('message', event => {
       let data = null
@@ -30,61 +54,89 @@ class MasterServiceWorker {
       } catch (e) {
         return (data = null)
       }
-      if (data.visibilityState === 'visible') return
-      if (data.key === 'location') return (this.location = data.value)
-      console.log('post message', data, this.location);
-      // clearTimeout(this.messageTimeoutId)
-      // this.messageTimeoutId = setTimeout(() => {
-      //   self.registration.showNotification(`decentral chat user ${data.nickname} wrote:`, {
-      //     body: data.text,
-      //     /* icon: `${location.origin}/img/android-icon-192x192.png`,
-      //     badge: `${location.origin}/img/android-icon-96x96.png`, */
-      //     lang: navigator.language,
-      //     requireInteraction: true,
-      //     vibrate: [300, 100, 400]
-      //   })
-      // }, 1000)
+      // get the location values from the dom
+      if (data.key === 'location' && data.value) return (this.location = data.value)
+      if (data.visibilityState === 'hidden') {
+        this.showNotification(data)
+      } else {
+        this.cancelNotification()
+      }
     })
   }
 
   addPushEventListener () {
-    self.addEventListener('push', event => {
+    self.addEventListener('push', async (event) => {
       let data = null
       try {
         data = event.data.json() || null
       } catch (e) {
         return (data = null)
       }
-      console.log('push message', data, this.location);
-      /*
-      // TODO: figure out where the link goes and how to add a link in actions
-      if(data.type === 'update') {
-
-      } else { // 'change'
-        clearTimeout(this.pushChangeTimeoutId)
-        this.pushChangeTimeoutId = setTimeout(() => {
-          console.log('push change', data);
-          self.registration.showNotification(
-            `${data.room} changed!`,
-            {
-              actions: [
-                {
-                  action: 'onclick',
-                  title: `${data.room} changed!`,
-                  body: data.room,
-                  //icon: ''
-                }
-              ],
-              body: data.room,
-              lang: navigator.language,
-              requireInteraction: true,
-              vibrate: [300, 100, 400]
-            }
-          )
-        }, 60 * 1000) // wait a minute
+      if (!this.pushWaitUntilResolve) event.waitUntil(new Promise(resolve => (this.pushWaitUntilResolve = resolve)))
+      if (await clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      }).then(clientList => {
+        let client
+        if ((client = clientList.find(client => client.url === this.location.href))) {
+          return client.visibilityState
+        } else {
+          return 'hidden'
+        }
+      }) === 'hidden') {
+        this.showNotification(data, this.pushWaitUntilResolve, event)
+      } else {
+        this.cancelNotification()
       }
-      */
     })
+  }
+
+  // https://notifications.spec.whatwg.org/#dom-notification-actions
+  // https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/showNotification
+  /**
+   *
+   *
+   * @param {{room: string, type: string, visibilityState?: 'hidden', body?: string}} data
+   * @param {()=>void} [resolve=()=>void]
+   * @param {Event} [event=undefined]
+   * @return {void}
+   */
+  showNotification (data, resolve = () => {}, event) {
+    if (!data) return
+    const trigger = !this.notificationData
+    if (this.notificationData && this.notificationData.body && !data.body && this.notificationData.room === data.room) {
+      this.notificationData = Object.assign(this.notificationData, data)
+    } else {
+      this.notificationData = data
+    }
+    if (trigger) {
+      this.cancelNotification()
+      this.showNotificationTimeoutID = setTimeout(() => {
+        resolve(self.registration.showNotification(
+          this.notificationData.room
+            ? `Update @${this.notificationData.room}!`
+            : 'Update',
+          {
+            body: this.notificationData.body
+              ? this.notificationData.body
+              : `There has been an update in the room: ${this.notificationData.room}`,
+            lang: navigator.language,
+            requireInteraction: true,
+            vibrate: [300, 100, 400]
+          }
+        ).then(result => {
+          this.pushWaitUntilResolve = null
+          this.notificationData = null
+          return result
+        }))
+      }, this.showNotificationTimeout)
+    } else if(event) {
+      event.preventDefault()
+    }
+  }
+
+  cancelNotification () {
+    clearTimeout(this.showNotificationTimeoutID)
   }
 }
 const ServiceWorker = new MasterServiceWorker()
