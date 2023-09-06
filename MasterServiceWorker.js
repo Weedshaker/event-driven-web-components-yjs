@@ -8,7 +8,7 @@ class MasterServiceWorker {
     this.showNotificationTimeout = 60 * 1000
     this.location = {}
     this.notificationData = null
-    this.pushWaitUntilResolve = null // https://stackoverflow.com/questions/66318926/how-to-avoid-showing-a-notification-in-service-worker-push-event
+    // TODO: event.waitUntil... https://stackoverflow.com/questions/66318926/how-to-avoid-showing-a-notification-in-service-worker-push-event
 
     this.addInstallEventListener()
     this.addActivateEventListener()
@@ -72,7 +72,6 @@ class MasterServiceWorker {
       } catch (e) {
         return (data = null)
       }
-      if (!this.pushWaitUntilResolve) event.waitUntil(new Promise(resolve => (this.pushWaitUntilResolve = resolve)))
       if (await clients.matchAll({
         type: 'window',
         includeUncontrolled: true
@@ -84,7 +83,7 @@ class MasterServiceWorker {
           return 'hidden'
         }
       }) === 'hidden') {
-        this.showNotification(data, this.pushWaitUntilResolve, event)
+        this.showNotification(data, event)
       } else {
         this.cancelNotification()
       }
@@ -97,11 +96,10 @@ class MasterServiceWorker {
    *
    *
    * @param {{room: string, type: string, visibilityState?: 'hidden', body?: string}} data
-   * @param {()=>void} [resolve=()=>void]
    * @param {Event} [event=undefined]
    * @return {void}
    */
-  showNotification (data, resolve = () => {}, event) {
+  showNotification (data, event) {
     if (!data) return
     const trigger = !this.notificationData
     if (this.notificationData && this.notificationData.body && !data.body && this.notificationData.room === data.room) {
@@ -112,7 +110,7 @@ class MasterServiceWorker {
     if (trigger) {
       this.cancelNotification()
       this.showNotificationTimeoutID = setTimeout(() => {
-        resolve(self.registration.showNotification(
+        self.registration.showNotification(
           this.notificationData.room
             ? `Update @${this.notificationData.room}!`
             : 'Update',
@@ -125,10 +123,9 @@ class MasterServiceWorker {
             vibrate: [300, 100, 400]
           }
         ).then(result => {
-          this.pushWaitUntilResolve = null
           this.notificationData = null
           return result
-        }))
+        })
       }, this.showNotificationTimeout)
     } else if(event) {
       event.preventDefault()
