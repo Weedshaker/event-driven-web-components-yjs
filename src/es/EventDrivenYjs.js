@@ -336,6 +336,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     // Notifications
     /** @type {Promise<ServiceWorkerRegistration>} */
     this.serviceWorkerRegistration = navigator.serviceWorker.ready
+    // initially inform the sw about the real location to attach the link to the messages
+    this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
+      if (!serviceWorkerRegistration.active) return
+      serviceWorkerRegistration.active.postMessage(JSON.stringify({
+        key: 'location',
+        value: location
+      }))
+    })
     /** @type {Promise<PushSubscription>} */
     this.pushSubscription = this.serviceWorkerRegistration.then(
       serviceWorkerRegistration => {

@@ -82,14 +82,14 @@ export default class YjsChatUpdate extends HTMLElement {
   connectedCallback () {
     document.body.addEventListener('yjs-chat-update', this.eventListener)
     // TODO: when changing the providers this has to be dispatched newly
-    this.dispatchEvent(new CustomEvent('yjs-subscribe-notifications', {
+    document.body.addEventListener('click', event => this.dispatchEvent(new CustomEvent('yjs-subscribe-notifications', {
       detail: {
         resolve: result => console.log('subscribed', result)
       },
       bubbles: true,
       cancelable: true,
       composed: true
-    }))
+    })), {once: true})
   }
 
   disconnectedCallback () {

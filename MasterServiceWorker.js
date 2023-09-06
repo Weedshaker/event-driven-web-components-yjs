@@ -5,6 +5,8 @@
 
 class MasterServiceWorker {
   constructor () {
+    this.location = null
+
     this.addInstallEventListener()
     this.addActivateEventListener()
     this.addMessageChannelEventListener()
@@ -29,7 +31,8 @@ class MasterServiceWorker {
         return (data = null)
       }
       if (data.visibilityState === 'visible') return
-      console.log('post message', data);
+      if (data.key === 'location') return (this.location = data.value)
+      console.log('post message', data, this.location);
       // clearTimeout(this.messageTimeoutId)
       // this.messageTimeoutId = setTimeout(() => {
       //   self.registration.showNotification(`decentral chat user ${data.nickname} wrote:`, {
@@ -52,7 +55,7 @@ class MasterServiceWorker {
       } catch (e) {
         return (data = null)
       }
-      console.log('push message', data);
+      console.log('push message', data, this.location);
       /*
       // TODO: figure out where the link goes and how to add a link in actions
       if(data.type === 'update') {
