@@ -65,7 +65,7 @@ export default class AwarenessChange extends HTMLElement {
       if (!room.done) {
         await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-set-room', {
           detail: {
-            room: `chat-${self.prompt('room-name', `random-room-${Date.now()}`) || 'weedshakers-event-driven-web-components-test-19'}`,
+            room: `chat-${self.prompt('room-name', `random-room-${Date.now()}`) || 'weedshakers-event-driven-web-components-test-20'}`,
             resolve
           },
           bubbles: true,
