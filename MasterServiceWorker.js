@@ -100,6 +100,7 @@ class MasterServiceWorker {
   }
 
   addPushEventListener () {
+    console.log('-----------------', location);
     self.addEventListener('push', event => {
       let data = null
       try {
@@ -107,19 +108,34 @@ class MasterServiceWorker {
       } catch (e) {
         return (data = null)
       }
-      clearTimeout(this.pushTimeoutId)
-      this.pushTimeoutId = setTimeout(() => {
-        console.log('push', data.title, data.body);
-        self.registration.showNotification(
-          data.title,
-          {
-            body: data.body,
-            lang: navigator.language,
-            requireInteraction: true,
-            vibrate: [300, 100, 400]
-          }
-        )
-      }, 1000)
+      /*
+      // TODO: figure out where the link goes and how to add a link in actions
+      if(data.type === 'update') {
+
+      } else { // 'change'
+        clearTimeout(this.pushChangeTimeoutId)
+        this.pushChangeTimeoutId = setTimeout(() => {
+          console.log('push change', data);
+          self.registration.showNotification(
+            `${data.room} changed!`,
+            {
+              actions: [
+                {
+                  action: 'onclick',
+                  title: `${data.room} changed!`,
+                  body: data.room,
+                  //icon: ''
+                }
+              ],
+              body: data.room,
+              lang: navigator.language,
+              requireInteraction: true,
+              vibrate: [300, 100, 400]
+            }
+          )
+        }, 60 * 1000) // wait a minute
+      }
+      */
     })
   }
 

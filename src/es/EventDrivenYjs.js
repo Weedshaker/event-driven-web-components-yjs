@@ -219,8 +219,8 @@ import * as Y from './dependencies/yjs.js'
 // Supported attributes:
 // Attribute {websocket-url} string comma separated list of all websocket urls
 // Attribute {webrtc-url} string comma separated list of all webrtc urls
-// Attribute {indexeddb} has use indexeddb
 // Attribute {p2pt} has use p2pt
+// Attribute {indexeddb} has use indexeddb
 // Attribute {no-history} has don't write to the url with history.pushState
 // Attribute {no-url-params} has don't use the url params
 // Attribute {no-blur} don't react with awareness on blur
@@ -557,6 +557,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     const room = await this.room
 
     if (!name || name === 'websocket-url') {
+      const setNotification = (url, route) => {
+        // TODO: have a map and check if provider supports notifications as well as keep notification rooms in storage
+        // Subscribe for notifications
+        if (this.subscription) {
+          fetch(`${url.replace('ws:', 'http:').replace('wss:', 'https:')}/${route}`,{
+            method: "POST",
+            body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(this.subscription)), {room})),
+            headers: {
+              "Content-Type": "application/json",
+            }
+          }).then(resp => resp.text()).then(text => console.info('notification subscription', {this: this, text, url}))
+        }
+      }
       /** @type {Map<string, ProviderTypes>} */
       // @ts-ignore
       const websocketMap = this.providers.get('websocket')
@@ -571,16 +584,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
             websocketMap.set(websocketUrl.href, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc))
           }
-          // Subscribe for notifications
-          if (this.subscription) {
-            fetch(`${websocketUrl.origin.replace('ws:', 'http:').replace('wss:', 'https:')}/subscribe`,{
-              method: "POST",
-              body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(this.subscription)), {room})),
-              headers: {
-                "Content-Type": "application/json",
-              }
-            }).then(resp => resp.text()).then(text => console.log({this: this, text, url: websocketUrl.origin}))
-          }
+          setNotification(websocketUrl.origin, 'subscribe')
         })
         websocketMap.forEach(
           /**
@@ -590,16 +594,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           (provider, url) => {
             if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
               provider?.disconnect()
-              // Subscribe for notifications
-              if (this.subscription) {
-                fetch(`${(new URL(url)).origin.replace('ws:', 'http:').replace('wss:', 'https:')}/unsubscribe`,{
-                  method: "POST",
-                  body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(this.subscription)), {room})),
-                  headers: {
-                    "Content-Type": "application/json",
-                  }
-                }).then(resp => resp.text()).then(text => console.log({this: this, text, url}))
-              }
+              setNotification((new URL(url)).origin, 'unsubscribe')
             }
           }
         )
@@ -608,7 +603,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           /**
            * @param {ProviderTypes} provider
            */
-          provider => provider?.disconnect()
+          (provider, url) => {
+            provider?.disconnect()
+            setNotification((new URL(url)).origin, 'unsubscribe')
+          }
         )
       }
     }
@@ -917,9 +915,12 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           // register Notification
           this.subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
+            // https://vapidkeys.com/
             applicationServerKey: 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4',
           })
           this.updateProviders()
+        } else {
+          // TODO: not initialized
         }
         /*
         // message channel

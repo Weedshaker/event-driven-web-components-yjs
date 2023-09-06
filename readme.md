@@ -52,6 +52,7 @@ Websocket/RTC
 - [ ] hosting websocket/webrtc from local through onion service
 
 At decentralweb App level
+- [ ] chat end to end encryption https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto with asymmetrical private/public key -> https://github.com/mdn/dom-examples/blob/main/web-crypto/derive-key/ecdh.js
 - [ ] choose license (https://www.infoworld.com/article/3703768/the-open-source-licensing-war-is-over.html?utm_source=changelog-news)
 - [ ] organization (DOA?)
 - [ ] msgObj[] shall hold msgTyppe and if unknown has to include not supported and link to newest version.
