@@ -61,11 +61,35 @@ export default class YjsChatUpdate extends HTMLElement {
       })
       // scroll to new entry
       if (lastEntryIsSelf || isScrolledBottom) this.scroll(0, this.scrollHeight)
+      // notification
+      if (lastMessage && !lastEntryIsSelf) {
+        this.dispatchEvent(new CustomEvent('yjs-send-notification', {
+          detail: { 
+            data: {
+              nickname: lastMessage.nickname,
+              text: lastMessage.text
+            },
+            resolve: result => console.log('notification sent', result)
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
     }
   }
 
   connectedCallback () {
     document.body.addEventListener('yjs-chat-update', this.eventListener)
+    // TODO: when changing the providers this has to be dispatched newly
+    this.dispatchEvent(new CustomEvent('yjs-subscribe-notifications', {
+      detail: {
+        resolve: result => console.log('subscribed', result)
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
   }
 
   disconnectedCallback () {
