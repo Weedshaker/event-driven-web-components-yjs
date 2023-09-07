@@ -5,11 +5,7 @@
 
 class MasterServiceWorker {
   constructor () {
-    this.showNotificationTimeout = /*60 * */1000
-    this.showNotificationResolve = () => {}
-    this.showNotificationReject = () => {}
     this.location = {}
-    this.notificationData = null
 
     this.addInstallEventListener()
     this.addActivateEventListener()
@@ -59,7 +55,6 @@ class MasterServiceWorker {
       // get the location values from the dom
       if (data.key === 'location' && data.value) return (this.location = data.value)
       if (data.visibilityState === 'hidden') {
-        /* this event has no waitUntil and can be omitted */
         this.showNotification(data, event)
       } else {
         this.cancelNotification(event)
@@ -93,7 +88,7 @@ class MasterServiceWorker {
     })
   }
 
-  // NOTE: remove and with a time out add push listener does not work
+  // NOTE: self.removeEventListener('push'... does not work resp. adding after the initial face is not allowed
 
   /**
    * https://notifications.spec.whatwg.org/#dom-notification-actions
@@ -104,53 +99,33 @@ class MasterServiceWorker {
    * @return {void}
    */
   showNotification (data, event) {
-    if (!data) return
-    const trigger = !this.notificationData
-    if (this.notificationData && this.notificationData.body && !data.body && this.notificationData.room === data.room) {
-      this.notificationData = Object.assign(this.notificationData, data)
-    } else {
-      this.notificationData = data
-    }
-    if (trigger) {
-      this.cancelNotification()
-      const waitUntilPromise = new Promise((resolve, reject) => {
-        this.showNotificationResolve = resolve
-        this.showNotificationReject = reject
-      })
-      waitUntilPromise.finally(result => {
-        this.notificationData = null
-        return result
-      }).catch(error => error)
-      if (event.eventPhase !== 0) event.waitUntil(waitUntilPromise)
-      this.showNotificationTimeoutID = setTimeout(() => {
-        this.showNotificationResolve(self.registration.showNotification(
-          this.notificationData.room
-            ? `Update @${this.notificationData.room}!`
-            : 'Update',
-          {
-            body: this.notificationData.body
-              ? this.notificationData.body
-              : `There has been an update in the room: ${this.notificationData.room}`,
-            lang: navigator.language,
-            requireInteraction: true,
-            vibrate: [300, 100, 400]
-          }
-        ))
-      }, this.showNotificationTimeout)
-    } else if(event) {
-      this.cancelNotification(event, false)
+    if (!data) return this.cancelNotification(event)
+    const eventWaitUntil = event.eventPhase !== 0 ? event.waitUntil : () => {}
+    try {
+      eventWaitUntil(self.registration.showNotification(
+        data.room
+          ? `Update @${data.room}${data.nickname ? ` by ${data.nickname}` : ''}!`
+          : `Update${data.nickname ? ` by ${data.nickname}` : ''}`,
+        {
+          body: data.body || data.text
+            ? data.body || data.text
+            : `There has been an update in the room: ${data.room}`,
+          lang: navigator.language,
+          requireInteraction: true,
+          vibrate: [300, 100, 400]
+        }
+      ))
+    } catch (error) {
+      this.cancelNotification(event)
     }
   }
 
   /**
-   * @param {Event} [event=undefined]
-   * @param {boolean} [clear=true]
+   * @param {Event} event
    * @return {void}
    */
-  cancelNotification (event, clear = true) {
-    if (clear) clearTimeout(this.showNotificationTimeoutID)
-    this.showNotificationReject()
-    if (event) event.preventDefault()
+  cancelNotification (event) {
+    event.preventDefault()
   }
 }
 const ServiceWorker = new MasterServiceWorker()

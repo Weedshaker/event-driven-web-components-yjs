@@ -67,7 +67,7 @@ export default class YjsChatUpdate extends HTMLElement {
           detail: { 
             data: {
               nickname: lastMessage.nickname,
-              body: lastMessage.text
+              text: lastMessage.text
             },
             resolve: result => console.log('notification sent', result)
           },
