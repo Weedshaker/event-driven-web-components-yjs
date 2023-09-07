@@ -5,10 +5,11 @@
 
 class MasterServiceWorker {
   constructor () {
-    this.showNotificationTimeout = 60 * 1000
+    this.showNotificationTimeout = /*60 * */1000
+    this.showNotificationResolve = () => {}
+    this.showNotificationReject = () => {}
     this.location = {}
     this.notificationData = null
-    // TODO: event.waitUntil... https://stackoverflow.com/questions/66318926/how-to-avoid-showing-a-notification-in-service-worker-push-event
 
     this.addInstallEventListener()
     this.addActivateEventListener()
@@ -37,6 +38,7 @@ class MasterServiceWorker {
           let client
           if ((client = clientList.find(client => client.url === this.location.href)) && typeof client.focus === 'function') {
             client.focus()
+            client.postMessage('Push notification clicked!')
           } else {
             clients.openWindow(this.location.href)
           }
@@ -57,9 +59,10 @@ class MasterServiceWorker {
       // get the location values from the dom
       if (data.key === 'location' && data.value) return (this.location = data.value)
       if (data.visibilityState === 'hidden') {
-        this.showNotification(data)
+        /* this event has no waitUntil and can be omitted */
+        this.showNotification(data, event)
       } else {
-        this.cancelNotification()
+        this.cancelNotification(event)
       }
     })
   }
@@ -85,18 +88,19 @@ class MasterServiceWorker {
       }) === 'hidden') {
         this.showNotification(data, event)
       } else {
-        this.cancelNotification()
+        this.cancelNotification(event)
       }
     })
   }
 
-  // https://notifications.spec.whatwg.org/#dom-notification-actions
-  // https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/showNotification
+  // NOTE: remove and with a time out add push listener does not work
+
   /**
-   *
+   * https://notifications.spec.whatwg.org/#dom-notification-actions
+   * https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/showNotification
    *
    * @param {{room: string, type: string, visibilityState?: 'hidden', body?: string}} data
-   * @param {Event} [event=undefined]
+   * @param {Event} event
    * @return {void}
    */
   showNotification (data, event) {
@@ -109,8 +113,17 @@ class MasterServiceWorker {
     }
     if (trigger) {
       this.cancelNotification()
+      const waitUntilPromise = new Promise((resolve, reject) => {
+        this.showNotificationResolve = resolve
+        this.showNotificationReject = reject
+      })
+      waitUntilPromise.finally(result => {
+        this.notificationData = null
+        return result
+      }).catch(error => error)
+      if (event.eventPhase !== 0) event.waitUntil(waitUntilPromise)
       this.showNotificationTimeoutID = setTimeout(() => {
-        self.registration.showNotification(
+        this.showNotificationResolve(self.registration.showNotification(
           this.notificationData.room
             ? `Update @${this.notificationData.room}!`
             : 'Update',
@@ -122,18 +135,22 @@ class MasterServiceWorker {
             requireInteraction: true,
             vibrate: [300, 100, 400]
           }
-        ).then(result => {
-          this.notificationData = null
-          return result
-        })
+        ))
       }, this.showNotificationTimeout)
     } else if(event) {
-      event.preventDefault()
+      this.cancelNotification(event, false)
     }
   }
 
-  cancelNotification () {
-    clearTimeout(this.showNotificationTimeoutID)
+  /**
+   * @param {Event} [event=undefined]
+   * @param {boolean} [clear=true]
+   * @return {void}
+   */
+  cancelNotification (event, clear = true) {
+    if (clear) clearTimeout(this.showNotificationTimeoutID)
+    this.showNotificationReject()
+    if (event) event.preventDefault()
   }
 }
 const ServiceWorker = new MasterServiceWorker()

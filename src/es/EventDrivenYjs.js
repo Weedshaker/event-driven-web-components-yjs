@@ -634,11 +634,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         if (this.awarenessLocalStates[i] && !awareness.getLocalState()) awareness.setLocalState(this.awarenessLocalStates[i])
       })
     }
-    this.beforeunloadEventListener = async event => {
-      this.blurEventListener()
-      // TODO: Send message to MasterServiceWorker.js to ignore the notifications for the next 2min
-      // reason: when connection aka. tab closes the user object updates and triggers an immediate notification, which by itself outsets further relevant notifications.
-    }
+    this.beforeunloadEventListener = async event => this.blurEventListener()
     // save the last known local state and set the local state to null on blur, disconnect or unload
     this.blurEventListener = async event => {
       await (await this.yjs).providers
