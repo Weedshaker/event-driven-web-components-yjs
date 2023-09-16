@@ -44,7 +44,6 @@ class MasterServiceWorker {
   }
 
   addMessageEventListener () {
-    // Notify 24h after last document.visibilityState === 'visible'
     self.addEventListener('message', event => {
       let data = null
       try {

@@ -562,6 +562,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         if (result === 'granted') {
           await (await this.yjs).providers
           if (event.detail.url) {
+            // TODO: response with false if any fetch of setNotification returns an error
             this.setNotification(event.detail.url, 'subscribe', event.detail.room || await this.room)
           } else {
             // @ts-ignore
@@ -571,6 +572,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
                */
               async (provider, url) => {
                 const origin = (new URL(url)).origin
+                // TODO: response with false if any fetch of setNotification returns an error
                 if (this.websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await this.room)
               }
             )
