@@ -30,6 +30,7 @@ Frontend
 - [x] implement more solid fingerprint library (https://github.com/fingerprintjs/fingerprintjs/tree/master)
 - [x] default offline but on set providers offer default servers fetched from file from github pages
 - [x] fingerprint is still not consistent, consider to remove fingerprint from the uid
+- [ ] MasterServiceWorker add a Notification Queue which can be read through events
 - [ ] user local state field through user controller event at controllers/Users.js
 - [ ] EventDrivenYjs.js localstorage analog breathing app in one object with epoch per room and general local epoch without room ref. but just first contact
 - [ ] replace tests/exampleOne/AwarenessChange.js with users, etc.  at tests/exampleFour.html or App (live-share)
@@ -42,6 +43,7 @@ Frontend
 Websocket/RTC
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
 - [x] **websocket push (https://web.dev/push-notifications-subscribing-a-user/), notifications (https://astral.ninja/notifications) and service worker controller with cache and evtl. own yjs doc instance**
+- [ ] Provider connection ERROR handling (take note of it in the provider class)
 - [ ] on websocket shutdown save the map (subscriptions) to leveldb and load it backup when starting... servers/y-websocket/bin/utils.js
 - [ ] value for value (v4v): https://github.com/monero-ecosystem/monero-javascript ...
 - [ ] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/

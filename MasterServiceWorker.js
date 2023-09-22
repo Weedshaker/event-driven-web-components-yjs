@@ -38,6 +38,7 @@ class MasterServiceWorker {
           } else {
             clients.openWindow(this.location.href)
           }
+          // TODO: open or focus does not always work, best to add a link to the room inside the notification message (only text without a-tag)
         })
       )
     })
@@ -108,7 +109,7 @@ class MasterServiceWorker {
         {
           body: data.body || data.text
             ? data.body || data.text
-            : `There has been an update in the room: ${data.room}`,
+            : `There has been an update in the room: ${data.room}` + ' ' + this.location.href, // TODO: this.location.href is most likely not up to date and may contains wrong room, since this SW gets shared of any instance. Get the provider url from the webpush (server.js) and assemble the url with the room manually
           lang: navigator.language,
           requireInteraction: true,
           vibrate: [300, 100, 400]
