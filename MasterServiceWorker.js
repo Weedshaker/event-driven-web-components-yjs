@@ -35,9 +35,9 @@ class MasterServiceWorker {
           if ((client = clientList.find(client => client.url === this.location.href)) && typeof client.focus === 'function') {
             client.focus()
             client.postMessage('Push notification clicked!')
-          } else {
+          } //else {
             clients.openWindow(this.location.href)
-          }
+          //}
           // TODO: open or focus does not always work, best to add a link to the room inside the notification message (only text without a-tag)
         })
       )
