@@ -43,30 +43,19 @@ Frontend
 Websocket/RTC
 - [x] websocket without leveldb nor runtime cache (removed all persistance and deployed at https://github.com/Weedshaker/y-websocket)
 - [x] **websocket push (https://web.dev/push-notifications-subscribing-a-user/), notifications (https://astral.ninja/notifications) and service worker controller with cache and evtl. own yjs doc instance**
+- [x] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/
 - [ ] Provider connection ERROR handling (take note of it in the provider class)
-- [ ] on websocket shutdown save the map (subscriptions) to leveldb and load it backup when starting... servers/y-websocket/bin/utils.js
-- [ ] value for value (v4v): https://github.com/monero-ecosystem/monero-javascript ...
-- [ ] allow the user to choose to keep chat alive at websocket (see TODO: allow certain rooms to have persistence at https://github.com/
-- [ ] verification service (badge analog twitter verification badge) through SMS or post card with qr codce
-- [ ] own heroku webrtc testing
+- [ ] Use Notification FCM alternatives even though it is already encrypted but FCM is blocked by Brave (https://github.com/7-iris/iris_server | https://emteria.com/blog/fcm-alternatives)
 - [ ] hosting websocket/webrtc from local machine through https://tailscale.com/blog/tailscale-funnel-beta/?utm_source=changelog-news
 - [ ] hosting websocket/webrtc from local through https://www.runonflux.io/flux-nodes.html
 - [ ] hosting websocket/webrtc from local through onion service
-
-At decentralweb App level
-- [ ] chat end to end encryption https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto with asymmetrical private/public key -> https://github.com/mdn/dom-examples/blob/main/web-crypto/derive-key/ecdh.js
-- [ ] choose license (https://www.infoworld.com/article/3703768/the-open-source-licensing-war-is-over.html?utm_source=changelog-news)
-- [ ] organization (DOA?)
-- [ ] msgObj[] shall hold msgTyppe and if unknown has to include not supported and link to newest version.
-- [ ] **ipfs and webtorrent integrations (https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler?retiredLocale=de)**
-- [ ] speech (tests/exampleThree.html) see tests/exampleThree/Input.js
-- [ ] security and text & room link encryption 
-- [ ] search/crawl
-- [ ] id, room administrators (nostr)
-- [ ] dns (link board) / dns crdt
+- [ ] on websocket shutdown save the map (subscriptions) to leveldb and load it backup when starting... servers/y-websocket/bin/utils.js
+- [ ] value for value (v4v): https://github.com/monero-ecosystem/monero-javascript ...
+- [ ] verification service (badge analog twitter verification badge) through SMS or post card with qr codce
+- [ ] own heroku webrtc testing
 
 Vision
-- Principles: 100% Open Source, Offline First (decentralized content [CRDT] === decentralized ownership), as decentralized in all aspects as feasible
+- Principles: 100% Open Source, Offline eg. Local First (decentralized content [CRDT] === decentralized ownership), as decentralized in all aspects as feasible
 - creativity (app types: bullet board, wiki, draw, chat, one way chat (web site builder), doodle, sudoku, miro like, 2d platformer, add voice & video, simple games, heartbeat game, breathing app lobby to breath and meditate together afterwards staying in touch in own chat room)
 
 
