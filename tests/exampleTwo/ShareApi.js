@@ -32,7 +32,8 @@ export default class ShareApi extends HTMLElement {
       </style>
       <iframe class="gh-button" src="https://ghbtns.com/github-btn.html?user=Weedshaker&amp;repo=event-driven-web-components-yjs&amp;type=star&amp;count=true&amp;size=large" scrolling="0" width="130px" height="40px" frameborder="0"></iframe>
       <button id=reload>&#9842;<br>new room</button>
-      <button id=server>&#9743;<br>connections</button>
+      <button id=server>&#9741;<br>connections</button>
+      <button id=jitsi>&#9743;<br>video</button>
       <button id=share>💌<br>${this.textContent} [<span id=room-name></span>]</button>
       <button id=qr>&#9783;<br>generate a qr code</button>
     `
@@ -51,6 +52,8 @@ export default class ShareApi extends HTMLElement {
         self.open(`https://api.qrserver.com/v1/create-qr-code/?data="${self.encodeURIComponent(location.href)}"`)
       } else if (event.composedPath()[0].getAttribute('id') === 'reload') {
         self.open(location.origin + location.pathname)
+      }else if (event.composedPath()[0].getAttribute('id') === 'jitsi') {
+        self.open(`https://meet.hostpoint.ch/${this.shadowRoot.querySelector('#room-name').textContent}`)
       } else if (event.composedPath()[0].getAttribute('id') === 'server') {
         new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-providers', {
           detail: {
