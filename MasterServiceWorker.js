@@ -35,7 +35,6 @@ class MasterServiceWorker {
             client.focus()
             client.postMessage('Push notification clicked!')
           } else {
-            console.log('heeere', this.location);
             clients.openWindow(event.notification.data.hostAndPort
               ? `${this.location.origin}${this.location.pathname}?websocket-url=${event.notification.data.hostAndPort}&room=${event.notification.data.room}`
               : this.location.href
