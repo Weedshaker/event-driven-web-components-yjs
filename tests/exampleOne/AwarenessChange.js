@@ -79,7 +79,7 @@ export default class AwarenessChange extends HTMLElement {
       } else {
         // browser issue with two prompts too close, so we wait a moment here
         await new Promise(resolve => setTimeout(() => resolve(), 200))
-        nickname = self.prompt('nickname', `${nickname}-${new Date().getUTCMilliseconds()}`)
+        nickname = self.prompt('nickname', `${nickname}-${new Date().getUTCMilliseconds()}`) || `${nickname}-${new Date().getUTCMilliseconds()}`
       }
       this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
         /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */

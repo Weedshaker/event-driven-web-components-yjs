@@ -24,7 +24,6 @@ class MasterServiceWorker {
 
   addNotificationclickEventListener () {
     self.addEventListener('notificationclick', event => {
-      if (!this.location.href) return
       event.notification.close()
       event.waitUntil(
         clients.matchAll({
@@ -32,12 +31,15 @@ class MasterServiceWorker {
           includeUncontrolled: true
         }).then(clientList => {
           let client
-          if ((client = clientList.find(client => client.url === this.location.href)) && typeof client.focus === 'function') {
+          if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`))) && typeof client.focus === 'function') {
             client.focus()
             client.postMessage('Push notification clicked!')
-          } //else {
-            clients.openWindow(this.location.href)
-          //}
+          } else {
+            clients.openWindow(event.notification.data.hostAndPort
+              ? `${this.location.origin}${this.location.pathname}?websocket-url=${event.notification.data.hostAndPort}&room=${event.notification.data.room}`
+              : this.location.href
+            )
+          }
           // TODO: open or focus does not always work, best to add a link to the room inside the notification message (only text without a-tag)
         })
       )
@@ -70,12 +72,13 @@ class MasterServiceWorker {
       } catch (e) {
         return (data = null)
       }
+      if (!data.room) return (data = null)
       if (await clients.matchAll({
         type: 'window',
         includeUncontrolled: true
       }).then(clientList => {
         let client
-        if ((client = clientList.find(client => client.url === this.location.href))) {
+        if ((client = clientList.find(client => client.url.includes(`room=${data.room}`)))) {
           return client.visibilityState
         } else {
           return 'hidden'
@@ -109,7 +112,8 @@ class MasterServiceWorker {
         {
           body: data.body || data.text
             ? data.body || data.text
-            : `There has been an update in the room: ${data.room}` + ' ' + this.location.href, // TODO: this.location.href is most likely not up to date and may contains wrong room, since this SW gets shared of any instance. Get the provider url from the webpush (server.js) and assemble the url with the room manually
+            : `There has been an update in the room: ${data.room}`, // TODO: add a link eg. this.location.href but that is not the actual location of this push message but of the last room connected and may contains wrong room, since this SW gets shared of any instance. Get the provider url from the webpush (server.js) and assemble the url with the room manually
+          data,
           lang: navigator.language,
           requireInteraction: true,
           vibrate: [300, 100, 400]
