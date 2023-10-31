@@ -53,7 +53,7 @@ export default class ShareApi extends HTMLElement {
       } else if (event.composedPath()[0].getAttribute('id') === 'reload') {
         self.open(location.origin + location.pathname)
       }else if (event.composedPath()[0].getAttribute('id') === 'jitsi') {
-        self.open(`https://meet.hostpoint.ch/${this.shadowRoot.querySelector('#room-name').textContent}`)
+        self.open(`https://meet.hostpoint.ch/${this.shadowRoot.querySelector('#room-name').textContent.replace(/\s+/g, '')}`)
       } else if (event.composedPath()[0].getAttribute('id') === 'server') {
         new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-providers', {
           detail: {
