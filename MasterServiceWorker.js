@@ -36,6 +36,7 @@ class MasterServiceWorker {
             client.postMessage('Push notification clicked!')
           } else {
             console.log('openWindow', this.location);
+            // TODO: cache location to avoid undefined issue
             clients.openWindow(this.location.origin && this.location.pathname && event.notification.data.hostAndPort && event.notification.data.room
               ? `${this.location.origin}${this.location.pathname}?websocket-url=${event.notification.data.hostAndPort}&room=${event.notification.data.room}`
               : this.location.href
