@@ -51,12 +51,12 @@ Websocket/RTC
 - [ ] hosting websocket/webrtc from local through onion service
 - [ ] on websocket shutdown save the map (subscriptions) to leveldb and load it backup when starting... servers/y-websocket/bin/utils.js
 - [ ] value for value (v4v): https://github.com/monero-ecosystem/monero-javascript ...
-- [ ] verification service (badge analog twitter verification badge) through SMS or post card with qr codce
+- [ ] verification service (badge analog twitter verification badge) through SMS or post card with qr code
 - [ ] own heroku webrtc testing
 
 Vision
 - Principles: 100% Open Source, Offline eg. Local First (decentralized content [CRDT] === decentralized ownership), as decentralized in all aspects as feasible
-- creativity (app types: bullet board, wiki, draw, chat, one way chat (web site builder), doodle, sudoku, miro like, 2d platformer, add voice & video, simple games, heartbeat game, breathing app lobby to breath and meditate together afterwards staying in touch in own chat room)
+- creativity (app types: bullet board, wiki, draw, chat, one way chat (web site builder), givesendgo (crowd founding), doodle, sudoku, miro like, 2d platformer, add voice & video, simple games, heartbeat game, breathing app lobby to breath and meditate together afterwards staying in touch in own chat room)
 
 
 
