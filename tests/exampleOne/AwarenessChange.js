@@ -62,6 +62,7 @@ export default class AwarenessChange extends HTMLElement {
       cancelable: true,
       composed: true
     }))).then(async ({ room }) => {
+      console.log('TODO: avoid routing on popstate and fix room not accepted', room);
       if (!room.done) {
         await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-set-room', {
           detail: {
