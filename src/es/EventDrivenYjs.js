@@ -244,7 +244,7 @@ import * as Y from './dependencies/yjs.js'
 // Attribute {webrtc-url} string comma separated list of all webrtc urls
 // Attribute {p2pt} has use p2pt
 // Attribute {indexeddb} has use indexeddb
-// Attribute {no-history} has don't write to the url with history.pushState
+// Attribute {no-history} has don't write to the url with history.replaceState
 // Attribute {no-url-params} has don't use the url params
 // Attribute {no-blur} don't react with awareness on blur
 // Attribute {keep-alive} don't disconnect providers on disconnected callback
@@ -573,7 +573,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
               async (provider, url) => {
                 const origin = (new URL(url)).origin
                 // TODO: response with false if any fetch of setNotification returns an error
-                if (this.websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await this.room)
+                if (this.websocketUrl && this.websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await this.room)
               }
             )
           }
@@ -893,6 +893,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
+   * ensure url location search consistency
+   *
+   * @return {void}
+   */
+  fixUrlSearchParams () {
+    if (location.search !== this.url.search) {
+      this.replaceState('room', this.getAttribute('room') || '')
+      this.replaceState('websocket-url', this.getAttribute('websocket-url') || '')
+      this.replaceState('webrtc-url', this.getAttribute('webrtc-url') || '')
+    }
+  }
+
+  /**
    * Lifecycle callback, triggered when node is attached to the dom
    *
    * @return {void}
@@ -934,6 +947,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       )
     }
     this.reconnectAllProviders()
+    this.fixUrlSearchParams()
   }
 
   /**
@@ -966,30 +980,30 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   async attributeChangedCallback (name, oldValue, newValue) {
     newValue = this.getAttribute(name) // the new value eventually already changed, here we make sure to work with the most recent
     if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue !== newValue) {
-      this.pushState(name, newValue);
+      this.replaceState(name, newValue);
       (await this.yjs).providers = this.updateProviders(undefined, name)
     } else if (name === 'room' && !oldValue && newValue) {
-      this.pushState(name, newValue)
+      this.replaceState(name, newValue)
       this.roomResolve(newValue)
     }
   }
 
   /**
-   * pushState to History
+   * replaceState to History
    *
    * @param {string} key
    * @param {string} value
    * @return {void}
    */
-  pushState (key, value) {
+  replaceState (key, value) {
     const oldValue = this.url.searchParams.get(key)
-    if (!this.hasAttribute('no-history') && oldValue !== value) {
+    if (!this.hasAttribute('no-history') && this.isConnected && oldValue !== value) {
       if (!value) {
         this.url.searchParams.delete(key)
       } else {
         this.url.searchParams.set(key, value)
       }
-      history.pushState(history.state, document.title, this.url.href)
+      history.replaceState(history.state, document.title, this.url.href)
     }
   }
 
