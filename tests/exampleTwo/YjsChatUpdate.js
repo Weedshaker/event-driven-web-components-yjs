@@ -33,6 +33,9 @@ export default class YjsChatUpdate extends HTMLElement {
         :host > ul > li > span {
           word-break: break-word;
         }
+        :host > ul > li > span.text {
+          white-space: pre-line;
+        }
         :host > ul > li span.peer-web-site {
           font-size: 0.8em;
         }
@@ -60,7 +63,17 @@ export default class YjsChatUpdate extends HTMLElement {
         if (chat.length === i + 1) lastMessage = entry
       })
       // scroll to new entry
-      if (lastEntryIsSelf || isScrolledBottom) this.scroll(0, this.scrollHeight)
+      if (lastEntryIsSelf || isScrolledBottom) {
+        this.scroll(0, this.scrollHeight)
+        this.dispatchEvent(new CustomEvent('main-scroll', {
+          detail: {
+            behavior: 'instant'
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
       // notification
       if (lastMessage && !lastEntryIsSelf) {
         this.dispatchEvent(new CustomEvent('yjs-send-notification', {
@@ -81,6 +94,10 @@ export default class YjsChatUpdate extends HTMLElement {
 
   connectedCallback () {
     document.body.addEventListener('yjs-chat-update', this.eventListener)
+    this.connectedCallbackOnce()
+  }
+
+  connectedCallbackOnce () {
     // TODO: when changing the providers this has to be dispatched newly
     document.body.addEventListener('click', event => this.dispatchEvent(new CustomEvent('yjs-subscribe-notifications', {
       detail: {
@@ -90,6 +107,7 @@ export default class YjsChatUpdate extends HTMLElement {
       cancelable: true,
       composed: true
     })), {once: true})
+    this.connectedCallbackOnce = () => {}
   }
 
   disconnectedCallback () {

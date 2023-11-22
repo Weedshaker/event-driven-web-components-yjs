@@ -550,7 +550,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.getRoomEventListener = event => event.detail.resolve({ room: this.room })
 
     // Notification Events
-    this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker.register(`${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: this.importMetaUrl })
+    this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: './' })
 
     /**
      * subscribe to notifications
