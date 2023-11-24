@@ -25,17 +25,18 @@ export default class ShareApi extends HTMLElement {
           max-width: calc(50% - 0.25em);
           min-height: max(3em, 100%);
           word-break: break-all;
+          font-size: 0.7em;
         }
         :host > button > #room-name {
-          font-size: 0.8em;
+          font-size: 0.9em;
         }
       </style>
-      <iframe class="gh-button" src="https://ghbtns.com/github-btn.html?user=Weedshaker&amp;repo=event-driven-web-components-yjs&amp;type=star&amp;count=true&amp;size=large" scrolling="0" width="130px" height="40px" frameborder="0"></iframe>
       <button id=reload>&#9842;<br>new room</button>
       <button id=server>&#9741;<br>connections</button>
       <button id=jitsi>&#9743;<br>video</button>
       <button id=share>💌<br>${this.textContent} [<span id=room-name></span>]</button>
       <button id=qr>&#9783;<br>generate a qr code</button>
+      <button id=nickname>&#9731;<br>nickname</button>
     `
     this.eventListener = async event => {
       if (event.composedPath()[0].getAttribute('id') === 'share') {
@@ -54,6 +55,32 @@ export default class ShareApi extends HTMLElement {
         self.open(location.origin + location.pathname)
       }else if (event.composedPath()[0].getAttribute('id') === 'jitsi') {
         self.open(`https://meet.hostpoint.ch/${this.shadowRoot.querySelector('#room-name').textContent.replace(/\s+/g, '')}`)
+      }else if (event.composedPath()[0].getAttribute('id') === 'nickname') {
+        new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-room', {
+          detail: {
+            resolve
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))).then(async ({ room }) => {
+          if (!room) return
+          let nickname
+          if ((nickname = self.prompt('nickname', self.localStorage.getItem(await room + '-nickname')))) {
+            this.dispatchEvent(new CustomEvent('yjs-set-local-state-field', {
+              /** @type {import("../../src/es/EventDrivenYjs.js").SetLocalStateFieldEventDetail} */
+              detail: {
+                value: {
+                  nickname
+                }
+              },
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }))
+            self.localStorage.setItem(await room + '-nickname', nickname)
+          }
+        })
       } else if (event.composedPath()[0].getAttribute('id') === 'server') {
         new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-providers', {
           detail: {

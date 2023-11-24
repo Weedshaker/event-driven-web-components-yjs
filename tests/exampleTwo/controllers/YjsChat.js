@@ -29,9 +29,9 @@ export default class YjsChat extends HTMLElement {
         input.value = ''
       }
     }
-    let nicknameResolve
-    this.nickname = new Promise(resolve => (nicknameResolve = resolve))
     this.nicknameEventListener = event => {
+      let nicknameResolve
+      this.nickname = new Promise(resolve => (nicknameResolve = resolve))
       const nickname = event?.detail?.value?.nickname
       if (nickname) nicknameResolve(nickname)
     }
@@ -54,7 +54,7 @@ export default class YjsChat extends HTMLElement {
       this.observeEventListener({ detail: { type: result.type } })
       return result.type
     })
-    document.body.addEventListener('yjs-set-local-state-field', this.nicknameEventListener, { once: true })
+    document.body.addEventListener('yjs-set-local-state-field', this.nicknameEventListener)
   }
 
   disconnectedCallback () {
