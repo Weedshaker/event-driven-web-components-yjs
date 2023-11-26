@@ -76,6 +76,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
         connectedUsers: {
+          // TODO: TypeError: Cannot read properties of undefined (reading 'uid')
           [`${event.detail.name}${separator}${event.detail.url.origin}`]: stateValueUsers.filter(user => (user.uid !== event.detail.uid))
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user

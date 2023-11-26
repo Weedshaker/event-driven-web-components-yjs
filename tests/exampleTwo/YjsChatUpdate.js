@@ -73,6 +73,15 @@ export default class YjsChatUpdate extends HTMLElement {
           cancelable: true,
           composed: true
         }))
+        // TODO: solve the scroll stuff per message properly
+        setTimeout(() => this.dispatchEvent(new CustomEvent('main-scroll', {
+          detail: {
+            behavior: 'smooth'
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        })), 800);
       }
       // notification
       if (lastMessage && !lastEntryIsSelf) {

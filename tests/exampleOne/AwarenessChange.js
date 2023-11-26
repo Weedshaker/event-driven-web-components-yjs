@@ -40,6 +40,7 @@ export default class AwarenessChange extends HTMLElement {
       const ul = document.createElement('ul')
       stateValues.forEach((stateValue, url) => {
         const uuid = JSON.parse(event.detail.localEpoch).uuid
+        // TODO: TypeError: Cannot read properties of undefined (reading 'localEpoch')
         JSON.parse(stateValue).forEach(user => (ul.innerHTML += `<li class=${JSON.parse(user?.user.localEpoch).uuid === uuid ? 'certainly-self' : ''}>${url}:<br>${
           JSON.stringify(user)
             .replace(/},/g, '},<br><br>')

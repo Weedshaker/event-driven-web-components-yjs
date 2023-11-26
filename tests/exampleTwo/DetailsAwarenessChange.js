@@ -22,6 +22,7 @@ export default class DetailsAwarenessChange extends HTMLElement {
       let length = 0
       stateValues.forEach((stateValues, url) => {
         length += stateValues.reduce((prev, curr) => {
+          // TODO: TypeError: Cannot read properties of undefined (reading 'localEpoch')
           return (prev += curr.user.localEpoch !== event.detail.localEpoch ? 1 : 0)
         }, 0)
       })
