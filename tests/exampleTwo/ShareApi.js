@@ -53,9 +53,9 @@ export default class ShareApi extends HTMLElement {
         self.open(`https://api.qrserver.com/v1/create-qr-code/?data="${self.encodeURIComponent(location.href)}"`)
       } else if (event.composedPath()[0].getAttribute('id') === 'reload') {
         self.open(location.origin + location.pathname)
-      }else if (event.composedPath()[0].getAttribute('id') === 'jitsi') {
+      } else if (event.composedPath()[0].getAttribute('id') === 'jitsi') {
         self.open(`https://meet.hostpoint.ch/${this.shadowRoot.querySelector('#room-name').textContent.replace(/\s+/g, '')}`)
-      }else if (event.composedPath()[0].getAttribute('id') === 'nickname') {
+      } else if (event.composedPath()[0].getAttribute('id') === 'nickname') {
         new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-room', {
           detail: {
             resolve

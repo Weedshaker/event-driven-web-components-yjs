@@ -24,7 +24,7 @@ export default class YjsChat extends HTMLElement {
           nickname: await this.nickname,
           text: input.value,
           timestamp: Date.now(),
-          sendNotifications: true, // servers websocket utils.js has this check
+          sendNotifications: true // servers websocket utils.js has this check
         }])
         input.value = ''
       }

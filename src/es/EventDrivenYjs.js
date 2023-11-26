@@ -321,7 +321,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       (!this.hasAttribute('no-url-params') && this.url.searchParams.has('websocket-url')) ||
       Object.hasOwnProperty.call(options, 'websocketUrl') ||
       this.hasAttribute('websocket-url')
-    )) this.websocketUrl = '' //'wss://demos.yjs.dev'
+    )) this.websocketUrl = '' // 'wss://demos.yjs.dev'
 
     // set attribute webrtc-url
     // @ts-ignore
@@ -331,7 +331,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       (!this.hasAttribute('no-url-params') && this.url.searchParams.has('webrtc-url')) ||
       Object.hasOwnProperty.call(options, 'webrtcUrl') ||
       this.hasAttribute('webrtc-url')
-    )) this.webrtcUrl = '' //'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
+    )) this.webrtcUrl = '' // 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
 
     // Notifications
     /** @type {Promise<ServiceWorkerRegistration>} */
@@ -351,9 +351,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         return serviceWorkerRegistration.pushManager.subscribe({
           userVisibleOnly: true,
           // https://vapidkeys.com/
-          applicationServerKey: 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4',
+          applicationServerKey: 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
         })
-    })
+      })
 
     // Events:
     /**
@@ -777,7 +777,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       localEpoch: await this.getEpochStorage('local'),
       fingerprint: await this.fingerprint,
       // TODO: Already tried: https://github.com/jackspirou/clientjs and now https://fingerprintjs.github.io/fingerprintjs/ but both libraries do not deliver consistent fingerprints, means the same browser with the same localStorage would get different fingerprints assigned. Conclusion: Using the uuid with the timestamp for this uid property.
-      //uid: JSON.stringify({ ...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint })
+      // uid: JSON.stringify({ ...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint })
       uid: await this.getEpochStorage('local')
     }
 
@@ -920,7 +920,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.addEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.addEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
-    this.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListenerOnce, {once: true})
+    this.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListenerOnce, { once: true })
     this.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
     this.addEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
     this.addEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
@@ -1034,13 +1034,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   setNotification (url, route, room) {
     // Subscribe for notifications
-    return this.pushSubscription.then(pushSubscription => fetch(`${url.replace('ws:', 'http:').replace('wss:', 'https:')}/${route}`,{
-        method: "POST",
-        body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), {room})),
-        headers: {
-          "Content-Type": "application/json",
-        }
-      }).then(resp => resp.text()).then(text => console.info('notification subscription', {this: this, text, url}))
+    return this.pushSubscription.then(pushSubscription => fetch(`${url.replace('ws:', 'http:').replace('wss:', 'https:')}/${route}`, {
+      method: 'POST',
+      body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(resp => resp.text()).then(text => console.info('notification subscription', { this: this, text, url }))
     ).catch(error => console.error(error))
   }
 

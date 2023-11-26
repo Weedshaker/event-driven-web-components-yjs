@@ -62,7 +62,7 @@ export const Providers = (ChosenHTMLElement = HTMLElement) => class Providers ex
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
-    this.usersEventListener = 
+    this.usersEventListener =
     /**
      * @param {Event & {detail:UsersEventDetail} | any} event
      */
@@ -71,12 +71,12 @@ export const Providers = (ChosenHTMLElement = HTMLElement) => class Providers ex
       let getDataResult = null
       const getData = () => {
         if (getDataResult) return getDataResult
-        const getProviders = 
+        const getProviders =
         /**
          * @param {import('./Users').UsersContainer | []} [users = []]
          * @param {boolean} [onlyMutuallyConnectedUsers=false]
          * @return {ProvidersContainer}
-         */ 
+         */
         (users = [], onlyMutuallyConnectedUsers = false) => {
           /** @type {ProvidersContainer} */
           const providers = new Map()

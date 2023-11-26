@@ -81,12 +81,12 @@ export default class YjsChatUpdate extends HTMLElement {
           bubbles: true,
           cancelable: true,
           composed: true
-        })), 800);
+        })), 800)
       }
       // notification
       if (lastMessage && !lastEntryIsSelf) {
         this.dispatchEvent(new CustomEvent('yjs-send-notification', {
-          detail: { 
+          detail: {
             data: {
               nickname: lastMessage.nickname,
               text: lastMessage.text
@@ -115,11 +115,11 @@ export default class YjsChatUpdate extends HTMLElement {
       bubbles: true,
       cancelable: true,
       composed: true
-    })), {once: true})
+    })), { once: true })
     this.connectedCallbackOnce = () => {}
   }
 
   disconnectedCallback () {
     document.body.removeEventListener('yjs-chat-update', this.eventListener)
-  }    
+  }
 }

@@ -70,15 +70,16 @@ export default class YjsChatUpdate extends HTMLElement {
 
   connectedCallback () {
     document.body.addEventListener('yjs-chat-update', this.eventListener)
-    document.body.addEventListener('click', this.clickListener, {once: true})
+    document.body.addEventListener('click', this.clickListener, { once: true })
   }
 
   disconnectedCallback () {
     document.body.removeEventListener('yjs-chat-update', this.eventListener)
-  }   
+  }
+
   speak (text) {
     const utterThis = new SpeechSynthesisUtterance(text)
-    utterThis.lang = "en-US";
+    utterThis.lang = 'en-US'
     self.speechSynthesis.speak(utterThis)
   }
 }
