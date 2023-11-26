@@ -2,6 +2,9 @@
 
 import { separator } from './Users.js'
 
+/* global HTMLElement */
+/* global CustomEvent */
+
 // https://github.com/yjs
 /**
  * Constructor options
@@ -28,10 +31,6 @@ import { separator } from './Users.js'
   getData: () => {allProviders: ProvidersContainer, providers: ProvidersContainer}
  }} ProvidersEventDetail
 */
-
-/* global HTMLElement */
-/* global CustomEvent */
-/* global self */
 
 // Supported attributes:
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string

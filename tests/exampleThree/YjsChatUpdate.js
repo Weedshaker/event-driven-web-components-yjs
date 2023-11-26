@@ -1,5 +1,6 @@
 /* global HTMLElement */
 /* global self */
+/* global SpeechSynthesisUtterance */
 
 export default class YjsChatUpdate extends HTMLElement {
   constructor (...args) {

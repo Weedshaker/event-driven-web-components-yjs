@@ -1,5 +1,4 @@
 /* global HTMLElement */
-/* global self */
 
 export default class YjsChatUpdate extends HTMLElement {
   constructor (...args) {

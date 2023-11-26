@@ -1,6 +1,9 @@
 /* global HTMLElement */
 /* global CustomEvent */
 /* global self */
+/* global Vosk */
+/* global AudioContext */
+/* global AudioWorkletNode */
 
 export default class Input extends HTMLElement {
   constructor (...args) {

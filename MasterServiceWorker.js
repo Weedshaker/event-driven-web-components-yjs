@@ -1,7 +1,5 @@
-/* global location */
 /* global self */
-/* global caches */
-/* global fetch */
+/* global clients */
 
 class MasterServiceWorker {
   constructor () {
@@ -134,4 +132,4 @@ class MasterServiceWorker {
     event.preventDefault()
   }
 }
-const ServiceWorker = new MasterServiceWorker()
+const ServiceWorker = new MasterServiceWorker() // eslint-disable-line
