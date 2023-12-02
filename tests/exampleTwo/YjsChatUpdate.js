@@ -63,6 +63,13 @@ export default class YjsChatUpdate extends HTMLElement {
     height: 2rem;
     margin-top: -2%;
         }
+
+        :host > ul > li > .smaller-list-container ul li{
+          list-style-type: none;
+        }
+        :host > ul > li > .smaller-list-container ul li:hover{
+          background-color: rgba(150,150,150,0.3);
+        }
         
       </style>
     `
