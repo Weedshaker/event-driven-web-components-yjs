@@ -20,6 +20,7 @@ export default class YjsChatUpdate extends HTMLElement {
           padding: 1em;
           margin: 0.25em 0.1em 0.25em 0;
           width: 80%;          
+          
         }
         :host > ul > li.self {
           background-color: lightgreen;
@@ -42,6 +43,22 @@ export default class YjsChatUpdate extends HTMLElement {
           font-size: 0.6em;
         }
 
+        :host > ul > li > .smaller-list-container {
+          display: none;
+          background-color:var(--background-color-smallListContainer);
+          padding: 0.5rem 1rem;
+          box-shadow: var(--box-shadow-default);
+          border-radius: 10px;
+          width: 20%;
+          float: right;
+          margin-top: -5%;
+        }
+        :host > ul > li > .hover-button {                 
+          float:right;
+          border-radius: 50%;
+          box-shadow: var(--box-shadow-default);
+          border: none;
+        }
         
       </style>
     `
@@ -74,19 +91,11 @@ export default class YjsChatUpdate extends HTMLElement {
         button.classList.add('hover-button');
         button.innerHTML = '▼'; // Arrow down or any other content
         button.style.display = 'none'; // Initially hide the button
-        button.style.float = 'right';
-        button.style.borderRadius = '50%';
-        button.style.boxShadow = 'var(--box-shadow-default)';
-        button.style.border = 'none';
+        
         
         const container = document.createElement('div');
     container.classList.add('smaller-list-container');
-    container.style.display = 'none';
-    container.style.position = 'absolute'; 
-    container.style.backgroundColor = 'var(--background-color-smallListContainer)';
-    container.style.padding ='0.5rem 1rem';
-    container.style.boxShadow = 'var(--box-shadow-default)';
-    container.style.borderRadius = '10px';
+
 
 // Create a nested ul for the smaller list
 const smallerList = document.createElement('ul');
@@ -102,6 +111,8 @@ smallerList.appendChild(smallerListLi1)
 const smallerListLi2 = document.createElement('li');
 smallerListLi2.innerHTML =`<span>Response to this message</span>`;
 smallerList.appendChild(smallerListLi2)
+
+
 
 
 
@@ -129,13 +140,13 @@ smallerList.appendChild(smallerListLi2)
 
           li.isContainerVisible = !li.isContainerVisible; 
           // Get the position of the li element
-  const liRect = li.getBoundingClientRect();
+  //const liRect = li.getBoundingClientRect();
 
   // Set the position of the container next to the li element
   container.style.display = li.isContainerVisible ? 'block' : 'none';
-    container.style.top = `${liRect.top + 50}px`;
+  /*  container.style.top = `${liRect.top + 50}px`;
     container.style.left = `${liRect.right - 300}px`;
-
+*/
   // Change button content to 'X'
   button.innerHTML = li.isContainerVisible ? '✕' : '▼';
   handleButtonClick(entry);
@@ -148,7 +159,7 @@ smallerList.appendChild(smallerListLi2)
         ul.appendChild(li)
 
         container.appendChild(smallerList);
-        document.body.appendChild(container);
+        li.appendChild(container);
         if (chat.length === i + 1 && entry.isSelf) lastEntryIsSelf = true
         if (chat.length === i + 1) lastMessage = entry
       })
@@ -190,10 +201,34 @@ smallerList.appendChild(smallerListLi2)
       }
       
 
+
      
    
 //Event Listener Closing
     }
+
+// Add an event listener for scroll events to update container positions
+/*window.addEventListener('scroll', () => {
+  // Iterate through each li element to update container positions
+  document.querySelectorAll('li').forEach(li => {
+    const button = li.querySelector('.hover-button');
+    const container = document.querySelector('.smaller-list-container');
+    if (li.isContainerVisible) {
+      const liRect = li.getBoundingClientRect();
+      updateContainerPosition(container, liRect);
+    }
+  });
+});*/
+
+
+// Helper function to update the container position
+/*const updateContainerPosition = (container, li) => {
+  // Adjust the container's top position based on the scroll offset
+  const scrollOffset = window.scrollY || window.pageYOffset;
+  const liRect = li.getBoundingClientRect();
+  container.style.top = `${li.offsetTop + scrollOffset + 50}px`;
+  container.style.left = `${liRect.right - 300}px`;
+};*/
 
      // function to handle the button click
   const handleButtonClick = (entry) => {
