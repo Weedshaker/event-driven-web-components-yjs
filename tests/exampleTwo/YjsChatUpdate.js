@@ -52,12 +52,16 @@ export default class YjsChatUpdate extends HTMLElement {
           width: 20%;
           float: right;
           margin-top: -5%;
+          margin-right: 1%;
         }
         :host > ul > li > .hover-button {                 
           float:right;
           border-radius: 50%;
           box-shadow: var(--box-shadow-default);
           border: none;
+          width: 2rem;
+    height: 2rem;
+    margin-top: -2%;
         }
         
       </style>
