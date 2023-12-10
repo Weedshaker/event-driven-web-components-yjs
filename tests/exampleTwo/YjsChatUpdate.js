@@ -70,7 +70,11 @@ export default class YjsChatUpdate extends HTMLElement {
         :host > ul > li > .smaller-list-container ul li:hover{
           background-color: rgba(150,150,150,0.3);
         }
-        
+
+        /*Change Icon size*/
+        :host > ul > li > .smaller-list-container ul li span span{
+        font-size: 1.5rem;
+        }
       </style>
     `
     this.shadowRoot.appendChild(ul)
@@ -113,15 +117,19 @@ const smallerList = document.createElement('ul');
 smallerList.style.margin = 'auto';
 smallerList.style.padding = '0';
 
-
 const smallerListLi1 = document.createElement('li');
-smallerListLi1.innerHTML =`<span>Change Colors</span>`;
+smallerListLi1.innerHTML =`<span><span>🗑</span> Delete Message</span>`;
 smallerList.appendChild(smallerListLi1)
 
+/* TODO: Add functionality to change color for user in room
+const smallerListLi1 = document.createElement('li');
+smallerListLi1.innerHTML =`<span>Change Colors</span>`;
+smallerList.appendChild(smallerListLi1)*/
 
+/* TODO: Add functionality to Response to Message
 const smallerListLi2 = document.createElement('li');
 smallerListLi2.innerHTML =`<span>Response to this message</span>`;
-smallerList.appendChild(smallerListLi2)
+smallerList.appendChild(smallerListLi2)*/
 
 
 
@@ -217,29 +225,6 @@ smallerList.appendChild(smallerListLi2)
    
 //Event Listener Closing
     }
-
-// Add an event listener for scroll events to update container positions
-/*window.addEventListener('scroll', () => {
-  // Iterate through each li element to update container positions
-  document.querySelectorAll('li').forEach(li => {
-    const button = li.querySelector('.hover-button');
-    const container = document.querySelector('.smaller-list-container');
-    if (li.isContainerVisible) {
-      const liRect = li.getBoundingClientRect();
-      updateContainerPosition(container, liRect);
-    }
-  });
-});*/
-
-
-// Helper function to update the container position
-/*const updateContainerPosition = (container, li) => {
-  // Adjust the container's top position based on the scroll offset
-  const scrollOffset = window.scrollY || window.pageYOffset;
-  const liRect = li.getBoundingClientRect();
-  container.style.top = `${li.offsetTop + scrollOffset + 50}px`;
-  container.style.left = `${liRect.right - 300}px`;
-};*/
 
      // function to handle the button click
   const handleButtonClick = (entry) => {
