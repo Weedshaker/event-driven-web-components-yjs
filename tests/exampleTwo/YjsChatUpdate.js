@@ -157,7 +157,7 @@ smallerList.appendChild(smallerListLi2) */
           handleButtonClick(entry)
         })
 
-        li.appendChild(button)
+        //li.appendChild(button)
 
         ul.appendChild(li)
 
@@ -209,12 +209,12 @@ smallerList.appendChild(smallerListLi2) */
 
     // function to handle the button click
     const handleButtonClick = (entry) => {
-      console.log('Button clicked for entry:', entry)
+      //console.log('Button clicked for entry:', entry)
     }
 
     // function to handle the LI element hover
     const handleLiElementHover = (entry) => {
-      console.log('Li Element is hovered for showing btn:', entry)
+      //console.log('Li Element is hovered for showing btn:', entry)
     }
   }
 
