@@ -37,7 +37,8 @@ import { separator } from './Users.js'
 
 /**
  * Providers is a helper to keep all provider object in a yjs map and forwarding the proper events helping having an overview of all participants
- *
+ * TODO: view component for controllers/Providers.js with https://github.com/feross/p2p-graph
+ * 
  * @export
  * @function Providers
  * @param {CustomElementConstructor} [ChosenHTMLElement = HTMLElement]

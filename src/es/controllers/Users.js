@@ -158,12 +158,12 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     document.body.addEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     document.body.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     document.body.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.addEventListener(`${this.namespace}awareness-users`, this.awarenessUsersEventListener)
+    document.body.addEventListener(`${this.namespace}users-observe`, this.awarenessUsersEventListener)
     this.dispatchEvent(new CustomEvent(`${this.namespace}doc`, {
       detail: {
         command: 'getMap',
         arguments: ['users'],
-        observe: `${this.namespace}awareness-users`,
+        observe: `${this.namespace}users-observe`,
         observeDeep: true,
         resolve: this.yMapResolve
       },
@@ -177,7 +177,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     document.body.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     document.body.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     document.body.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.removeEventListener(`${this.namespace}awareness-users`, this.awarenessUsersEventListener)
+    document.body.removeEventListener(`${this.namespace}users-observe`, this.awarenessUsersEventListener)
   }
 
   /**
