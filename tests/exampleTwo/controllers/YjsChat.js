@@ -19,14 +19,14 @@ export default class YjsChat extends HTMLElement {
     }
     this.inputEventListener = async event => {
       const input = event.detail.input
-      if (input.value) {
+      if (input.innerHTML) {
         (await this.array).push([{
           nickname: await this.nickname,
-          text: input.value,
+          text: input.innerHTML,
           timestamp: Date.now(),
           sendNotifications: true // servers websocket utils.js has this check
         }])
-        input.value = ''
+        input.innerHTML = ''
       }
     }
     this.nicknameEventListener = event => {
