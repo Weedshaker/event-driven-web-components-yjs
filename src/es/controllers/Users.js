@@ -24,8 +24,16 @@
 /**
  * outgoing event
  @typedef {{
-  getData: () => {allUsers: UsersContainer, users: UsersContainer}
+  getData: () => {allUsers: UsersContainer, users: UsersContainer},
+  selfUser: import("../EventDrivenYjs").InitialUserValue
  }} UsersEventDetail
+*/
+
+/**
+ * outgoing event
+ @typedef {{
+  nickname: string
+ }} SetNicknameDetail
 */
 
 /* global HTMLElement */
@@ -59,7 +67,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
-    // get the own user uid once for further use at this.awarenessUsersEventListener
+    // get the own user uid once for further use at this.usersObserveEventListener
     this.awarenessChangeEventListenerOnce = event => {
       this.uidResolve(event.detail.uid)
       this.awarenessChangeEventListenerOnce = () => {}
@@ -94,7 +102,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
       }
     }
 
-    this.awarenessUsersEventListener = async event => {
+    this.usersObserveEventListener = async event => {
       const uid = await this.uid
       /** @type {null | {allUsers: UsersContainer,users: UsersContainer}} */
       let getDataResult = null
@@ -134,13 +142,40 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
         detail: {
-          getData
           /* type: event.detail.type */ // protect the original users map
+          getData,
+          selfUser: event.detail.type.get(uid)
         },
         bubbles: true,
         cancelable: true,
         composed: true
       }))
+    }
+
+    this.setNicknameLEventListener = async event => {
+      if (!event.detail.nickname) return
+      const uid = await this.uid
+      const yMap = (await this.yMap).type
+      const selfUser = yMap.get(uid)
+      if (selfUser.nickname !== event.detail.nickname) yMap.set(uid, { ...selfUser, nickname: event.detail.nickname })
+    }
+
+    this.getNicknameLEventListener = async event => {
+      const uid = await this.uid
+      const yMap = (await this.yMap).type
+      const nickname = yMap.get(uid).nickname
+      if (typeof event.detail.resolve === 'function') {
+        event.detail.resolve(nickname)
+      } else {
+        this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
+          detail: {
+            nickname
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
     }
 
     /** @type {(any)=>void} */
@@ -158,7 +193,9 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     document.body.addEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     document.body.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     document.body.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.addEventListener(`${this.namespace}users-observe`, this.awarenessUsersEventListener)
+    document.body.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
+    this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
     this.dispatchEvent(new CustomEvent(`${this.namespace}doc`, {
       detail: {
         command: 'getMap',
@@ -177,7 +214,9 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     document.body.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     document.body.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     document.body.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.removeEventListener(`${this.namespace}users-observe`, this.awarenessUsersEventListener)
+    document.body.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
+    this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
   }
 
   /**
