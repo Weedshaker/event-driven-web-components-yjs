@@ -25,7 +25,7 @@
  * outgoing event
  @typedef {{
   getData: () => {allUsers: UsersContainer, users: UsersContainer},
-  selfUser: import("../EventDrivenYjs").InitialUserValue
+  selfUser: import("../EventDrivenYjs").InitialUserValue | null // Can be initially null until the object loaded
  }} UsersEventDetail
 */
 
