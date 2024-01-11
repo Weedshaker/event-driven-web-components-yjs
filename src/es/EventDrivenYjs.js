@@ -422,9 +422,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     /**
      * subscribe to url changes
      *
-     * trigger this event by history.pushState(state, '', url) + dispatchEvent(new PopStateEvent('popstate', { state: state }))
-     * otherwise this is only triggered by the user clicking the history navigation of the browser
-     * more: https://stackoverflow.com/questions/10940837/history-pushstate-does-not-trigger-popstate-event
+     * trigger this event by history navigation of the browser
+     * don't hijack this by history.pushState(state, '', url) through a proxy analog https://github.com/Weedshaker/event-driven-web-components-router/blob/master/src/Router.js#L142 but use the events set-room and update-providers to change the url parameters
      *
      * @param {PopStateEvent} event
      */
