@@ -95,8 +95,8 @@ export default class YjsChatUpdate extends HTMLElement {
         li.innerHTML = `<span class="user">${entry.nickname}: </span><br><span class="text">${entry.text}</span><br><span class="timestamp">${(new Date(entry.timestamp)).toLocaleString(navigator.language)}</span>`
 
         /**
- * TODO: Create own atom components for toggle button and the optionsContainer
- */
+         * TODO: Create own atom components for toggle button and the optionsContainer
+         */
 
         // Create a button for li element
         const button = document.createElement('button')
@@ -117,14 +117,14 @@ export default class YjsChatUpdate extends HTMLElement {
         smallerList.appendChild(smallerListLi1)
 
         /* TODO: Add functionality to change color for user in room
-const smallerListLi1 = document.createElement('li');
-smallerListLi1.innerHTML =`<span>Change Colors</span>`;
-smallerList.appendChild(smallerListLi1) */
+        const smallerListLi1 = document.createElement('li');
+        smallerListLi1.innerHTML =`<span>Change Colors</span>`;
+        smallerList.appendChild(smallerListLi1) */
 
         /* TODO: Add functionality to Response to Message
-const smallerListLi2 = document.createElement('li');
-smallerListLi2.innerHTML =`<span>Response to this message</span>`;
-smallerList.appendChild(smallerListLi2) */
+        const smallerListLi2 = document.createElement('li');
+        smallerListLi2.innerHTML =`<span>Response to this message</span>`;
+        smallerList.appendChild(smallerListLi2) */
 
         // Add hover event listener to display the button
         li.addEventListener('mouseenter', () => {
@@ -150,8 +150,8 @@ smallerList.appendChild(smallerListLi2) */
           // Set the position of the container next to the li element
           container.style.display = li.isContainerVisible ? 'block' : 'none'
           /*  container.style.top = `${liRect.top + 50}px`;
-    container.style.left = `${liRect.right - 300}px`;
-*/
+              container.style.left = `${liRect.right - 300}px`;
+          */
           // Change button content to 'X'
           button.innerHTML = li.isContainerVisible ? '✕' : '▼'
           handleButtonClick(entry)
@@ -196,6 +196,7 @@ smallerList.appendChild(smallerListLi2) */
               nickname: lastMessage.nickname,
               text: lastMessage.text
             },
+            // TODO: this should not double trigger
             resolve: result => console.log('notification sent', result)
           },
           bubbles: true,
