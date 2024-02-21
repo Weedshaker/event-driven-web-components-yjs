@@ -431,12 +431,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const newUrl = new URL(location.href)
       const oldRoom = this.url.searchParams.get('room')
       if (!oldRoom && newUrl.searchParams.get('room')) this.roomResolve(newUrl.searchParams.get('room'))
-      await (await this.yjs).providers
-      const oldWebsocketUrl = this.url.searchParams.get('websocket-url')
-      const oldWebrtcUrl = this.url.searchParams.get('webrtc-url')
-      this.url = newUrl
-      if (oldWebsocketUrl !== this.url.searchParams.get('websocket-url')) this.websocketUrl = this.url.searchParams.get('websocket-url') || ''
-      if (oldWebrtcUrl !== this.url.searchParams.get('webrtc-url')) this.webrtcUrl = this.url.searchParams.get('webrtc-url') || ''
     }
 
     /**
