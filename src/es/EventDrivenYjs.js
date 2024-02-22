@@ -141,7 +141,7 @@ import * as Y from './dependencies/yjs.js'
 /**
  * ingoing event
  @typedef {{
-  resolve: any;
+  resolve?: any;
  }} GetProvidersEventDetail
 */
 
@@ -192,7 +192,7 @@ import * as Y from './dependencies/yjs.js'
 /**
  * ingoing event
  @typedef {{
-  resolve: any,
+  resolve?: any,
  }} GetRoomEventDetail
 */
 
@@ -440,13 +440,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.getProvidersEventListener = async event => {
       await (await this.yjs).providers
-      if (event && event.detail && event.detail.resolve) {
-        return event.detail.resolve({
-          providers: this.providers,
-          websocketUrl: this.websocketUrl,
-          webrtcUrl: this.webrtcUrl
-        })
+      const detail = {
+        providers: this.providers,
+        websocketUrl: this.websocketUrl,
+        webrtcUrl: this.webrtcUrl
       }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+      this.dispatch(`${this.namespace}providers`, detail)
     }
 
     /**
@@ -459,7 +459,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       if (event.detail.noHistory) this.setAttribute('no-history', event.detail.noHistory)
       if (event.detail.websocketUrl !== undefined) this.setAttribute('websocket-url', event.detail.websocketUrl)
       if (event.detail.webrtcUrl !== undefined) this.setAttribute('webrtc-url', event.detail.webrtcUrl)
-      if (event.detail.resolve) event.detail.resolve(await (await this.yjs).providers)
+      await (await this.yjs).providers
+      const detail = {
+        providers: this.providers,
+        websocketUrl: this.websocketUrl,
+        webrtcUrl: this.webrtcUrl
+      }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+      this.dispatch(`${this.namespace}providers`, detail)
     }
 
     /**
@@ -532,7 +539,9 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.setRoomEventListener = event => {
       this.roomResolve(event.detail.room)
-      event.detail.resolve({ room: this.room })
+      const detail = { room: this.room }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+      this.dispatch(`${this.namespace}room`, detail)
     }
 
     /**
@@ -540,7 +549,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {any & {detail: GetRoomEventDetail}} event
      */
-    this.getRoomEventListener = event => event.detail.resolve({ room: this.room })
+    this.getRoomEventListener = event => {
+      const detail = { room: this.room }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+      this.dispatch(`${this.namespace}room`, detail)
+    }
 
     // Notification Events
     this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: './' })
