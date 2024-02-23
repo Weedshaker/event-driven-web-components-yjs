@@ -15,7 +15,6 @@
 
 /**
  * Rooms is a helper to keep all rooms object in a yjs map and forwarding the proper events helping having an overview of all participants
- * TODO: view component for controllers/Rooms.js with requesting the room string instead of confirm box here
  *
  * @export
  * @function Rooms
