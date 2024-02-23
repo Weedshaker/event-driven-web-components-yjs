@@ -32,7 +32,8 @@
 /**
  * outgoing event
  @typedef {{
-  nickname: string
+  nickname: string,
+  resolve?: any
  }} SetNicknameDetail
 */
 
@@ -157,25 +158,32 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
       const uid = await this.uid
       const yMap = (await this.yMap).type
       const selfUser = yMap.get(uid)
-      if (selfUser.nickname !== event.detail.nickname) yMap.set(uid, { ...selfUser, nickname: event.detail.nickname })
+      if (selfUser.nickname !== event.detail.nickname) yMap.set(uid, { ...selfUser, nickname: event.detail.nickname || this.randomNickname })
+      const nickname = event.detail.nickname
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
+        detail: {
+          nickname
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
     }
 
     this.getNicknameLEventListener = async event => {
       const uid = await this.uid
       const yMap = (await this.yMap).type
-      const nickname = yMap.get(uid).nickname
-      if (typeof event.detail.resolve === 'function') {
-        event.detail.resolve(nickname)
-      } else {
-        this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
-          detail: {
-            nickname
-          },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }))
-      }
+      const nickname = yMap.get(uid).nickname || this.randomNickname
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
+        detail: {
+          nickname
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
     }
 
     /** @type {(any)=>void} */
@@ -190,10 +198,10 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
   }
 
   connectedCallback () {
-    document.body.addEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
-    document.body.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
-    document.body.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
     this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
     this.dispatchEvent(new CustomEvent(`${this.namespace}doc`, {
@@ -211,10 +219,10 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
   }
 
   disconnectedCallback () {
-    document.body.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
-    document.body.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
-    document.body.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
-    document.body.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
     this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
   }
@@ -236,4 +244,14 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     // @ts-ignore
     return this.getAttribute('namespace')
   }
+
+  get randomNickname () {
+    return this._randomNickname || (this._randomNickname = `no-name-${new Date().getUTCMilliseconds()}`)
+  }
+
+  get globalEventTarget () {
+    // @ts-ignore
+    return this._globalEventTarget || (this._globalEventTarget = self.Environment?.activeRoute || document.body)
+  }
+  
 }
