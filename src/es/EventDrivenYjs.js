@@ -335,18 +335,18 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     // Notifications
     /** @type {Promise<ServiceWorkerRegistration>} */
-    this.serviceWorkerRegistration = navigator.serviceWorker.ready
-    // initially inform the sw about the real location to attach the link to the messages
-    this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
-      if (!serviceWorkerRegistration.active) return
-      serviceWorkerRegistration.active.postMessage(JSON.stringify({
-        key: 'location',
-        value: location
-      }))
-    })
-    /** @type {Promise<PushSubscription>} */
-    this.pushSubscription = this.serviceWorkerRegistration.then(
-      serviceWorkerRegistration => {
+    this.serviceWorkerRegistration = navigator.serviceWorker?.ready
+    if (this.serviceWorkerRegistration) {
+      // initially inform the sw about the real location to attach the link to the messages
+      this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
+        if (!serviceWorkerRegistration.active) return
+        serviceWorkerRegistration.active.postMessage(JSON.stringify({
+          key: 'location',
+          value: location
+        }))
+      })
+      /** @type {Promise<PushSubscription>} */
+      this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
         serviceWorkerRegistration.update()
         return serviceWorkerRegistration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -354,6 +354,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           applicationServerKey: 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
         })
       })
+    }
 
     // Events:
     /**
@@ -556,7 +557,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     }
 
     // Notification Events
-    this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: './' })
+    this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: './' })
 
     /**
      * subscribe to notifications
@@ -617,7 +618,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.sendNotificationEventListener = event => {
       self.Notification.requestPermission(async (result) => {
-        if (result === 'granted') {
+        if (result === 'granted' && this.serviceWorkerRegistration) {
           this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
             if (!serviceWorkerRegistration.active) return
             serviceWorkerRegistration.active.postMessage(JSON.stringify({
@@ -1039,6 +1040,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {Promise<void>}
    */
   setNotification (url, route, room) {
+    if (!this.pushSubscription) return Promise.resolve()
     // Subscribe for notifications
     return this.pushSubscription.then(pushSubscription => fetch(`${url.replace('ws:', 'http:').replace('wss:', 'https:')}/${route}`, {
       method: 'POST',
