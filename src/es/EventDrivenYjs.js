@@ -444,7 +444,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const detail = {
         providers: this.providers,
         websocketUrl: this.websocketUrl,
-        webrtcUrl: this.webrtcUrl
+        webrtcUrl: this.webrtcUrl,
+        locationHref: location.href
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatch(`${this.namespace}providers`, detail)
@@ -464,7 +465,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const detail = {
         providers: this.providers,
         websocketUrl: this.websocketUrl,
-        webrtcUrl: this.webrtcUrl
+        webrtcUrl: this.webrtcUrl,
+        locationHref: location.href
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatch(`${this.namespace}providers`, detail)
@@ -540,7 +542,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.setRoomEventListener = event => {
       this.roomResolve(event.detail.room)
-      const detail = { room: this.room }
+      const detail = { room: this.room, locationHref: location.href }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatch(`${this.namespace}room`, detail)
     }
@@ -551,7 +553,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      * @param {any & {detail: GetRoomEventDetail}} event
      */
     this.getRoomEventListener = event => {
-      const detail = { room: this.room }
+      const detail = { room: this.room, locationHref: location.href }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatch(`${this.namespace}room`, detail)
     }
