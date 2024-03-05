@@ -97,7 +97,7 @@ export const Providers = (ChosenHTMLElement = HTMLElement) => class Providers ex
           providers: getProviders(event.detail.getData().users, true)
         })
       }
-      this.dispatchEvent(new CustomEvent(`${this.namespace}providers`, {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}providers-data`, {
         /** @type {ProvidersEventDetail} */
         detail: {
           getData

@@ -82,7 +82,8 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   providers: Providers,
   websocketUrl: string,
-  webrtcUrl: string
+  webrtcUrl: string,
+  locationHref: string
  }} ProvidersUpdateEventDetail
 */
 
@@ -415,7 +416,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           room: this.room
         }
         if (event.detail.resolve) return event.detail.resolve(detail)
-        this.dispatch(`${this.namespace}doc-result`, detail)
+        this.dispatch(`${this.namespace}type-result`, detail)
         // use a separate controller regarding doc-actions on the above created type
       }
     }
@@ -844,12 +845,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         (provider, url) => awarenessAddEventListener(provider, name, url)
       )
     )
-    this.dispatch(`${this.namespace}${name}-providers-update`,
+    this.dispatch(`${this.namespace}providers-update`,
       /** @type {ProvidersUpdateEventDetail} */
       {
         providers: this.providers,
         websocketUrl: this.websocketUrl,
-        webrtcUrl: this.webrtcUrl
+        webrtcUrl: this.webrtcUrl,
+        locationHref: location.href
       }
     )
     return this.providers
@@ -904,13 +906,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * ensure url location search consistency
    *
-   * @return {void}
+   * @return {Promise<void>}
    */
-  fixUrlSearchParams () {
+  async fixUrlSearchParams () {
     if (location.search !== this.url.search) {
-      this.replaceState('room', this.getAttribute('room') || '')
-      this.replaceState('websocket-url', this.getAttribute('websocket-url') || '')
-      this.replaceState('webrtc-url', this.getAttribute('webrtc-url') || '')
+      this.replaceState('room', await this.room || '')
+      this.replaceState('websocket-url', this.websocketUrl || '')
+      this.replaceState('webrtc-url', this.webrtcUrl || '')
     }
   }
 
@@ -938,7 +940,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
     self.addEventListener('beforeunload', this.beforeunloadEventListener)
     self.addEventListener('popstate', this.popstateEventListener)
-    document.body.setAttribute(`${this.namespace}load`, 'true')
+    this.globalEventTarget.setAttribute(`${this.namespace}load`, 'true')
     this.dispatch(`${this.namespace}load`,
       /** @type {LoadEventDetail} */
       {
@@ -982,7 +984,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
     self.removeEventListener('beforeunload', this.beforeunloadEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
-    document.body.removeAttribute(`${this.namespace}load`)
+    this.globalEventTarget.removeAttribute(`${this.namespace}load`)
     if (!this.hasAttribute('keep-alive')) this.disconnectAllProviders()
   }
 
@@ -1017,14 +1019,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   }
 
   /**
-   * dispatchEvent function which chooses to dispatch from document.body, if not connected
+   * dispatchEvent function which chooses to dispatch from this.globalEventTarget, if not connected
    *
    * @param {string} name
    * @param {any} detail
    * @param {HTMLElement} node
    * @return {void}
    */
-  dispatch (name, detail, node = this.isConnected ? this : document.body) {
+  dispatch (name, detail, node = this.isConnected ? this : this.globalEventTarget) {
     node.dispatchEvent(new CustomEvent(name, {
       detail,
       bubbles: true,
@@ -1158,5 +1160,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     if (epoch) return epoch
     self[`${name}Storage`].setItem(key, String(epoch = this.epoch))
     return epoch
+  }
+
+  get globalEventTarget () {
+    // @ts-ignore
+    return this._globalEventTarget || (this._globalEventTarget = self.Environment?.activeRoute || document.body)
   }
 }
