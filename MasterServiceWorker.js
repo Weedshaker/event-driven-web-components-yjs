@@ -85,8 +85,10 @@ class MasterServiceWorker {
         }
       }) === 'hidden') {
         this.showNotification(data, event)
+        console.log('got push showNotification', data, event)
       } else {
         this.cancelNotification(event)
+        console.log('got push cancelNotification', data, event)
       }
     })
   }
@@ -132,4 +134,5 @@ class MasterServiceWorker {
     event.preventDefault()
   }
 }
-const ServiceWorker = new MasterServiceWorker() // eslint-disable-line
+// TODO: Start the worker
+//const ServiceWorker = new MasterServiceWorker() // eslint-disable-line

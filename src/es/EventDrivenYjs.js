@@ -627,6 +627,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             serviceWorkerRegistration.active.postMessage(JSON.stringify({
               room: await this.room,
               type: 'message',
+              location,
               visibilityState: document.visibilityState,
               ...(event.detail.data || {})
             }))
