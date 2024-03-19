@@ -14,7 +14,7 @@ import * as Y from './dependencies/yjs.js'
 */
 
 /**
- * this.init() result with Yjs, Providers and Notification
+ * this.init() result with Yjs and Providers
  @typedef {Promise<{ doc: import("./dependencies/yjs").Doc, providers: Promise<Providers>}>} YJS
 */
 
@@ -203,34 +203,14 @@ import * as Y from './dependencies/yjs.js'
   room: string,
   resolve?: any
  }} SetRoomEventDetail
+*/
 
 /**
  * outgoing event
  @typedef {{
   resolve: any,
  }} RequestRoomEventDetail
-
-/**
- * ingoing event
- @typedef {{
-  resolve: any,
-  url?: string,
-  room?: string
- }} SubscribeNotificationsEventDetail
-
-/**
- * ingoing event
- @typedef {{
-  url?: string,
-  room?: string
- }} UnsubscribeNotificationsEventDetail
-
-/**
- * ingoing event
- @typedef {{
-  resolve: any,
-  data?: Object,
- }} SendNotificationEventDetail
+*/
 
 /* global document */
 /* global self */
@@ -333,29 +313,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       Object.hasOwnProperty.call(options, 'webrtcUrl') ||
       this.hasAttribute('webrtc-url')
     )) this.webrtcUrl = '' // 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
-
-    // Notifications
-    /** @type {Promise<ServiceWorkerRegistration>} */
-    this.serviceWorkerRegistration = navigator.serviceWorker?.ready
-    if (this.serviceWorkerRegistration) {
-      // initially inform the sw about the real location to attach the link to the messages
-      this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
-        if (!serviceWorkerRegistration.active) return
-        serviceWorkerRegistration.active.postMessage(JSON.stringify({
-          key: 'location',
-          value: location
-        }))
-      })
-      /** @type {Promise<PushSubscription>} */
-      this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
-        serviceWorkerRegistration.update()
-        return serviceWorkerRegistration.pushManager.subscribe({
-          userVisibleOnly: true,
-          // https://vapidkeys.com/
-          applicationServerKey: 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
-        })
-      })
-    }
 
     // Events:
     /**
@@ -559,86 +516,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.dispatch(`${this.namespace}room`, detail)
     }
 
-    // Notification Events
-    this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../../MasterServiceWorker.js`, { scope: './' })
-
-    /**
-     * subscribe to notifications
-     *
-     * @param {any & {detail: SubscribeNotificationsEventDetail}} event
-     */
-    this.subscribeNotificationsEventListener = event => {
-      self.Notification.requestPermission(async (result) => {
-        if (result === 'granted') {
-          await (await this.yjs).providers
-          if (event.detail.url) {
-            // TODO: response with false if any fetch of setNotification returns an error
-            this.setNotification(event.detail.url, 'subscribe', event.detail.room || await this.room)
-          } else {
-            // @ts-ignore
-            this.providers.get('websocket').forEach(
-              /**
-               * @param {ProviderTypes} provider
-               */
-              async (provider, url) => {
-                const origin = (new URL(url)).origin
-                // TODO: response with false if any fetch of setNotification returns an error
-                if (this.websocketUrl && this.websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await this.room)
-              }
-            )
-          }
-          event.detail.resolve(true)
-        } else {
-          event.detail.resolve(false)
-        }
-      })
-    }
-
-    /**
-     * unsubscribe to notifications
-     *
-     * @param {any & {detail: UnsubscribeNotificationsEventDetail}} event
-     */
-    this.unsubscribeNotificationsEventListener = async (event) => {
-      await (await this.yjs).providers
-      if (event.detail.url) {
-        this.setNotification(event.detail.url, 'unsubscribe', event.detail.room || await this.room)
-      } else {
-        // @ts-ignore
-        this.providers.get('websocket').forEach(
-          /**
-           * @param {ProviderTypes} provider
-           */
-          async (provider, url) => this.setNotification((new URL(url)).origin, 'unsubscribe', event.detail.room || await this.room)
-        )
-      }
-    }
-
-    /**
-     * send to notifications
-     *
-     * @param {any & {detail: SendNotificationEventDetail}} event
-     */
-    this.sendNotificationEventListener = event => {
-      self.Notification.requestPermission(async (result) => {
-        if (result === 'granted' && this.serviceWorkerRegistration) {
-          this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
-            if (!serviceWorkerRegistration.active) return
-            serviceWorkerRegistration.active.postMessage(JSON.stringify({
-              room: await this.room,
-              type: 'message',
-              location,
-              visibilityState: document.visibilityState,
-              ...(event.detail.data || {})
-            }))
-          })
-          event.detail.resolve(true)
-        } else {
-          event.detail.resolve(false)
-        }
-      })
-    }
-
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected
     this.focusEventListener = async event => {
@@ -712,7 +589,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           (provider, url) => {
             if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
               provider?.disconnect()
-              this.setNotification((new URL(url)).origin, 'unsubscribe', room)
+              this.dispatchEvent(new CustomEvent('yjs-unsubscribe-notifications', {
+                detail: {
+                  url: (new URL(url)).origin,
+                  room
+                },
+                bubbles: true,
+                cancelable: true,
+                composed: true
+              }))
             }
           }
         )
@@ -723,7 +608,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            */
           (provider, url) => {
             provider?.disconnect()
-            this.setNotification((new URL(url)).origin, 'unsubscribe', room)
+            this.dispatchEvent(new CustomEvent('yjs-unsubscribe-notifications', {
+              detail: {
+                url: (new URL(url)).origin,
+                room
+              },
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }))
           }
         )
       }
@@ -932,10 +825,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.addEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.addEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
-    this.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListenerOnce, { once: true })
-    this.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
-    this.addEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
-    this.addEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
     this.focusEventListener()
     self.addEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
@@ -977,9 +866,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.removeEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.removeEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
-    this.removeEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
-    this.removeEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
-    this.removeEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
     this.blurEventListener()
     self.removeEventListener('focus', this.focusEventListener)
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
@@ -1034,27 +920,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       cancelable: true,
       composed: true
     }))
-  }
-
-  /**
-   * subscribe or unsubscribe to websocket push notifications
-   *
-   * @param {string} url
-   * @param {'subscribe' | 'unsubscribe'} route
-   * @param {string} room
-   * @return {Promise<void>}
-   */
-  setNotification (url, route, room) {
-    if (!this.pushSubscription) return Promise.resolve()
-    // Subscribe for notifications
-    return this.pushSubscription.then(pushSubscription => fetch(`${url.replace('ws:', 'http:').replace('wss:', 'https:')}/${route}`, {
-      method: 'POST',
-      body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    }).then(resp => resp.text()).then(text => console.info('notification subscription', { this: this, text, url }))
-    ).catch(error => console.error(error))
   }
 
   /**

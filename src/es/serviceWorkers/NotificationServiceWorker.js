@@ -1,23 +1,13 @@
 /* global self */
 /* global clients */
 
-class MasterServiceWorker {
+class NotificationServiceWorker {
   constructor () {
     this.location = {}
 
-    this.addInstallEventListener()
-    this.addActivateEventListener()
     this.addNotificationclickEventListener()
     this.addMessageEventListener()
     this.addPushEventListener()
-  }
-
-  addInstallEventListener () {
-    self.addEventListener('install', event => self.skipWaiting())
-  }
-
-  addActivateEventListener () {
-    self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))
   }
 
   addNotificationclickEventListener () {
@@ -135,4 +125,4 @@ class MasterServiceWorker {
   }
 }
 // TODO: Start the worker
-//const ServiceWorker = new MasterServiceWorker() // eslint-disable-line
+//const ServiceWorker = new NotificationServiceWorker() // eslint-disable-line
