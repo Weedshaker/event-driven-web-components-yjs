@@ -65,18 +65,13 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     /** @type {string} */
     this.importMetaUrl = import.meta.url.replace(/(.*\/)(.*)$/, '$1')
 
+    // subscribe on user interaction
+    this.bodyClicked = false
+
     // Notifications
     /** @type {Promise<ServiceWorkerRegistration>} */
     this.serviceWorkerRegistration = navigator.serviceWorker?.ready
     if (this.serviceWorkerRegistration) {
-      // initially inform the sw about the real location to attach the link to the messages
-      this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
-        if (!serviceWorkerRegistration.active) return
-        serviceWorkerRegistration.active.postMessage(JSON.stringify({
-          key: 'location',
-          value: location
-        }))
-      })
       /** @type {Promise<PushSubscription>} */
       this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
         serviceWorkerRegistration.update()
@@ -175,7 +170,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
      */
     this.providersUpdateEventListener = event => {
       this.providersPromise = Promise.resolve(event.detail)
-      this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
+      if (this.bodyClicked) this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
         detail: {
           resolve: result => console.log('subscribed', result)
         },
@@ -222,14 +217,17 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
   }
 
   connectedCallbackOnce () {
-    document.body.addEventListener('click', event => this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
-      detail: {
-        resolve: result => console.log('subscribed', result)
-      },
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    })), { once: true })
+    document.body.addEventListener('click', event => {
+      this.bodyClicked = true
+      this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
+        detail: {
+          resolve: result => console.log('subscribed', result)
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }, { once: true })
     this.connectedCallbackOnce = () => {}
   }
 

@@ -739,15 +739,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         (provider, url) => awarenessAddEventListener(provider, name, url)
       )
     )
-    this.dispatch(`${this.namespace}providers-update`,
-      /** @type {ProvidersUpdateEventDetail} */
-      {
-        providers: this.providers,
-        websocketUrl: this.websocketUrl,
-        webrtcUrl: this.webrtcUrl,
-        locationHref: location.href
-      }
-    )
+    // without timeout this gets fired on boot up twice, since init and attribute changed call update providers
+    clearTimeout(this._updateProviderTimeoutId)
+    this._updateProviderTimeoutId = setTimeout(() => {
+      this.dispatch(`${this.namespace}providers-update`,
+        /** @type {ProvidersUpdateEventDetail} */
+        {
+          providers: this.providers,
+          websocketUrl: this.websocketUrl,
+          webrtcUrl: this.webrtcUrl,
+          locationHref: location.href
+        }
+      )
+    }, 50)
     return this.providers
   }
 
