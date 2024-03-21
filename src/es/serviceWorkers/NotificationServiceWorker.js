@@ -96,7 +96,9 @@ class NotificationServiceWorker {
         }
       })
       event.waitUntil(clientVisibilityPromise)
-      if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await localforage.getItem('uid') || []).includes(data.uid)) {
+      const uidPromise = localforage.getItem('uid')
+      event.waitUntil(uidPromise)
+      if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await uidPromise || []).includes(data.uid)) {
         this.showNotification(data, event)
       } else {
         this.cancelNotification(event)
