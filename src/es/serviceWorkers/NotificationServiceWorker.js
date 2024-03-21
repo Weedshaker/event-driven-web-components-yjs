@@ -2,7 +2,9 @@
 /* global clients */
 
 class NotificationServiceWorker {
-  constructor () {
+  constructor (roomNamePrefix = 'chat-') {
+    this.roomNamePrefix = roomNamePrefix
+
     localforage.config({name: 'notifications'})
     this.addNotificationclickEventListener()
     this.addMessageEventListener()
@@ -12,16 +14,14 @@ class NotificationServiceWorker {
   addNotificationclickEventListener () {
     self.addEventListener('notificationclick', event => {
       event.notification.close()
-      localforage.removeItem(event.notification.data.room)
+      if (!event.notification.data) return
+      localforage.removeItem(event.notification.data.room).then(() => this.postMessageAllNotifications())
       event.waitUntil(
-        clients.matchAll({
-          type: 'window',
-          includeUncontrolled: true
-        }).then(clientList => {
+        this.clientList.then(clientList => {
           let client
           if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`))) && typeof client.focus === 'function') {
             client.focus()
-            client.postMessage('Push notification clicked!')
+            client.postMessage(JSON.stringify({key: 'click', message: 'Push notification clicked!', ...event.notification.data}))
           } else {
             clients.openWindow(location.origin && event.notification.data.hostAndPort && event.notification.data.room
               ? `${location.origin}/?page=/chat&websocket-url=${event.notification.data.hostAndPort}&room=${event.notification.data.room}`
@@ -42,6 +42,18 @@ class NotificationServiceWorker {
         this.cancelNotification(event)
         return (data = null)
       }
+      if (data.room) {
+        if (data.key === 'requestClearNotifications') {
+          localforage.removeItem(data.room).then(() => this.postMessageAllNotifications())
+          return
+        }
+        if (data.key === 'requestPostMessageAllNotifications') {
+          return this.clientList.then(clientList => {
+            let client
+            if ((client = clientList.find(client => client.url.includes(`room=${data.room}`)))) this.postMessageAllNotifications(client)
+          })
+        }
+      }
       // get the users uid (each room has own uid's, this is a collection)
       if (data.key === 'uid' && data.value) {
         const currentData = await localforage.getItem('uid')
@@ -59,7 +71,7 @@ class NotificationServiceWorker {
   }
 
   addPushEventListener () {
-    self.addEventListener('push', async (event) => {
+    self.addEventListener('push', async event => {
       let data = null
       try {
         data = event.data.json() || null
@@ -71,17 +83,18 @@ class NotificationServiceWorker {
         this.cancelNotification(event)
         return (data = null)
       }
-      if (await clients.matchAll({
-        type: 'window',
-        includeUncontrolled: true
-      }).then(clientList => {
+      const clientListPromise = this.clientList
+      event.waitUntil(clientListPromise)
+      const clientVisibilityPromise = clientListPromise.then(clientList => {
         let client
         if ((client = clientList.find(client => client.url.includes(`room=${data.room}`)))) {
           return client.visibilityState
         } else {
           return 'hidden'
         }
-      }) === 'hidden' && data.sendNotifications && !(await localforage.getItem('uid') || []).includes(data.uid)) {
+      })
+      event.waitUntil(clientVisibilityPromise)
+      if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await localforage.getItem('uid') || []).includes(data.uid)) {
         this.showNotification(data, event)
       } else {
         this.cancelNotification(event)
@@ -121,7 +134,7 @@ class NotificationServiceWorker {
       localforage.setItem(data.room, Array.isArray(currentData)
         ? [...currentData, data]
         : [data]
-      )
+      ).then(() => this.postMessageAllNotifications())
     } catch (error) {
       this.cancelNotification(event)
     }
@@ -133,6 +146,29 @@ class NotificationServiceWorker {
    */
   cancelNotification (event) {
     event.preventDefault()
+  }
+
+  /**
+   * @param {client} [client=null]
+   * @return {void}
+   */
+  postMessageAllNotifications (client = null) {
+    const notifications = {}
+    localforage.iterate((value, key) => {
+      if (key.includes(this.roomNamePrefix)) notifications[key] = value
+    }).then(async () => {
+      const clients = client
+        ? [client]
+        : await this.clientList
+      clients.forEach(client => client.postMessage(JSON.stringify({key: 'notifications', message: 'Open notifications:', notifications})))
+    })
+  }
+
+  get clientList () {
+    return clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })
   }
 }
 // TODO: Start the worker

@@ -199,6 +199,40 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       }
     }
 
+    this.pushEventMessageListener = event => {
+      const data = JSON.parse(event.data)
+      if (data.key === 'notifications') {
+        this.notificationsResolve(data)
+        this.notificationsPromise = Promise.resolve(data)
+        this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+          detail: data,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
+    }
+
+    this.requestNotificationsEventListener = async event => {
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(await this.notificationsPromise)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+        detail: await this.notificationsPromise,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
+    this.focusEventListener = async event => {
+      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+        if (!serviceWorkerRegistration.active) return
+        serviceWorkerRegistration.active.postMessage(JSON.stringify({
+          key: 'requestClearNotifications',
+          room: await (await this.roomPromise).room,
+        }))
+      })
+    }
+
     /** @type {(any)=>void} */
     this.uidResolve = map => map
     /** @type {Promise<string>} */
@@ -213,6 +247,11 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     this.providersResolve = map => map
     /** @type {Promise<import("../EventDrivenYjs.js").ProvidersUpdateEventDetail>} */
     this.providersPromise = new Promise(resolve => (this.providersResolve = resolve))
+
+    /** @type {(any)=>void} */
+    this.notificationsResolve = map => map
+    /** @type {Promise<{notifications: {}}>} */
+    this.notificationsPromise = new Promise(resolve => (this.notificationsResolve = resolve))
   }
 
   connectedCallback () {
@@ -220,8 +259,18 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     this.globalEventTarget.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users`, this.usersEventListener)
+    navigator.serviceWorker.addEventListener('message', this.pushEventMessageListener)
+    self.addEventListener('focus', this.focusEventListener)
+    this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+      if (!serviceWorkerRegistration.active) return
+      serviceWorkerRegistration.active.postMessage(JSON.stringify({
+        key: 'requestClearNotifications',
+        room: await (await this.roomPromise).room,
+      }))
+    })
     this.dispatchEvent(new CustomEvent(`${this.namespace}get-room`, {
       detail: {
         resolve: this.roomResolve
@@ -260,7 +309,10 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
+    navigator.serviceWorker.removeEventListener('message', this.pushEventMessageListener)
+    self.removeEventListener('focus', this.focusEventListener)
   }
 
   /**
