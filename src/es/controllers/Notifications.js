@@ -107,7 +107,6 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       self.Notification.requestPermission(async (result) => {
         if (result === 'granted') {
           if (event.detail.url) {
-            // TODO: response with false if any fetch of setNotification returns an error
             this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
           } else {
             // @ts-ignore
@@ -117,7 +116,6 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
                */
               async (provider, url) => {
                 const origin = (new URL(url)).origin
-                // TODO: response with false if any fetch of setNotification returns an error
                 const websocketUrl = (await this.providersPromise).websocketUrl
                 if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
               }
@@ -184,7 +182,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       this.providersPromise = Promise.resolve(event.detail)
       if (this.bodyClicked) this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
         detail: {
-          resolve: result => console.log('subscribed', result)
+          resolve: () => {}
         },
         bubbles: true,
         cancelable: true,
