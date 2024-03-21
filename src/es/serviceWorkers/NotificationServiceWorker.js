@@ -34,7 +34,7 @@ class NotificationServiceWorker {
   }
 
   addMessageEventListener () {
-    self.addEventListener('message', event => {
+    self.addEventListener('message', async event => {
       let data = null
       try {
         data = JSON.parse(event.data) || null
@@ -42,7 +42,15 @@ class NotificationServiceWorker {
         this.cancelNotification(event)
         return (data = null)
       }
-      if (data.visibilityState === 'hidden') {
+      // get the users uid (each room has own uid's, this is a collection)
+      if (data.key === 'uid' && data.value) {
+        const currentData = await localforage.getItem('uid')
+        return localforage.setItem('uid', Array.isArray(currentData)
+          ? [...currentData, data.value]
+          : [data.value]
+        )
+      }
+      if (data.visibilityState === 'hidden' && !(await localforage.getItem('uid') || []).includes(data.uid)) {
         this.showNotification(data, event)
       } else {
         this.cancelNotification(event)
@@ -73,7 +81,7 @@ class NotificationServiceWorker {
         } else {
           return 'hidden'
         }
-      }) === 'hidden' && data.sendNotifications) {
+      }) === 'hidden' && data.sendNotifications && !(await localforage.getItem('uid') || []).includes(data.uid)) {
         this.showNotification(data, event)
       } else {
         this.cancelNotification(event)

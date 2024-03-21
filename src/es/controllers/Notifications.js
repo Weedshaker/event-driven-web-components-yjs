@@ -32,7 +32,11 @@
  * ingoing event
  @typedef {{
   resolve: any,
-  data?: Object,
+  data?: {
+    room: string,
+    nickname: string,
+    body: string
+  },
  }} SendNotificationEventDetail
 */
 
@@ -72,6 +76,14 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     /** @type {Promise<ServiceWorkerRegistration>} */
     this.serviceWorkerRegistration = navigator.serviceWorker?.ready
     if (this.serviceWorkerRegistration) {
+      // initially inform the sw about the uid
+      this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+        if (!serviceWorkerRegistration.active) return
+        serviceWorkerRegistration.active.postMessage(JSON.stringify({
+          key: 'uid',
+          value: await this.uid
+        }))
+      })
       /** @type {Promise<PushSubscription>} */
       this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
         serviceWorkerRegistration.update()
@@ -92,7 +104,6 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
      * @param {any & {detail: SubscribeNotificationsEventDetail}} event
      */
     this.subscribeNotificationsEventListener = async event => {
-      // TODO: triggers twice
       self.Notification.requestPermission(async (result) => {
         if (result === 'granted') {
           if (event.detail.url) {
@@ -150,6 +161,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
             if (!serviceWorkerRegistration.active) return
             serviceWorkerRegistration.active.postMessage(JSON.stringify({
               room: await (await this.roomPromise).room,
+              uid: await this.uid,
               type: 'message',
               location,
               visibilityState: document.visibilityState,
@@ -180,6 +192,18 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       }))
     }
 
+    this.usersEventListener = async event => {
+      if (event.detail.selfUser?.uid) {
+        this.uidResolve(event.detail.selfUser.uid)
+        this.globalEventTarget.removeEventListener(`${this.namespace}users`, this.usersEventListener)
+      }
+    }
+
+    /** @type {(any)=>void} */
+    this.uidResolve = map => map
+    /** @type {Promise<string>} */
+    this.uid = new Promise(resolve => (this.uidResolve = resolve))
+
     /** @type {(any)=>void} */
     this.roomResolve = map => map
     /** @type {Promise<{ locationHref: string, room: Promise<string> & {done: boolean} }>} */
@@ -197,6 +221,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     this.globalEventTarget.addEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}users`, this.usersEventListener)
     this.dispatchEvent(new CustomEvent(`${this.namespace}get-room`, {
       detail: {
         resolve: this.roomResolve
