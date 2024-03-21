@@ -57,7 +57,9 @@ class NotificationServiceWorker {
       // get the users uid (each room has own uid's, this is a collection)
       if (data.key === 'uid' && data.value) {
         const currentData = await localforage.getItem('uid')
-        return localforage.setItem('uid', Array.isArray(currentData)
+        let isArray
+        if ((isArray = Array.isArray(currentData)) && currentData.includes(data.value)) return
+        return localforage.setItem('uid', isArray
           ? [...currentData, data.value]
           : [data.value]
         )
