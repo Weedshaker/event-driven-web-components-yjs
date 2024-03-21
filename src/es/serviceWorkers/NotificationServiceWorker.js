@@ -91,7 +91,7 @@ class NotificationServiceWorker {
    * @param {Event} event
    * @return {void}
    */
-  showNotification (data, event) {
+  async showNotification (data, event) {
     if (!data) return this.cancelNotification(event)
     const eventWaitUntil = event.eventPhase !== 0 ? event.waitUntil : () => {}
     try {
@@ -109,7 +109,11 @@ class NotificationServiceWorker {
           vibrate: [300, 100, 400]
         }
       ))
-      localforage.setItem(data.room, data)
+      const currentData = await localforage.getItem(data.room)
+      localforage.setItem(data.room, Array.isArray(currentData)
+        ? [...currentData, data]
+        : [data]
+      )
     } catch (error) {
       this.cancelNotification(event)
     }
