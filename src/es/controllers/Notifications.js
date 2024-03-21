@@ -295,7 +295,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       this.bodyClicked = true
       this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
         detail: {
-          resolve: result => console.log('subscribed', result)
+          resolve: () => {}
         },
         bubbles: true,
         cancelable: true,
