@@ -210,6 +210,8 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
           cancelable: true,
           composed: true
         }))
+      } else if(data.key === 'click' && location.origin && data.hostAndPort && data.room) {
+        history.pushState({ ...history.state, pageTitle: (document.title = data.room) }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}&room=${data.room}`)
       }
     }
 

@@ -17,7 +17,7 @@ class NotificationServiceWorker {
       event.waitUntil(
         this.clientList.then(clientList => {
           let client
-          if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`))) && typeof client.focus === 'function') {
+          if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`) || clientList[0])) && typeof client.focus === 'function') {
             client.focus()
             client.postMessage(JSON.stringify({key: 'click', message: 'Push notification clicked!', ...event.notification.data}))
           } else {
