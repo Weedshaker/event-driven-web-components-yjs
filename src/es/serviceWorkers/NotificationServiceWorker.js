@@ -71,7 +71,7 @@ class NotificationServiceWorker {
   }
 
   addPushEventListener () {
-    self.addEventListener('push', /*async */event => {
+    self.addEventListener('push', async event => {
       let data = null
       try {
         data = event.data.json() || null
@@ -83,8 +83,7 @@ class NotificationServiceWorker {
         this.cancelNotification(event)
         return (data = null)
       }
-      this.showNotification(data, event)
-      /*const clientListPromise = this.clientList
+      const clientListPromise = this.clientList
       event.waitUntil(clientListPromise)
       const clientVisibilityPromise = clientListPromise.then(clientList => {
         let client
@@ -101,7 +100,7 @@ class NotificationServiceWorker {
         this.showNotification(data, event)
       } else {
         this.cancelNotification(event)
-      }*/
+      }
     })
   }
 
