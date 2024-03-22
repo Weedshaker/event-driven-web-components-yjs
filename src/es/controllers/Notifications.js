@@ -72,31 +72,32 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     // subscribe on user interaction
     this.bodyClicked = false
 
-    // Notifications
     /** @type {Promise<ServiceWorkerRegistration>} */
     this.serviceWorkerRegistration = navigator.serviceWorker?.ready
-    if (this.serviceWorkerRegistration) {
-      // initially inform the sw about the uid
-      this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
-        if (!serviceWorkerRegistration.active) return
-        serviceWorkerRegistration.active.postMessage(JSON.stringify({
-          key: 'uid',
-          value: await this.uid
-        }))
-      })
-      /** @type {Promise<PushSubscription>} */
-      this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
-        serviceWorkerRegistration.update()
-        return serviceWorkerRegistration.pushManager.subscribe({
-          userVisibleOnly: true,
-          // https://vapidkeys.com/
-          applicationServerKey: this.getAttribute('application-server-key') || 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
-        })
-      })
-    }
 
     // Notification Events
-    this.subscribeNotificationsEventListenerOnce = event => navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../serviceWorkers/NotificationServiceWorker.js`, { scope: this.getAttribute('sw-scope') || './' })
+    this.subscribeNotificationsEventListenerOnce = event => {
+      navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../serviceWorkers/NotificationServiceWorker.js`, { scope: this.getAttribute('sw-scope') || './' })
+      if (this.serviceWorkerRegistration) {
+        // initially inform the sw about the uid
+        this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+          if (!serviceWorkerRegistration.active) return
+          serviceWorkerRegistration.active.postMessage(JSON.stringify({
+            key: 'uid',
+            value: await this.uid
+          }))
+        })
+        /** @type {Promise<PushSubscription>} */
+        this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
+          serviceWorkerRegistration.update()
+          return serviceWorkerRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            // https://vapidkeys.com/
+            applicationServerKey: this.getAttribute('application-server-key') || 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
+          })
+        })
+      }
+    }
 
     /**
      * subscribe to notifications
