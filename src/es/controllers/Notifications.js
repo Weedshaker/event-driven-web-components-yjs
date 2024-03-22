@@ -106,23 +106,27 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
      */
     this.subscribeNotificationsEventListener = async event => {
       self.Notification.requestPermission(async (result) => {
-        this.subscribeNotificationsEventListenerOnce()
-        if (event.detail.url) {
-          this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-        } else {
-          // @ts-ignore
-          (await this.providersPromise).providers.get('websocket').forEach(
-            /**
-             * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
-             */
-            async (provider, url) => {
-              const origin = (new URL(url)).origin
-              const websocketUrl = (await this.providersPromise).websocketUrl
-              if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-            }
-          )
+        if (result === 'granted') {
+          this.subscribeNotificationsEventListenerOnce()
+          if (event.detail.url) {
+            this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+          } else {
+            // @ts-ignore
+            (await this.providersPromise).providers.get('websocket').forEach(
+              /**
+               * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
+               */
+              async (provider, url) => {
+                const origin = (new URL(url)).origin
+                const websocketUrl = (await this.providersPromise).websocketUrl
+                if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+              }
+            )
+          }
+          if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
+        } else if (typeof event.detail.resolve === 'function')  {
+          event.detail.resolve(false)
         }
-        if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
       })
     }
 
@@ -287,7 +291,6 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
 
   connectedCallbackOnce () {
     document.body.addEventListener('click', event => {
-      this.bodyClicked = true
       this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
         detail: {
           resolve: () => {}
@@ -296,6 +299,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
         cancelable: true,
         composed: true
       }))
+      this.bodyClicked = true
     }, { once: true })
     this.connectedCallbackOnce = () => {}
   }
