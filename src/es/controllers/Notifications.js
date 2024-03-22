@@ -73,11 +73,10 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     this.bodyClicked = false
 
     /** @type {Promise<ServiceWorkerRegistration>} */
-    this.serviceWorkerRegistration = navigator.serviceWorker?.ready
+    this.serviceWorkerRegistration = navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../serviceWorkers/NotificationServiceWorker.js`, { scope: this.getAttribute('sw-scope') || './' })
 
     // Notification Events
     this.subscribeNotificationsEventListenerOnce = event => {
-      navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../serviceWorkers/NotificationServiceWorker.js`, { scope: this.getAttribute('sw-scope') || './' })
       if (this.serviceWorkerRegistration) {
         // initially inform the sw about the uid
         this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
@@ -96,6 +95,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
             applicationServerKey: this.getAttribute('application-server-key') || 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
           })
         })
+        this.subscribeNotificationsEventListenerOnce = () => {}
       }
     }
 
@@ -106,26 +106,23 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
      */
     this.subscribeNotificationsEventListener = async event => {
       self.Notification.requestPermission(async (result) => {
-        if (result === 'granted') {
-          if (event.detail.url) {
-            this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-          } else {
-            // @ts-ignore
-            (await this.providersPromise).providers.get('websocket').forEach(
-              /**
-               * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
-               */
-              async (provider, url) => {
-                const origin = (new URL(url)).origin
-                const websocketUrl = (await this.providersPromise).websocketUrl
-                if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-              }
-            )
-          }
-          event.detail.resolve(true)
+        this.subscribeNotificationsEventListenerOnce()
+        if (event.detail.url) {
+          this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
         } else {
-          event.detail.resolve(false)
+          // @ts-ignore
+          (await this.providersPromise).providers.get('websocket').forEach(
+            /**
+             * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
+             */
+            async (provider, url) => {
+              const origin = (new URL(url)).origin
+              const websocketUrl = (await this.providersPromise).websocketUrl
+              if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+            }
+          )
         }
+        if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
       })
     }
 
@@ -254,7 +251,6 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
   }
 
   connectedCallback () {
-    this.globalEventTarget.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListenerOnce, { once: true })
     this.globalEventTarget.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
