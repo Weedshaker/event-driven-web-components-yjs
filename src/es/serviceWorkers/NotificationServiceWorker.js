@@ -2,9 +2,7 @@
 /* global clients */
 
 class NotificationServiceWorker {
-  constructor (roomNamePrefix = 'chat-') {
-    this.roomNamePrefix = roomNamePrefix
-
+  constructor () {
     localforage.config({name: 'notifications'})
     this.addNotificationclickEventListener()
     this.addMessageEventListener()
@@ -159,12 +157,16 @@ class NotificationServiceWorker {
   postMessageAllNotifications (client = null) {
     const notifications = {}
     localforage.iterate((value, key) => {
-      if (key.includes(this.roomNamePrefix)) notifications[key] = value
+      if (key !== 'uid') notifications[key] = value
     }).then(async () => {
       const clients = client
         ? [client]
         : await this.clientList
       clients.forEach(client => client.postMessage(JSON.stringify({key: 'notifications', message: 'Open notifications:', notifications})))
+      if (typeof navigator.setAppBadge === 'function') {
+        const notificationsCounter = Object.keys(notifications).reduce((acc, key) => acc + notifications[key].length, 0)
+        navigator.setAppBadge(notificationsCounter)
+      }
     })
   }
 
