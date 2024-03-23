@@ -78,6 +78,11 @@ class NotificationServiceWorker {
 
   addPushEventListener () {
     self.addEventListener('push', async event => {
+      // TEST
+      event.waitUntil(self.registration.showNotification('io damn iphone', {
+        body: 'this is a test',
+      }))
+      // TEST END
       let data = null
       try {
         data = event.data.json() || null
