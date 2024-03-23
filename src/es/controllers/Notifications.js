@@ -115,29 +115,28 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
      * @param {any & {detail: SubscribeNotificationsEventDetail}} event
      */
     this.subscribeNotificationsEventListener = async event => {
-      self.Notification.requestPermission(async (result) => {
-        if (result === 'granted') {
-          this.subscribeNotificationsEventListenerOnce()
-          if (event.detail.url) {
-            this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-          } else {
-            // @ts-ignore
-            (await this.providersPromise).providers.get('websocket').forEach(
-              /**
-               * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
-               */
-              async (provider, url) => {
-                const origin = (new URL(url)).origin
-                const websocketUrl = (await this.providersPromise).websocketUrl
-                if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-              }
-            )
-          }
-          if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
-        } else if (typeof event.detail.resolve === 'function')  {
-          event.detail.resolve(false)
+      const result = await self.Notification.requestPermission()
+      if (result === 'granted') {
+        this.subscribeNotificationsEventListenerOnce()
+        if (event.detail.url) {
+          this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+        } else {
+          // @ts-ignore
+          (await this.providersPromise).providers.get('websocket').forEach(
+            /**
+             * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
+             */
+            async (provider, url) => {
+              const origin = (new URL(url)).origin
+              const websocketUrl = (await this.providersPromise).websocketUrl
+              if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+            }
+          )
         }
-      })
+        if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
+      } else if (typeof event.detail.resolve === 'function')  {
+        event.detail.resolve(false)
+      }
     }
 
     /**
