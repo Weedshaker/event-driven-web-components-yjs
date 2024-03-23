@@ -13,7 +13,7 @@ class NotificationServiceWorker {
     self.addEventListener('notificationclick', event => {
       event.notification.close()
       if (!event.notification.data) return
-      localforage.removeItem(event.notification.data.room).then(() => this.postMessageAllNotifications())
+      this.removeRoom(event.notification.data.room)
       event.waitUntil(
         this.clientList.then(clientList => {
           let client
@@ -42,7 +42,7 @@ class NotificationServiceWorker {
       }
       if (data.room) {
         if (data.key === 'requestClearNotifications') {
-          localforage.removeItem(data.room).then(() => this.postMessageAllNotifications())
+          this.removeRoom(data.room)
           return
         }
         if (data.key === 'requestPostMessageAllNotifications') {
@@ -168,6 +168,15 @@ class NotificationServiceWorker {
         navigator.setAppBadge(notificationsCounter)
       }
     })
+  }
+
+  removeRoom (key) {
+    self.registration.getNotifications().then(notifications => {
+      notifications.forEach(notification => {
+        if (notification.data?.room === key) notification.close()
+      })
+    })
+    localforage.removeItem(key).then(() => this.postMessageAllNotifications())
   }
 
   get clientList () {
