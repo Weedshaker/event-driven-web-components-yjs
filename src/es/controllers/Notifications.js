@@ -2,6 +2,7 @@
 
 /* global HTMLElement */
 /* global CustomEvent */
+/* global Environment */
 
 // https://github.com/yjs
 /**
@@ -84,6 +85,15 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
           serviceWorkerRegistration.active.postMessage(JSON.stringify({
             key: 'uid',
             value: await this.uid
+          }))
+        })
+        // initially inform the sw about the keepAlive
+        this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+          if (!serviceWorkerRegistration.active) return
+          serviceWorkerRegistration.active.postMessage(JSON.stringify({
+            key: 'keepAlive',
+            // @ts-ignore
+            value: self.Environment.keepAlive
           }))
         })
         /** @type {Promise<PushSubscription>} */
@@ -211,7 +221,8 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
           composed: true
         }))
       } else if(data.key === 'click' && location.origin && data.hostAndPort && data.room) {
-        history.pushState({ ...history.state, pageTitle: (document.title = data.room) }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}&room=${data.room}`)
+        // @ts-ignore
+        history.pushState({ ...history.state, pageTitle: (document.title = data.room) }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}?keep-alive=${self.Environment.keepAlive || 86400000}&room=${data.room}`)
       }
     }
 

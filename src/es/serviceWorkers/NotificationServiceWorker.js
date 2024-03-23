@@ -15,14 +15,16 @@ class NotificationServiceWorker {
       if (!event.notification.data) return
       this.removeRoom(event.notification.data.room)
       event.waitUntil(
-        this.clientList.then(clientList => {
+        this.clientList.then(async clientList => {
           let client
           if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`) || clientList[0])) && typeof client.focus === 'function') {
             client.focus()
             client.postMessage(JSON.stringify({key: 'click', message: 'Push notification clicked!', ...event.notification.data}))
           } else {
+            const keepAlivePromise = localforage.getItem('keepAlive')
+            event.waitUntil(keepAlivePromise)
             clients.openWindow(location.origin && event.notification.data.hostAndPort && event.notification.data.room
-              ? `${location.origin}/?page=/chat&websocket-url=${event.notification.data.hostAndPort}&room=${event.notification.data.room}`
+              ? `${location.origin}/?page=/chat&websocket-url=${event.notification.data.hostAndPort}?keep-alive=${await keepAlivePromise || 86400000}&room=${event.notification.data.room}`
               : location.origin
             )
           }
@@ -61,6 +63,10 @@ class NotificationServiceWorker {
           ? [...currentData, data.value]
           : [data.value]
         )
+      }
+      // get the users keepAlive (each room has own keepAlive's, this is a collection)
+      if (data.key === 'keepAlive' && data.value) {
+        return localforage.setItem('keepAlive', data.value)
       }
       if (data.visibilityState === 'hidden' && !(await localforage.getItem('uid') || []).includes(data.uid)) {
         this.showNotification(data, event)
@@ -157,7 +163,7 @@ class NotificationServiceWorker {
   postMessageAllNotifications (client = null) {
     const notifications = {}
     localforage.iterate((value, key) => {
-      if (key !== 'uid') notifications[key] = value
+      if (key !== 'uid' && key !== 'keepAlive') notifications[key] = value
     }).then(async () => {
       const clients = client
         ? [client]
