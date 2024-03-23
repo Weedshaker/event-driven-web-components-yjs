@@ -14,22 +14,20 @@ class NotificationServiceWorker {
       event.notification.close()
       if (!event.notification.data) return
       this.removeRoom(event.notification.data.room)
-      event.waitUntil(
-        this.clientList.then(async clientList => {
-          let client
-          if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`) || clientList[0])) && typeof client.focus === 'function') {
-            client.focus()
-            client.postMessage(JSON.stringify({key: 'click', message: 'Push notification clicked!', ...event.notification.data}))
-          } else {
-            const keepAlivePromise = localforage.getItem('keepAlive')
-            event.waitUntil(keepAlivePromise)
-            clients.openWindow(location.origin && event.notification.data.hostAndPort && event.notification.data.room
-              ? `${location.origin}/?page=/chat&websocket-url=${event.notification.data.hostAndPort}?keep-alive=${await keepAlivePromise || 86400000}&room=${event.notification.data.room}`
-              : location.origin
-            )
-          }
-        })
-      )
+      this.eventWaitUntil(event, this.clientList.then(async clientList => {
+        let client
+        if ((client = clientList.find(client => client.url.includes(`room=${event.notification.data.room}`) || clientList[0])) && typeof client.focus === 'function') {
+          client.focus()
+          client.postMessage(JSON.stringify({key: 'click', message: 'Push notification clicked!', ...event.notification.data}))
+        } else {
+          const keepAlivePromise = localforage.getItem('keepAlive')
+          this.eventWaitUntil(event, keepAlivePromise)
+          clients.openWindow(location.origin && event.notification.data.hostAndPort && event.notification.data.room
+            ? `${location.origin}/?page=/chat&websocket-url=${event.notification.data.hostAndPort}?keep-alive=${await keepAlivePromise || 86400000}&room=${event.notification.data.room}`
+            : location.origin
+          )
+        }
+      }))
     })
   }
 
@@ -97,7 +95,7 @@ class NotificationServiceWorker {
         return (data = null)
       }
       const clientListPromise = this.clientList
-      event.waitUntil(clientListPromise)
+      this.eventWaitUntil(event, clientListPromise)
       const clientVisibilityPromise = clientListPromise.then(clientList => {
         let client
         if ((client = clientList.find(client => client.url.includes(`room=${data.room}`)))) {
@@ -106,11 +104,11 @@ class NotificationServiceWorker {
           return 'hidden'
         }
       })
-      event.waitUntil(clientVisibilityPromise)
+      this.eventWaitUntil(event, clientVisibilityPromise)
       const uidPromise = localforage.getItem('uid')
-      event.waitUntil(uidPromise)
+      this.eventWaitUntil(event, uidPromise)
       if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await uidPromise || []).includes(data.uid)) {
-        event.waitUntil(this.showNotification(data, event))
+        this.eventWaitUntil(event, this.showNotification(data, event))
       } else {
         this.cancelNotification(event)
       }
@@ -129,9 +127,8 @@ class NotificationServiceWorker {
    */
   async showNotification (data, event) {
     if (!data) return this.cancelNotification(event)
-    //const eventWaitUntil = event.eventPhase !== 0 ? event.waitUntil : () => {}
     try {
-      event.waitUntil(self.registration.showNotification(
+      this.eventWaitUntil(event, self.registration.showNotification(
         data.room
           ? `Update @${data.room}${data.nickname ? ` by ${data.nickname}` : ''}!`
           : `Update${data.nickname ? ` by ${data.nickname}` : ''}`,
@@ -190,6 +187,12 @@ class NotificationServiceWorker {
       })
     })
     localforage.removeItem(key).then(() => this.postMessageAllNotifications())
+  }
+
+  eventWaitUntil (event, promise) {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Event/eventPhase
+    // Event.None (0) [The event is not being processed at this time.]
+    if (event && promise && typeof event.waitUntil === 'function' && event.eventPhase !== 0) event.waitUntil(promise)
   }
 
   get clientList () {
