@@ -103,7 +103,7 @@ class NotificationServiceWorker {
       const uidPromise = localforage.getItem('uid')
       event.waitUntil(uidPromise)
       if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await uidPromise || []).includes(data.uid)) {
-        this.showNotification(data, event)
+        event.waitUntil(this.showNotification(data, event))
       } else {
         this.cancelNotification(event)
       }
@@ -122,9 +122,9 @@ class NotificationServiceWorker {
    */
   async showNotification (data, event) {
     if (!data) return this.cancelNotification(event)
-    const eventWaitUntil = event.eventPhase !== 0 ? event.waitUntil : () => {}
+    //const eventWaitUntil = event.eventPhase !== 0 ? event.waitUntil : () => {}
     try {
-      eventWaitUntil(self.registration.showNotification(
+      event.waitUntil(self.registration.showNotification(
         data.room
           ? `Update @${data.room}${data.nickname ? ` by ${data.nickname}` : ''}!`
           : `Update${data.nickname ? ` by ${data.nickname}` : ''}`,
