@@ -142,11 +142,14 @@ class NotificationServiceWorker {
           vibrate: [300, 100, 400]
         }
       ))
-      const currentData = await localforage.getItem(data.room)
-      localforage.setItem(data.room, Array.isArray(currentData)
-        ? [...currentData, data]
-        : [data]
-      ).then(() => this.postMessageAllNotifications())
+      let notifications = await localforage.getItem(data.room)
+      if (Array.isArray(notifications)) {
+        notifications.unshift(data)
+        if (notifications.length > 100) notifications.length = 100 // don't store more than 100 notifications
+      } else {
+        notifications = [data]
+      }
+      localforage.setItem(data.room, notifications).then(() => this.postMessageAllNotifications())
     } catch (error) {
       this.cancelNotification(event)
     }

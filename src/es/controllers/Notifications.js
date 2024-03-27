@@ -67,6 +67,8 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
+    const freshlyFetchNotificationsAfter = 10000
+
     /** @type {string} */
     this.importMetaUrl = import.meta.url.replace(/(.*\/)(.*)$/, '$1')
 
@@ -121,6 +123,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
         if (event.detail.url) {
           this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
         } else {
+          // TODO: Only subscribe to one!
           // @ts-ignore
           (await this.providersPromise).providers.get('websocket').forEach(
             /**
@@ -208,17 +211,17 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       }
     }
 
-    this.pushEventMessageListener = event => {
+    let lastRequestedNotifications = Date.now()
+    this.pushEventMessageListener = async event => {
       const data = JSON.parse(event.data)
       if (data.key === 'notifications') {
-        this.notificationsResolve(data)
-        this.notificationsPromise = Promise.resolve(data)
         this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-          detail: data,
+          detail: await this.updateNotifications(data.notifications),
           bubbles: true,
           cancelable: true,
           composed: true
         }))
+        lastRequestedNotifications = Date.now()
       } else if(data.key === 'click' && location.origin && data.hostAndPort && data.room) {
         // @ts-ignore
         history.pushState({ ...history.state, pageTitle: (document.title = data.room) }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}?keep-alive=${self.Environment.keepAlive || 86400000}&room=${data.room}`)
@@ -226,13 +229,22 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     }
 
     this.requestNotificationsEventListener = async event => {
-      if (event && event.detail && event.detail.resolve) return event.detail.resolve(await this.notificationsPromise)
-      this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-        detail: await this.notificationsPromise,
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))
+      const requestNotifications = lastRequestedNotifications + freshlyFetchNotificationsAfter < Date.now()
+      if (event && event.detail && event.detail.resolve) {
+        event.detail.resolve(requestNotifications
+          ? await this.updateNotifications()
+          : await this.notificationsPromise)
+      } else {
+        this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+          detail: requestNotifications
+            ? await this.updateNotifications()
+            : await this.notificationsPromise,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
+      if (requestNotifications) lastRequestedNotifications = Date.now()
     }
 
     this.focusEventListener = async event => {
@@ -337,7 +349,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
   setNotification (url, route, room) {
     if (!this.pushSubscription) return Promise.resolve()
     // Subscribe for notifications
-    return this.pushSubscription.then(pushSubscription => fetch(`${url.replace('ws:', 'http:').replace('wss:', 'https:')}/${route}`, {
+    return this.pushSubscription.then(pushSubscription => fetch(`${this.urlFixProtocol(url)}/${route}`, {
       method: 'POST',
       body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
       headers: {
@@ -345,6 +357,83 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       }
     }).then(resp => resp.text()).then(text => console.info('notification subscription', { this: this, text, url }))
     ).catch(error => console.error(error))
+  }
+
+  /**
+   * get all notifications from websocket
+   *
+   * @return {Promise<[{string: [{timestamp: number}]}]>}
+   */
+  async getNotifications () {
+    const fetches = []
+    const {providers, websocketUrl} = await this.providersPromise
+    const getRoomsResult = await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-rooms', {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+    // @ts-ignore
+    providers.get('websocket').forEach(
+      /**
+       * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
+       */
+      (provider, url) => {
+        const origin = (new URL(url)).origin
+        if (websocketUrl && websocketUrl.includes(origin)) {
+          fetches.push(fetch(`${this.urlFixProtocol(origin)}/get-notifications`, {
+              method: 'POST',
+              body: JSON.stringify(Object.keys(getRoomsResult.value)),
+              headers: {
+                'Content-Type': 'application/json'
+              }
+              // @ts-ignore
+            }).then(resp => resp.json()).catch(error => console.error(error) || {}))
+        }
+      }
+    )
+    // @ts-ignore
+    return await Promise.all(fetches)
+  }
+
+  updateNotifications (pushMessageNotifications = {}) {
+    return Promise.all([
+      new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-rooms', {
+        detail: {
+          resolve
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))),
+      this.getNotifications(),
+      this.roomPromise
+    ]).then(async ([getRoomsResult, fetchedNotifications, roomPromise]) => {
+      const room = await roomPromise.room
+      const notificationsData = {}
+      Object.keys(getRoomsResult.value).filter(roomName => roomName !== room).forEach(roomName => {
+        const lastEntered = getRoomsResult.value[roomName].entered[0]
+        if (Array.isArray(pushMessageNotifications[roomName])) {
+          notificationsData[roomName] = pushMessageNotifications[roomName].filter(notification => notification.timestamp > lastEntered)
+        }
+        fetchedNotifications.forEach(fetchedNotification => {
+          if (Array.isArray(fetchedNotification[roomName])) {
+            if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
+            notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => notification.timestamp > lastEntered && !notificationsData[roomName].some(setNotification => setNotification.timestamp === notification.timestamp)))
+          }
+        })
+        if (notificationsData[roomName]) notificationsData[roomName] = notificationsData[roomName].sort((a, b) => b.timestamp - a.timestamp)
+      })
+      this.notificationsResolve({notifications: notificationsData})
+      this.notificationsPromise = Promise.resolve({notifications: notificationsData})
+      return {notifications: notificationsData}
+    })
+  }
+
+  urlFixProtocol (url) {
+    return url.replace('ws:', 'http:').replace('wss:', 'https:')
   }
 
   /**
