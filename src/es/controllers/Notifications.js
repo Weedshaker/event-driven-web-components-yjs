@@ -272,6 +272,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
   }
 
   connectedCallback () {
+    this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
     this.globalEventTarget.addEventListener(`${this.namespace}subscribe-notifications`, this.subscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}unsubscribe-notifications`, this.unsubscribeNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
