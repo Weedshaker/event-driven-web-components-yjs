@@ -1,4 +1,5 @@
 // @ts-check
+import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 
 /* global HTMLElement */
 /* global CustomEvent */
@@ -50,10 +51,10 @@
  *
  * @export
  * @function Notifications
- * @param {CustomElementConstructor} [ChosenHTMLElement = HTMLElement]
+ * @param {CustomElementConstructor} [ChosenHTMLElement = WebWorker()]
  * @return {CustomElementConstructor | *}
  */
-export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifications extends ChosenHTMLElement {
+export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifications extends ChosenHTMLElement {
   /**
    * Creates an instance of yjs notifications. The constructor will be called for every custom element using this class when initially created.
    *
@@ -216,7 +217,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       const data = JSON.parse(event.data)
       if (data.key === 'notifications') {
         this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-          detail: await this.updateNotifications(data.notifications),
+          detail: await this.updateNotifications(data.notifications, data.message === 'requestClearNotifications' ? false : true),
           bubbles: true,
           cancelable: true,
           composed: true
@@ -229,10 +230,10 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
 
     this.requestNotificationsEventListener = async event => {
       if (event && event.detail && event.detail.resolve) {
-        event.detail.resolve(await this.updateNotifications())
+        event.detail.resolve(await this.updateNotifications(undefined, event.detail?.force))
       } else {
         this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-          detail: await this.updateNotifications(),
+          detail: await this.updateNotifications(undefined, event.detail?.force),
           bubbles: true,
           cancelable: true,
           composed: true
@@ -283,11 +284,28 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     self.addEventListener('focus', this.focusEventListener)
     this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
       if (!serviceWorkerRegistration.active) return
-      serviceWorkerRegistration.active.postMessage(JSON.stringify({
+      clearTimeout(this._requestClearNotificationsTimeoutId)
+      // @ts-ignore
+      this._requestClearNotificationsTimeoutId = setTimeout(async () => serviceWorkerRegistration.active.postMessage(JSON.stringify({
         key: 'requestClearNotifications',
         room: await (await this.roomPromise).room,
-      }))
+      })), this.updateNotificationsAfter);
     })
+    this.connectedCallbackOnce()
+  }
+
+  connectedCallbackOnce () {
+    document.body.addEventListener('click', event => {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
+        detail: {
+          resolve: () => {}
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+      this.bodyClicked = true
+    }, { once: true })
     this.dispatchEvent(new CustomEvent(`${this.namespace}get-room`, {
       detail: {
         resolve: this.roomResolve
@@ -304,21 +322,6 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
       cancelable: true,
       composed: true
     }))
-    this.connectedCallbackOnce()
-  }
-
-  connectedCallbackOnce () {
-    document.body.addEventListener('click', event => {
-      this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
-        detail: {
-          resolve: () => {}
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))
-      this.bodyClicked = true
-    }, { once: true })
     this.connectedCallbackOnce = () => {}
   }
 
@@ -330,6 +333,7 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     navigator.serviceWorker.removeEventListener('message', this.pushEventMessageListener)
     self.removeEventListener('focus', this.focusEventListener)
+    clearTimeout(this._requestClearNotificationsTimeoutId)
   }
 
   /**
@@ -358,18 +362,10 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
    *
    * @return {Promise<[{string: [{timestamp: number}]}]>}
    */
-  async getNotifications () {
+  async getNotifications (getRoomsResult) {
     this.lastUpdatedNotifications = Date.now()
     const fetches = []
     const {providers, websocketUrl} = await this.providersPromise
-    const getRoomsResult = await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-rooms', {
-      detail: {
-        resolve
-      },
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    })))
     // @ts-ignore
     providers.get('websocket').forEach(
       /**
@@ -393,10 +389,10 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
     return await Promise.all(fetches)
   }
 
-  updateNotifications (pushMessageNotifications = {}) {
-    if (this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now()) return this.notificationsPromise
+  updateNotifications (pushMessageNotifications = {}, force = false) {
+    if (!force && this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now()) return this.notificationsPromise
     return Promise.all([
-      new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-rooms', {
+      new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-rooms`, {
         detail: {
           resolve
         },
@@ -404,28 +400,29 @@ export const Notifications = (ChosenHTMLElement = HTMLElement) => class Notifica
         cancelable: true,
         composed: true
       }))),
-      this.getNotifications(),
       this.roomPromise
-    ]).then(async ([getRoomsResult, fetchedNotifications, roomPromise]) => {
+    ]).then(async ([getRoomsResult, roomPromise]) => {
+      const fetchedNotifications = await this.getNotifications(getRoomsResult)
       const room = await roomPromise.room
-      const notificationsData = Notifications._updateNotifications(room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications)
-      this.notificationsResolve({notifications: notificationsData})
-      this.notificationsPromise = Promise.resolve({notifications: notificationsData})
-      return {notifications: notificationsData}
+      // @ts-ignore
+      const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications)
+      this.notificationsResolve({notifications: notificationsData, rooms: getRoomsResult})
+      this.notificationsPromise = Promise.resolve({notifications: notificationsData, rooms: getRoomsResult})
+      return {notifications: notificationsData, rooms: getRoomsResult}
     })
   }
 
-  static _updateNotifications (activeRoom, rooms, pushMessageNotifications, fetchedNotifications) {
+  static _updateNotifications (activeRoom, rooms, pushMessages, fetchMessages) {
     const notificationsData = {}
     Object.keys(rooms).filter(roomName => roomName !== activeRoom).forEach(roomName => {
       const lastEntered = rooms[roomName].entered[0]
-      if (Array.isArray(pushMessageNotifications[roomName])) {
-        notificationsData[roomName] = pushMessageNotifications[roomName].filter(notification => notification.timestamp > lastEntered)
+      if (Array.isArray(pushMessages[roomName])) {
+        notificationsData[roomName] = pushMessages[roomName].filter(notification => notification && notification.timestamp > lastEntered)
       }
-      fetchedNotifications.forEach(fetchedNotification => {
+      fetchMessages.forEach(fetchedNotification => {
         if (Array.isArray(fetchedNotification[roomName])) {
           if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
-          notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => notification.timestamp > lastEntered && !notificationsData[roomName].some(setNotification => setNotification.timestamp === notification.timestamp)))
+          notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => notification && notification.timestamp > lastEntered && !notificationsData[roomName].some(setNotification => setNotification.timestamp === notification.timestamp)))
         }
       })
       if (notificationsData[roomName]) notificationsData[roomName] = notificationsData[roomName].sort((a, b) => b.timestamp - a.timestamp)

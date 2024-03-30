@@ -1,4 +1,5 @@
 // @ts-check
+import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 
 // https://github.com/yjs
 /**
@@ -24,7 +25,7 @@
 /**
  * outgoing event
  @typedef {{
-  getData: () => {allUsers: UsersContainer, users: UsersContainer},
+  getData: () => Promise<{allUsers: UsersContainer, users: UsersContainer}>,
   selfUser: import("../EventDrivenYjs").InitialUserValue | null // Can be initially null until the object loaded
  }} UsersEventDetail
 */
@@ -51,10 +52,10 @@ export const separator = '<>'
  *
  * @export
  * @function Users
- * @param {CustomElementConstructor} [ChosenHTMLElement = HTMLElement]
+ * @param {CustomElementConstructor} [ChosenHTMLElement = WebWorker()]
  * @return {CustomElementConstructor | *}
  */
-export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends ChosenHTMLElement {
+export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends ChosenHTMLElement {
   /**
    * Creates an instance of yjs users. The constructor will be called for every custom element using this class when initially created.
    *
@@ -85,8 +86,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
         connectedUsers: {
-          // TODO: TypeError: Cannot read properties of undefined (reading 'uid')
-          [`${event.detail.name}${separator}${event.detail.url.origin}`]: stateValueUsers.filter(user => (user.uid !== event.detail.uid))
+          [`${event.detail.name}${separator}${event.detail.url.origin}`]: stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
@@ -107,38 +107,42 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
       const uid = await this.uid
       /** @type {null | {allUsers: UsersContainer,users: UsersContainer}} */
       let getDataResult = null
-      const getData = () => {
+      const getData = async () => {
         if (getDataResult) return getDataResult
-        /** @type {UsersContainer} */
-        const users = new Map()
-        /** @type {UsersContainer} */
-        const allUsers = new Map()
-        // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
-        // analyze and enrich each user, if that object is this clients user. "isSelf"
-        event.detail.type.forEach((user, key) => {
-          user = self.structuredClone(user)
-          let connectedUsersCount = 0
-          let mutuallyConnectedUsersCount = 0
-          if (user.connectedUsers) {
-            user.mutuallyConnectedUsers = {}
-            for (const url in user.connectedUsers) {
-              connectedUsersCount += user.connectedUsers[url].length || 0
-              user.connectedUsers[url].forEach(connectedUser => {
-                connectedUser.isSelf = connectedUser.uid === uid
-                // look for the user on the yjs type map and check if it also contains this user in its connectedUsers
-                let connectedUserType
-                if ((connectedUserType = event.detail.type.get(connectedUser.uid)) && connectedUserType.connectedUsers[url]?.find(connectedUser => (connectedUser.uid === user.uid))) {
-                  user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
-                  mutuallyConnectedUsersCount++
-                }
-              })
+        // @ts-ignore
+        return (getDataResult =  await this.webWorker((type, uid) => {
+          type = new Map(type)
+          /** @type {UsersContainer} */
+          const users = new Map()
+          /** @type {UsersContainer} */
+          const usersAll = new Map()
+          // clone the yjs type map into a new map to avoid unwanted editing, which should happen through events
+          // analyze and enrich each user, if that object is this clients user. "isSelf"
+          type.forEach((user, key) => {
+            let connectedUsersCount = 0
+            let mutuallyConnectedUsersCount = 0
+            if (user.connectedUsers) {
+              user.mutuallyConnectedUsers = {}
+              for (const url in user.connectedUsers) {
+                connectedUsersCount += user.connectedUsers[url].length || 0
+                user.connectedUsers[url].forEach(connectedUser => {
+                  if (!connectedUser) return
+                  connectedUser.isSelf = connectedUser.uid === uid
+                  // look for the user on the yjs type map and check if it also contains this user in its connectedUsers
+                  let connectedUserType
+                  if ((connectedUserType = type.get(connectedUser.uid)) && connectedUserType.connectedUsers[url]?.find(connectedUser => (connectedUser?.uid === user.uid))) {
+                    user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
+                    mutuallyConnectedUsersCount++
+                  }
+                })
+              }
             }
-          }
-          user = { ...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid }
-          allUsers.set(key, user)
-          if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
-        })
-        return (getDataResult = { allUsers, users })
+            user = { ...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid }
+            usersAll.set(key, user)
+            if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
+          })
+          return { allUsers: usersAll, users }
+        }, Array.from(event.detail.type).map(([key, user]) => [key, self.structuredClone(user)]), uid))
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
@@ -204,6 +208,10 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
     this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
     this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
+    this.connectedCallbackOnce()
+  }
+
+  connectedCallbackOnce () {
     this.dispatchEvent(new CustomEvent(`${this.namespace}doc`, {
       detail: {
         command: 'getMap',
@@ -216,6 +224,7 @@ export const Users = (ChosenHTMLElement = HTMLElement) => class Users extends Ch
       cancelable: true,
       composed: true
     }))
+    this.connectedCallbackOnce = () => {}
   }
 
   disconnectedCallback () {

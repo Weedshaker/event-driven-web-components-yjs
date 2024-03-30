@@ -48,7 +48,7 @@ class NotificationServiceWorker {
         if (data.key === 'requestPostMessageAllNotifications') {
           return this.clientList.then(clientList => {
             let client
-            if ((client = clientList.find(client => client.url.includes(`room=${data.room}`)))) this.postMessageAllNotifications(client)
+            if ((client = clientList.find(client => client.url.includes(`room=${data.room}`)))) this.postMessageAllNotifications(client, 'requestPostMessageAllNotifications')
           })
         }
       }
@@ -149,7 +149,7 @@ class NotificationServiceWorker {
       } else {
         notifications = [data]
       }
-      localforage.setItem(data.room, notifications).then(() => this.postMessageAllNotifications())
+      localforage.setItem(data.room, notifications).then(() => this.postMessageAllNotifications(undefined, 'showNotification'))
     } catch (error) {
       this.cancelNotification(event)
     }
@@ -167,7 +167,7 @@ class NotificationServiceWorker {
    * @param {client} [client=null]
    * @return {void}
    */
-  postMessageAllNotifications (client = null) {
+  postMessageAllNotifications (client = null, message = undefined) {
     const notifications = {}
     localforage.iterate((value, key) => {
       if (key !== 'uid' && key !== 'keepAlive') notifications[key] = value
@@ -175,7 +175,7 @@ class NotificationServiceWorker {
       const clients = client
         ? [client]
         : await this.clientList
-      clients.forEach(client => client.postMessage(JSON.stringify({key: 'notifications', message: 'Open notifications:', notifications})))
+      clients.forEach(client => client.postMessage(JSON.stringify({key: 'notifications', message: message ? message : 'Open notifications:', notifications})))
       if (typeof navigator.setAppBadge === 'function') {
         const notificationsCounter = Object.keys(notifications).reduce((acc, key) => acc + notifications[key].length, 0)
         navigator.setAppBadge(notificationsCounter)
@@ -189,7 +189,7 @@ class NotificationServiceWorker {
         if (notification.data?.room === key) notification.close()
       })
     })
-    localforage.removeItem(key).then(() => this.postMessageAllNotifications())
+    localforage.removeItem(key).then(() => this.postMessageAllNotifications(undefined, 'requestClearNotifications'))
   }
 
   eventWaitUntil (event, promise) {

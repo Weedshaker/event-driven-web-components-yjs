@@ -1,5 +1,5 @@
 // @ts-check
-
+import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 import { separator } from './Users.js'
 
 /* global HTMLElement */
@@ -28,7 +28,7 @@ import { separator } from './Users.js'
 /**
  * outgoing event
  @typedef {{
-  getData: () => {allProviders: ProvidersContainer, providers: ProvidersContainer}
+  getData: () => Promise<{allProviders: ProvidersContainer, providers: ProvidersContainer}>
  }} ProvidersEventDetail
 */
 
@@ -41,10 +41,10 @@ import { separator } from './Users.js'
  *
  * @export
  * @function Providers
- * @param {CustomElementConstructor} [ChosenHTMLElement = HTMLElement]
+ * @param {CustomElementConstructor} [ChosenHTMLElement = WebWorker()]
  * @return {CustomElementConstructor | *}
  */
-export const Providers = (ChosenHTMLElement = HTMLElement) => class Providers extends ChosenHTMLElement {
+export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers extends ChosenHTMLElement {
   /**
    * Creates an instance of yjs providers. The constructor will be called for every custom element using this class when initially created.
    *
@@ -57,6 +57,7 @@ export const Providers = (ChosenHTMLElement = HTMLElement) => class Providers ex
     // TODO:
     // default proposed websocket urls: 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
     // default proposed webrtc urls: 'wss://demos.yjs.dev'
+    // read notifications hostAndPort of messages for this room and propose to connect to some of those providers, if not already connected
 
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
@@ -69,32 +70,35 @@ export const Providers = (ChosenHTMLElement = HTMLElement) => class Providers ex
     event => {
       /** @type {null | {allProviders: ProvidersContainer, providers: ProvidersContainer}} */
       let getDataResult = null
-      const getData = () => {
+      const getData = async () => {
         if (getDataResult) return getDataResult
         const getProviders =
-        /**
-         * @param {import('./Users').UsersContainer | []} [users = []]
-         * @param {boolean} [onlyMutuallyConnectedUsers=false]
-         * @return {ProvidersContainer}
-         */
-        (users = [], onlyMutuallyConnectedUsers = false) => {
-          /** @type {ProvidersContainer} */
-          const providers = new Map()
-          users.forEach(user => {
-            for (const url in user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers']) {
-              // give an overview from providers perspective
-              /** @type {[import("../EventDrivenYjs").ProviderNames, string] | any} */
-              const [name, realUrl] = url.split(separator)
-              /** @type {any} */
-              const provider = providers.get(name) || providers.set(name, new Map()).get(name)
-              provider.set(realUrl, [...provider.get(realUrl) || [], ...user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers'][url] || []])
-            }
-          })
-          return providers
-        }
+          /**
+           * @param {import('./Users').UsersContainer | []} [users = []]
+           * @param {boolean} [onlyMutuallyConnectedUsers=false]
+           * @return {Promise<ProvidersContainer>}
+           */
+          (users = [], onlyMutuallyConnectedUsers = false) => {
+            // @ts-ignore
+            return this.webWorker((users = [], onlyMutuallyConnectedUsers = false, separator) => {
+              /** @type {ProvidersContainer} */
+              const providers = new Map()
+              users.forEach(user => {
+                for (const url in user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers']) {
+                  // give an overview from providers perspective
+                  /** @type {[import("../EventDrivenYjs").ProviderNames, string] | any} */
+                  const [name, realUrl] = url.split(separator)
+                  /** @type {any} */
+                  const provider = providers.get(name) || providers.set(name, new Map()).get(name)
+                  provider.set(realUrl, [...provider.get(realUrl) || [], ...user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers'][url] || []])
+                }
+              })
+              return providers
+            }, users, onlyMutuallyConnectedUsers, separator)
+          }
         return (getDataResult = {
-          allProviders: getProviders(event.detail.getData().allUsers, false),
-          providers: getProviders(event.detail.getData().users, true)
+          allProviders: await getProviders((await event.detail.getData()).allUsers, false),
+          providers: await getProviders((await event.detail.getData()).users, true)
         })
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}providers-data`, {
