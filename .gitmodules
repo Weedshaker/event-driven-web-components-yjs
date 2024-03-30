@@ -22,3 +22,6 @@
 [submodule "src/fingerprint"]
 	path = src/fingerprint
 	url = https://github.com/fingerprintjs/fingerprintjs.git
+[submodule "src/event-driven-web-components-prototypes"]
+	path = src/event-driven-web-components-prototypes
+	url = https://github.com/Weedshaker/event-driven-web-components-prototypes.git
