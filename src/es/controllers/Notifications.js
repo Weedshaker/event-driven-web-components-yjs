@@ -196,7 +196,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
      */
     this.providersUpdateEventListener = event => {
       this.providersPromise = Promise.resolve(event.detail)
-      if (this.bodyClicked) this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
+      if (this.bodyClicked && event.detail.message !== 'reconnectAllProviders') this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
         detail: {
           resolve: () => {}
         },

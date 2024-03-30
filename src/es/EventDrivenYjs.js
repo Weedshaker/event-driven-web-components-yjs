@@ -550,7 +550,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   async init () {
     const doc = new Y.Doc()
-    const providers = this.updateProviders(doc)
+    const providers = this.updateProviders(doc, undefined, 'init')
     return { doc, providers }
   }
 
@@ -559,9 +559,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    *
    * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
    * @param {'websocket-url' | 'webrtc-url'} [name=undefined]
+   * @param {string} [message=undefined]
    * @return {Promise<Providers>}
    */
-  async updateProviders (doc, name) {
+  async updateProviders (doc, name, message) {
     if (!doc) doc = (await this.yjs).doc
     const room = await this.room
 
@@ -748,7 +749,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           providers: this.providers,
           websocketUrl: this.websocketUrl,
           webrtcUrl: this.webrtcUrl,
-          locationHref: location.href
+          locationHref: location.href,
+          message
         }
       )
     }, 50)
@@ -778,7 +780,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     removeAttributes('p2pt', this.removedAttributes)
     removeAttributes('websocket-url', this.removedAttributes)
     removeAttributes('webrtc-url', this.removedAttributes);
-    (await this.yjs).providers = this.updateProviders()
+    (await this.yjs).providers = this.updateProviders(undefined, undefined, 'disconnectAllProviders')
   }
 
   /**
@@ -798,7 +800,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       }
     )
     delete this.removedAttributes;
-    (await this.yjs).providers = this.updateProviders()
+    (await this.yjs).providers = this.updateProviders(undefined, undefined, 'reconnectAllProviders')
   }
 
   /**
@@ -883,7 +885,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     newValue = this.getAttribute(name) // the new value eventually already changed, here we make sure to work with the most recent
     if ((name === 'websocket-url' || name === 'webrtc-url') && oldValue !== newValue) {
       this.replaceState(name, newValue);
-      (await this.yjs).providers = this.updateProviders(undefined, name)
+      (await this.yjs).providers = this.updateProviders(undefined, name, 'attributeChangedCallback')
     } else if (name === 'room' && !oldValue && newValue) {
       this.replaceState(name, newValue)
       this.roomResolve(newValue)
