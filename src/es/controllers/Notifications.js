@@ -242,13 +242,21 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     }
 
     this.focusEventListener = async event => {
-      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
-        if (!serviceWorkerRegistration.active) return
-        serviceWorkerRegistration.active.postMessage(JSON.stringify({
-          key: 'requestClearNotifications',
-          room: await (await this.roomPromise).room,
+      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) {
+        this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+          if (!serviceWorkerRegistration.active) return
+          serviceWorkerRegistration.active.postMessage(JSON.stringify({
+            key: 'requestClearNotifications',
+            room: await (await this.roomPromise).room,
+          }))
+        })
+      } else {
+        this.dispatchEvent(new CustomEvent(`${this.namespace}request-notifications`, {
+          bubbles: true,
+          cancelable: true,
+          composed: true
         }))
-      })
+      }
     }
 
     /** @type {(any)=>void} */

@@ -3,6 +3,7 @@
 
 class NotificationServiceWorker {
   constructor () {
+    this.notificationsMax = 9
     localforage.config({name: 'notifications'})
     this.addNotificationclickEventListener()
     this.addMessageEventListener()
@@ -145,7 +146,7 @@ class NotificationServiceWorker {
       let notifications = await localforage.getItem(data.room)
       if (Array.isArray(notifications)) {
         notifications.unshift(data)
-        if (notifications.length > 100) notifications.length = 100 // don't store more than 100 notifications
+        if (notifications.length > this.notificationsMax) notifications.length = this.notificationsMax // don't store more than this.notificationsMax notifications
       } else {
         notifications = [data]
       }
