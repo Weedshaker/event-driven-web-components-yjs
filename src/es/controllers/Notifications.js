@@ -68,7 +68,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
-    this.updateNotificationsAfter = 10000
+    this.updateNotificationsAfter = 5000
     this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
 
     /** @type {string} */
