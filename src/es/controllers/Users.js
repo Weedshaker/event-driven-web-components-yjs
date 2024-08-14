@@ -26,7 +26,8 @@ import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebW
  * outgoing event
  @typedef {{
   getData: () => Promise<{allUsers: UsersContainer, users: UsersContainer}>,
-  selfUser: import("../EventDrivenYjs").InitialUserValue | null // Can be initially null until the object loaded
+  selfUser: import("../EventDrivenYjs").InitialUserValue | null // Can be initially null until the object loaded,
+  keysChanged: any[]
  }} UsersEventDetail
 */
 
@@ -110,7 +111,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const getData = async () => {
         if (getDataResult) return getDataResult
         // @ts-ignore
-        return (getDataResult =  await this.webWorker((type, uid) => {
+        return (getDataResult = await this.webWorker((type, uid) => {
           type = new Map(type)
           /** @type {UsersContainer} */
           const users = new Map()
@@ -149,7 +150,8 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         detail: {
           /* type: event.detail.type */ // protect the original users map
           getData,
-          selfUser: event.detail.type.get(uid)
+          selfUser: event.detail.type.get(uid),
+          keysChanged: event.detail.yjsEvent?.reduce((acc, curr) => acc.concat(Array.from(curr.keysChanged || [])), []) || []
         },
         bubbles: true,
         cancelable: true,
