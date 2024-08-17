@@ -400,7 +400,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   updateNotifications (pushMessageNotifications = {}, force = false) {
     if (!force && this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now()) return this.notificationsPromise
     return Promise.all([
-      new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-rooms`, {
+      new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get-rooms', {
         detail: {
           resolve
         },
