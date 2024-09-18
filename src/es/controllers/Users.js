@@ -164,7 +164,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const uid = await this.uid
       const yMap = (await this.yMap).type
       const selfUser = yMap.get(uid)
-      if (selfUser.nickname !== event.detail.nickname) yMap.set(uid, { ...selfUser, nickname: event.detail.nickname || this.randomNickname })
+      if (selfUser.nickname !== event.detail.nickname) yMap.set(uid, { ...selfUser, nickname: event.detail.nickname || await this.randomNickname })
       const nickname = event.detail.nickname
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
@@ -180,7 +180,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.getNicknameLEventListener = async event => {
       const uid = await this.uid
       const yMap = (await this.yMap).type
-      const nickname = yMap.get(uid).nickname || this.randomNickname
+      const nickname = yMap.get(uid).nickname || await this.randomNickname
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
         detail: {
@@ -257,7 +257,24 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   }
 
   get randomNickname () {
-    return this._randomNickname || (this._randomNickname = `no-name-${new Date().getUTCMilliseconds()}`)
+   return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get-active-room', {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))).then(room => {
+      if (room?.randomNickname) return room.randomNickname
+      const randomNickname = `no-name-${new Date().getUTCMilliseconds()}`
+      this.dispatchEvent(new CustomEvent('merge-active-room', {
+        detail: { randomNickname },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+      return randomNickname
+    })
   }
 
   get globalEventTarget () {
