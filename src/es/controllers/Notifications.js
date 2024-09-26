@@ -397,7 +397,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     return await Promise.all(fetches)
   }
 
-  updateNotifications (pushMessageNotifications = {}, force = false) {
+  updateNotifications (pushMessageNotifications = this.lastPushMessageNotifications || {}, force = false) {
+    this.lastPushMessageNotifications = pushMessageNotifications
     if (!force && this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now()) return this.notificationsPromise
     return Promise.all([
       new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get-rooms', {
