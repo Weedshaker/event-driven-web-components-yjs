@@ -224,7 +224,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         }))
       } else if(data.key === 'click' && location.origin && data.hostAndPort && data.room) {
         // @ts-ignore
-        history.pushState({ ...history.state, pageTitle: (document.title = data.room) }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}?keep-alive=${self.Environment.keepAlive || 86400000}&room=${data.room}`)
+        history.pushState({ ...history.state, pageTitle: data.room }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}?keep-alive=${self.Environment.keepAlive || 86400000}&room=${data.room}`)
       }
     }
 
