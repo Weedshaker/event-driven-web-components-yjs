@@ -24,25 +24,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
-    this.focusEventListener = event => {
-      // @ts-ignore
-      this.roomPromise.then(async ({locationHref, room}) => (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
-        detail: {
-          key: `${this.roomNamePrefix}rooms`,
-          value: {
-            [await room]: {
-              locationHref,
-              entered: [Date.now()]
-            }
-          },
-          concat: 'unshift',
-          maxLength: 100
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      })))
-    }
+    this.focusEventListener = event => this.saveRoom()
 
     // save room name to local storage
     this.providersUpdateEventListener = async event => {
@@ -107,6 +89,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.addEventListener('storage-get-rooms', this.getRoomsEventListener)
     this.globalEventTarget.addEventListener('storage-get-active-room', this.getActiveRoomEventListener)
     this.globalEventTarget.addEventListener('merge-active-room', this.mergeActiveRoomEventListener)
+    this.saveRoom()
     this.connectedCallbackOnce()
   }
 
@@ -129,7 +112,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.removeEventListener('storage-get-rooms', this.getRoomsEventListener)
     this.globalEventTarget.removeEventListener('storage-get-active-room', this.getActiveRoomEventListener)
     this.globalEventTarget.removeEventListener('merge-active-room', this.mergeActiveRoomEventListener)
-    this.focusEventListener()
+    this.saveRoom()
   }
 
   getRooms () {
@@ -137,6 +120,28 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       detail: {
         key: `${this.roomNamePrefix}rooms`,
         resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+  }
+
+  saveRoom () {
+    // save room name and last focused timestamp to local storage
+    // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
+    // @ts-ignore
+    this.roomPromise.then(async ({locationHref, room}) => (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
+      detail: {
+        key: `${this.roomNamePrefix}rooms`,
+        value: {
+          [await room]: {
+            locationHref,
+            entered: [Date.now()]
+          }
+        },
+        concat: 'unshift',
+        maxLength: 100
       },
       bubbles: true,
       cancelable: true,
