@@ -67,7 +67,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
-
+    
     this.updateNotificationsAfter = 5000
     this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
 
@@ -299,6 +299,15 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         room: await (await this.roomPromise).room,
       })), this.updateNotificationsAfter);
     })
+    clearInterval(this._intervalId)
+    this._intervalId = setInterval(async () => {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+        detail: await this.updateNotifications(),
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }, this.updateNotificationsAfter * 10)
     this.connectedCallbackOnce()
   }
 
@@ -342,6 +351,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     navigator.serviceWorker.removeEventListener('message', this.pushEventMessageListener)
     self.removeEventListener('focus', this.focusEventListener)
     clearTimeout(this._requestClearNotificationsTimeoutId)
+    clearInterval(this._intervalId)
   }
 
   /**
@@ -424,7 +434,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   static _updateNotifications (activeRoom, rooms, pushMessages, fetchMessages) {
     const notificationsData = {}
     Object.keys(rooms).filter(roomName => roomName !== activeRoom).forEach(roomName => {
-      const lastEntered = rooms[roomName].entered[0]
+      const lastEntered = rooms[roomName].entered?.[0] || Date.now()
       if (Array.isArray(pushMessages[roomName])) {
         notificationsData[roomName] = pushMessages[roomName].filter(notification => notification && notification.timestamp > lastEntered)
       }
