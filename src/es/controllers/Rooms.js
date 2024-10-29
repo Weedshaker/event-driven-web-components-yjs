@@ -136,7 +136,6 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
         key: `${this.roomNamePrefix}rooms`,
         value: {
           [await room]: {
-            locationHref,
             entered: [Date.now()]
           }
         },
