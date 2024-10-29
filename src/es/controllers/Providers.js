@@ -68,7 +68,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
      * @param {Event & {detail:UsersEventDetail} | any} event
      */
     event => {
-      /** @type {null | {allProviders: ProvidersContainer, providers: ProvidersContainer}} */
+      /** @type {null | {allProviders: ProvidersContainer, providers: ProvidersContainer, pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>}} */
       let getDataResult = null
       const getData = async () => {
         if (getDataResult) return getDataResult
@@ -98,7 +98,43 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           }
         return (getDataResult = {
           allProviders: await getProviders((await event.detail.getData()).allUsers, false),
-          providers: await getProviders((await event.detail.getData()).users, true)
+          providers: await getProviders((await event.detail.getData()).users, true),
+          // TODO: WebSocket could have an api call to check the status and deliver some context from the owner
+          pingProviders: function (providers = this.allProviders, force = false) {
+            // @ts-ignore
+            if (!force && this.pingProvidersResult?.has(providers)) return this.pingProvidersResult.get(providers)
+            // map with keys "websocket" aka. provider type and value with a map. This map holds keys "provider urls" and value user objects
+            // @ts-ignore
+            const result = new Map(providers.values().reduce((acc, map) => [...acc, ...map.keys().map(key => [key, new Promise((resolve, reject) =>{
+              const img = new Image()
+              img.setAttribute('src', key.replace(new URL(key).protocol, 'http:'))
+              const timeout = setTimeout(() => {
+                reject({
+                  status: 'timeout'
+                })
+                img.remove()
+              }, 1500)
+              img.addEventListener('load', event => {
+                clearTimeout(timeout)
+                resolve({
+                  status: 'success',
+                  event
+                })
+                img.remove()
+              })
+              img.addEventListener('error', event => {
+                clearTimeout(timeout)
+                resolve({
+                  status: navigator.onLine ? 'success' : 'navigator offline',
+                  event
+                })
+                img.remove()
+              })
+            }).catch(error => error)])], []))
+            // @ts-ignore
+            this.pingProvidersResult = new Map([[providers, result], ...Array.from(this.pingProvidersResult || [])])
+            return result
+          }
         })
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}providers-data`, {
