@@ -68,7 +68,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
      * @param {Event & {detail:UsersEventDetail} | any} event
      */
     event => {
-      /** @type {null | {allProviders: ProvidersContainer, providers: ProvidersContainer, pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>}} */
+      /** @type {null | {allProviders: ProvidersContainer, providers: ProvidersContainer, pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>, getSessionProviders: () => Promise<import("../EventDrivenYjs.js").ProvidersUpdateEventDetail>}} */
       let getDataResult = null
       const getData = async () => {
         if (getDataResult) return getDataResult
@@ -99,6 +99,15 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         return (getDataResult = {
           allProviders: await getProviders((await event.detail.getData()).allUsers, false),
           providers: await getProviders((await event.detail.getData()).users, true),
+          // todo: filter connected provider.wsconnected and webrtc and give back array with provider url string
+          getSessionProviders: () => new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
+            detail: {
+              resolve
+            },
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }))),
           // TODO: WebSocket could have an api call to check the status and deliver some context from the owner
           pingProviders: function (providers = this.allProviders, force = false) {
             // @ts-ignore
@@ -151,6 +160,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   connectedCallback () {
     this.addEventListener(`${this.namespace}users`, this.usersEventListener)
+    // todo: get providers
   }
 
   disconnectedCallback () {

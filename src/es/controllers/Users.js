@@ -12,13 +12,22 @@ import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebW
 /**
  * User container
  @typedef {
-  Map<string, import("../EventDrivenYjs").InitialUserValue & {
-    connectedUsers: {string: import("../EventDrivenYjs").InitialUserValue},
+import("../EventDrivenYjs").InitialUserValue & {
+    connectedUsers: {string: import("../EventDrivenYjs").InitialUserValue[]},
     connectedUsersCount: number,
     isSelf: boolean,
-    mutuallyConnectedUsers: {string: import("../EventDrivenYjs").InitialUserValue},
-    mutuallyConnectedUsersCount: number
-  }>
+    hasTimeout: boolean,
+    mutuallyConnectedUsers: {string: import("../EventDrivenYjs").InitialUserValue[]},
+    mutuallyConnectedUsersCount: number,
+    nickname?: string
+  }
+} User
+*/
+
+/**
+ * User container
+ @typedef {
+  Map<string, User>
  } UsersContainer
 */
 
@@ -27,7 +36,8 @@ import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebW
  @typedef {{
   getData: () => Promise<{allUsers: UsersContainer, users: UsersContainer}>,
   selfUser: import("../EventDrivenYjs").InitialUserValue | null // Can be initially null until the object loaded,
-  keysChanged: any[]
+  keysChanged: any[],
+  separator: string
  }} UsersEventDetail
 */
 
@@ -85,6 +95,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         fingerprint: event.detail.fingerprint,
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
+        awarenessEpoch: event.detail.awarenessEpoch,
         uid: event.detail.uid,
         connectedUsers: {
           [`${event.detail.name}${separator}${event.detail.url.origin}`]: stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
@@ -106,7 +117,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
 
     this.usersObserveEventListener = async event => {
       const uid = await this.uid
-      /** @type {null | {allUsers: UsersContainer,users: UsersContainer}} */
+      /* type: event.detail.type */ // protect the original users map
+      const selfUser = self.structuredClone(event.detail.type.get(uid))
+      /** @type {null | {allUsers: UsersContainer,users: UsersContainer, usersConnectedWithSelf: UsersContainer}} */
       let getDataResult = null
       const getData = async () => {
         if (getDataResult) return getDataResult
@@ -137,21 +150,44 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                   }
                 })
               }
-            }
+            } 
             user = { ...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid }
             usersAll.set(key, user)
             if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
           })
-          return { allUsers: usersAll, users }
+          /** @type {UsersContainer} */
+          const usersConnectedWithSelf = new Map()
+          let mutuallyConnectedUsers
+          if ((mutuallyConnectedUsers = users.get(uid)?.mutuallyConnectedUsers)) {
+            /**
+             * Recursively fill all mutually connected users
+             * 
+             * @param {{string: import("../EventDrivenYjs").InitialUserValue[]}} usersContainer
+             * @returns {void}
+             */
+            const fillUsers = usersContainer => {
+              for (const key in usersContainer) {
+                usersContainer[key].forEach(user => {
+                  let fullUser
+                  if (!usersConnectedWithSelf.has(user.uid) && (fullUser = users.get(user.uid))) {
+                    usersConnectedWithSelf.set(user.uid, fullUser)
+                    fillUsers(fullUser.mutuallyConnectedUsers)
+                  }
+                })
+              }
+            }
+            fillUsers (mutuallyConnectedUsers)
+          }
+          return { allUsers: usersAll, users, usersConnectedWithSelf }
         }, Array.from(event.detail.type).map(([key, user]) => [key, self.structuredClone(user)]), uid))
       }
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
         detail: {
-          /* type: event.detail.type */ // protect the original users map
           getData,
-          selfUser: event.detail.type.get(uid),
-          keysChanged: event.detail.yjsEvent?.reduce((acc, curr) => acc.concat(Array.from(curr.keysChanged || [])), []) || []
+          selfUser,
+          keysChanged: event.detail.yjsEvent?.reduce((acc, curr) => acc.concat(Array.from(curr.keysChanged || [])), []) || [],
+          separator
         },
         bubbles: true,
         cancelable: true,
@@ -211,6 +247,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
     this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
     this.connectedCallbackOnce()
+    // todo: get users
   }
 
   connectedCallbackOnce () {

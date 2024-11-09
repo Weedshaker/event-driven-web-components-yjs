@@ -51,7 +51,8 @@ import * as Y from './dependencies/yjs.js'
   sessionEpoch: string,
   localEpoch: string,
   fingerprint: string,
-  uid: string
+  uid: string,
+  awarenessEpoch?: string,
   }} InitialUserValue
 */
 
@@ -677,7 +678,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     /** @type {InitialUserValue} */
     const initialUserValue = {
-      epoch: this.epoch,
+      epoch: this.epoch, // first script execution time
       sessionEpoch: await this.getEpochStorage('session'),
       localEpoch: await this.getEpochStorage('local'),
       fingerprint: await this.fingerprint,
@@ -711,6 +712,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         /** @type {AwarenessUpdateChangeEventDetail} */
         {
           ...detail,
+          awarenessEpoch: this.epochDateNow, // awareness update time
           changes,
           stateValues: Array.from(provider.awareness.getStates().values())
         }
@@ -719,6 +721,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         /** @type {AwarenessUpdateChangeEventDetail} */
         {
           ...detail,
+          awarenessEpoch: this.epochDateNow, // awareness update time
           changes,
           stateValues: Array.from(provider.awareness.getStates().values())
         }
@@ -1019,7 +1022,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {string}
    */
   get epoch () {
-    return this._epoch || (this._epoch = JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID() }))
+    return this._epoch || (this._epoch = this.epochDateNow)
+  }
+
+  /**
+   * @return {string}
+   */
+  get epochDateNow () {
+    return JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID() })
   }
 
   /**
