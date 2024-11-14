@@ -178,6 +178,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
             }
             fillUsers (mutuallyConnectedUsers)
           }
+          // allUsers just all ever written into the CRDT, users which have a confirmed mutual connection, usersConnectedWithSelf are directly or indirectly mutually connected
           return { allUsers: usersAll, users, usersConnectedWithSelf }
         }, Array.from(event.detail.type).map(([key, user]) => [key, self.structuredClone(user)]), uid))
       }
@@ -200,8 +201,8 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const uid = await this.uid
       const yMap = (await this.yMap).type
       const selfUser = yMap.get(uid)
-      if (selfUser.nickname !== event.detail.nickname) yMap.set(uid, { ...selfUser, nickname: event.detail.nickname || await this.randomNickname })
       const nickname = event.detail.nickname
+      if (selfUser.nickname !== nickname) yMap.set(uid, { ...selfUser, nickname })
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
         detail: {
@@ -216,7 +217,11 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.getNicknameLEventListener = async event => {
       const uid = await this.uid
       const yMap = (await this.yMap).type
-      const nickname = yMap.get(uid).nickname || await this.randomNickname
+      let nickname = yMap.get(uid).nickname
+      if (!nickname) {
+        nickname = await this.randomNickname
+        this.setNicknameLEventListener({ detail: { nickname }})
+      }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
         detail: {
