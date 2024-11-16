@@ -32,9 +32,18 @@ import("../EventDrivenYjs").InitialUserValue & {
 */
 
 /**
+ * allUsers: All ever registered users to the users CRDT connected to this room
+ * users: Mutually connected users
+ * usersConnectedWithSelf: Includes the own user as well
+ @typedef {
+  {allUsers: UsersContainer, users: UsersContainer, usersConnectedWithSelf: UsersContainer}
+ } GetDataResult
+*/
+
+/**
  * outgoing event
  @typedef {{
-  getData: () => Promise<{allUsers: UsersContainer, users: UsersContainer}>,
+  getData: () => Promise<GetDataResult>,
   selfUser: import("../EventDrivenYjs").InitialUserValue | null // Can be initially null until the object loaded,
   keysChanged: any[],
   separator: string
@@ -119,8 +128,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const uid = await this.uid
       /* type: event.detail.type */ // protect the original users map
       const selfUser = self.structuredClone(event.detail.type.get(uid))
-      /** @type {null | {allUsers: UsersContainer,users: UsersContainer, usersConnectedWithSelf: UsersContainer}} */
+      /** @type {null | GetDataResult} */
       let getDataResult = null
+      /** @return {Promise<GetDataResult>} */
       const getData = async () => {
         if (getDataResult) return getDataResult
         // @ts-ignore
@@ -182,14 +192,29 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
           return { allUsers: usersAll, users, usersConnectedWithSelf }
         }, Array.from(event.detail.type).map(([key, user]) => [key, self.structuredClone(user)]), uid))
       }
+      /** @type {UsersEventDetail} */
+      const detail = {
+        getData,
+        selfUser,
+        keysChanged: event.detail.yjsEvent?.reduce((acc, curr) => acc.concat(Array.from(curr.keysChanged || [])), []) || [],
+        separator
+      }
+      this.usersEventDetailResolve(detail)
+      this.usersEventDetail = Promise.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}users`, {
         /** @type {UsersEventDetail} */
-        detail: {
-          getData,
-          selfUser,
-          keysChanged: event.detail.yjsEvent?.reduce((acc, curr) => acc.concat(Array.from(curr.keysChanged || [])), []) || [],
-          separator
-        },
+        detail,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
+    this.getUsersEventDetailEventListener = event => {
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(this.usersEventDetail)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}users-event-detail`, {
+        /** @type {Promise<UsersEventDetail>} */
+        detail: this.usersEventDetail,
         bubbles: true,
         cancelable: true,
         composed: true
@@ -233,6 +258,11 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       }))
     }
 
+    /** @type {(UsersEventDetail)=>void} */
+    this.usersEventDetailResolve = map => map
+    /** @type {Promise<UsersEventDetail>} */
+    this.usersEventDetail = new Promise(resolve => (this.usersEventDetailResolve = resolve))
+
     /** @type {(any)=>void} */
     this.uidResolve = map => map
     /** @type {Promise<string>} */
@@ -249,10 +279,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.addEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
     this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
     this.connectedCallbackOnce()
-    // todo: get users
   }
 
   connectedCallbackOnce () {
@@ -276,6 +306,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.removeEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
     this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
     this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
   }

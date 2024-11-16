@@ -26,9 +26,32 @@ import { separator } from './Users.js'
 */
 
 /**
+ * fsa
+ @typedef {{connected: string[], disconnected: string[]}
+ } GetSessionProvidersByStatusResult
+*/
+
+/**
+ * allProviders: All ever registered providers to the users CRDT connected to this room
+ * providers: Mutually connected providers
+ * pingProviders: Test if provider is reachable
+ * getSessionProvidersByStatus: Connected and disconnected providers of current session
+ @typedef {
+  {
+    allProviders: ProvidersContainer,
+    providers: ProvidersContainer,
+    pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>,
+    getSessionProvidersByStatus: () => Promise<GetSessionProvidersByStatusResult>,
+    separator: string
+  }
+ } GetDataResult
+*/
+
+
+/**
  * outgoing event
  @typedef {{
-  getData: () => Promise<{allProviders: ProvidersContainer, providers: ProvidersContainer}>
+  getData: () => Promise<GetDataResult>
  }} ProvidersEventDetail
 */
 
@@ -37,7 +60,6 @@ import { separator } from './Users.js'
 
 /**
  * Providers is a helper to keep all provider object in a yjs map and forwarding the proper events helping having an overview of all participants
- * TODO: view component for controllers/Providers.js with https://github.com/feross/p2p-graph
  *
  * @export
  * @function Providers
@@ -54,11 +76,6 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
   constructor (options = { namespace: undefined }, ...args) {
     super(...args)
 
-    // TODO:
-    // default proposed websocket urls: 'wss://signaling.yjs.dev,wss://y-webrtc-signaling-eu.herokuapp.com,wss://y-webrtc-signaling-us.herokuapp.com'
-    // default proposed webrtc urls: 'wss://demos.yjs.dev'
-    // read notifications hostAndPort of messages for this room and propose to connect to some of those providers, if not already connected
-
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
@@ -68,8 +85,11 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
      * @param {Event & {detail:UsersEventDetail} | any} event
      */
     event => {
-      /** @type {null | {allProviders: ProvidersContainer, providers: ProvidersContainer, pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>, getSessionProviders: () => Promise<import("../EventDrivenYjs.js").ProvidersUpdateEventDetail>}} */
+      /** @type {null | GetDataResult} */
       let getDataResult = null
+      /** @type {null | GetSessionProvidersByStatusResult} */
+      let getSessionProvidersByStatusResult = null
+      /** @return {Promise<GetDataResult>} */
       const getData = async () => {
         if (getDataResult) return getDataResult
         const getProviders =
@@ -99,15 +119,32 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         return (getDataResult = {
           allProviders: await getProviders((await event.detail.getData()).allUsers, false),
           providers: await getProviders((await event.detail.getData()).users, true),
-          // todo: filter connected provider.wsconnected and webrtc and give back array with provider url string
-          getSessionProviders: () => new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
-            detail: {
-              resolve
-            },
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }))),
+          // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
+          getSessionProvidersByStatus: () => {
+            if (getSessionProvidersByStatusResult) return Promise.resolve(getSessionProvidersByStatusResult)
+            return new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
+              detail: {
+                resolve
+              },
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }))).then(({providers}) => {
+              /** @type {GetSessionProvidersByStatusResult} */
+              const result = {
+                connected: [],
+                disconnected: [],
+              }
+              Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
+                if (provider.connected || provider.synced) {
+                  result.connected.push(`${providerName}${event.detail.separator}${url}`)
+                } else {
+                  result.disconnected.push(`${providerName}${event.detail.separator}${url}`)
+                }
+              }))
+              return (getSessionProvidersByStatusResult = result)
+            })
+          },
           // TODO: WebSocket could have an api call to check the status and deliver some context from the owner
           pingProviders: function (providers = this.allProviders, force = false) {
             // @ts-ignore
@@ -143,28 +180,48 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
             // @ts-ignore
             this.pingProvidersResult = new Map([[providers, result], ...Array.from(this.pingProvidersResult || [])])
             return result
-          }
+          },
+          separator: event.detail.separator
         })
       }
-      this.dispatchEvent(new CustomEvent(`${this.namespace}providers-data`, {
+      /** @type {ProvidersEventDetail} */
+      const detail = { getData }
+      this.providersEventDetailResolve(detail)
+      this.providersEventDetail = Promise.resolve(detail)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}providers`, {
         /** @type {ProvidersEventDetail} */
-        detail: {
-          getData
-        },
+        detail,
         bubbles: true,
         cancelable: true,
         composed: true
       }))
     }
+
+    this.getProvidersEventDetailEventListener = event => {
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(this.providersEventDetail)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}providers-event-detail`, {
+        /** @type {Promise<ProvidersEventDetail>} */
+        detail: this.providersEventDetail,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
+    /** @type {(ProvidersEventDetail)=>void} */
+    this.providersEventDetailResolve = map => map
+    /** @type {Promise<ProvidersEventDetail>} */
+    this.providersEventDetail = new Promise(resolve => (this.providersEventDetailResolve = resolve))
   }
 
   connectedCallback () {
     this.addEventListener(`${this.namespace}users`, this.usersEventListener)
-    // todo: get providers
+    this.addEventListener(`${this.namespace}get-providers-event-detail`, this.getProvidersEventDetailEventListener)
   }
 
   disconnectedCallback () {
     this.removeEventListener(`${this.namespace}users`, this.usersEventListener)
+    this.removeEventListener(`${this.namespace}get-providers-event-detail`, this.getProvidersEventDetailEventListener)
   }
 
   /**

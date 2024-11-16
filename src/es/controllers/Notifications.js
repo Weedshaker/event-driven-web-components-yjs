@@ -288,9 +288,9 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.addEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users`, this.usersEventListener)
-    navigator.serviceWorker.addEventListener('message', this.pushEventMessageListener)
+    navigator.serviceWorker?.addEventListener('message', this.pushEventMessageListener)
     self.addEventListener('focus', this.focusEventListener)
-    this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+    this.serviceWorkerRegistration?.then(async serviceWorkerRegistration => {
       if (!serviceWorkerRegistration.active) return
       clearTimeout(this._requestClearNotificationsTimeoutId)
       // @ts-ignore
@@ -348,7 +348,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
-    navigator.serviceWorker.removeEventListener('message', this.pushEventMessageListener)
+    navigator.serviceWorker?.removeEventListener('message', this.pushEventMessageListener)
     self.removeEventListener('focus', this.focusEventListener)
     clearTimeout(this._requestClearNotificationsTimeoutId)
     clearInterval(this._intervalId)
