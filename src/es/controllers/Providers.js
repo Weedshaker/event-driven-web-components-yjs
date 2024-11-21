@@ -89,36 +89,46 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       let getDataResult = null
       /** @type {null | GetSessionProvidersByStatusResult} */
       let getSessionProvidersByStatusResult = null
-      /** @return {Promise<GetDataResult>} */
-      const getData = async () => {
+      /**
+       * * @param {boolean} [addToStorage=true]
+       * @return {Promise<GetDataResult>}
+       */
+      const getData = async (addToStorage = true) => {
         if (getDataResult) return getDataResult
-        const getProviders =
-          /**
-           * @param {import('./Users').UsersContainer | []} [users = []]
-           * @param {boolean} [onlyMutuallyConnectedUsers=false]
-           * @return {Promise<ProvidersContainer>}
-           */
-          (users = [], onlyMutuallyConnectedUsers = false) => {
-            // @ts-ignore
-            return this.webWorker((users = [], onlyMutuallyConnectedUsers = false, separator) => {
-              /** @type {ProvidersContainer} */
-              const providers = new Map()
-              users.forEach(user => {
-                for (const url in user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers']) {
-                  // give an overview from providers perspective
-                  /** @type {[import("../EventDrivenYjs").ProviderNames, string] | any} */
-                  const [name, realUrl] = url.split(separator)
-                  /** @type {any} */
-                  const provider = providers.get(name) || providers.set(name, new Map()).get(name)
-                  provider.set(realUrl, [...provider.get(realUrl) || [], ...user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers'][url] || []])
-                }
-              })
-              return providers
-            }, users, onlyMutuallyConnectedUsers, separator)
-          }
+        /**
+         * @param {import('./Users').UsersContainer | []} [users = []]
+         * @param {boolean} [onlyMutuallyConnectedUsers=false]
+         * @return {Promise<ProvidersContainer>}
+         */
+        const getProviders = (users = [], onlyMutuallyConnectedUsers = false) => {
+          // @ts-ignore
+          return this.webWorker((users = [], onlyMutuallyConnectedUsers = false, separator) => {
+            /** @type {ProvidersContainer} */
+            const providers = new Map()
+            users.forEach(user => {
+              for (const url in user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers']) {
+                // give an overview from providers perspective
+                /** @type {[import("../EventDrivenYjs").ProviderNames, string] | any} */
+                const [name, realUrl] = url.split(separator)
+                /** @type {any} */
+                const provider = providers.get(name) || providers.set(name, new Map()).get(name)
+                provider.set(realUrl, [...provider.get(realUrl) || [], ...user[onlyMutuallyConnectedUsers ? 'mutuallyConnectedUsers' : 'connectedUsers'][url] || []])
+              }
+            })
+            return providers
+          }, users, onlyMutuallyConnectedUsers, separator)
+        }
+        const providers = await getProviders((await event.detail.getData()).users, true)
+        if (addToStorage) this.dispatchEvent(new CustomEvent('merge-unique-active-room', {
+          // @ts-ignore
+          detail: { providers: Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), []) },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
         return (getDataResult = {
           allProviders: await getProviders((await event.detail.getData()).allUsers, false),
-          providers: await getProviders((await event.detail.getData()).users, true),
+          providers,
           // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
           getSessionProvidersByStatus: () => {
             if (getSessionProvidersByStatusResult) return Promise.resolve(getSessionProvidersByStatusResult)

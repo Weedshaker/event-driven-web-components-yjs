@@ -63,6 +63,21 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       }))
     }
 
+    this.mergeUniqueActiveRoomEventListener = async event => {
+      this.dispatchEvent(new CustomEvent('storage-merge', {
+        detail: {
+          key: `${this.roomNamePrefix}rooms`,
+          value: {
+            [await (await this.roomPromise).room]: event.detail
+          },
+          uniqueArray: true
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
     this.mergeActiveRoomEventListener = async event => {
       this.dispatchEvent(new CustomEvent('storage-merge', {
         detail: {
@@ -89,6 +104,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.addEventListener('storage-get-rooms', this.getRoomsEventListener)
     this.globalEventTarget.addEventListener('storage-get-active-room', this.getActiveRoomEventListener)
     this.globalEventTarget.addEventListener('merge-active-room', this.mergeActiveRoomEventListener)
+    this.globalEventTarget.addEventListener('merge-unique-active-room', this.mergeUniqueActiveRoomEventListener)
     this.saveRoom()
     this.connectedCallbackOnce()
   }
@@ -112,6 +128,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.removeEventListener('storage-get-rooms', this.getRoomsEventListener)
     this.globalEventTarget.removeEventListener('storage-get-active-room', this.getActiveRoomEventListener)
     this.globalEventTarget.removeEventListener('merge-active-room', this.mergeActiveRoomEventListener)
+    this.globalEventTarget.removeEventListener('merge-unique-active-room', this.mergeUniqueActiveRoomEventListener)
     this.saveRoom()
   }
 
