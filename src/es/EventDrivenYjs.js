@@ -70,7 +70,7 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   provider: ProviderTypes,
   name: ProviderNames,
-  url: URL,
+  url: URL | string,
   awareness: any,
   changes?: any,
   stateValues?: any,
@@ -701,7 +701,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const detail = {
         provider,
         name,
-        url: new URL(url),
+        // webrtc handles multiple urls for signaling, thats why this provider has no valid url, eg: ws://localhost:1234,ws://localhost:4444
+        url: name === 'webrtc' ? url : new URL(url),
         room,
         awareness: provider.awareness,
         ...initialUserValue

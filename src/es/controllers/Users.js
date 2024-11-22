@@ -107,7 +107,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         awarenessEpoch: event.detail.awarenessEpoch,
         uid: event.detail.uid,
         connectedUsers: {
-          [`${event.detail.name}${separator}${event.detail.url.origin}`]: stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
+          [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
