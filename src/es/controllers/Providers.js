@@ -139,14 +139,14 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
               bubbles: true,
               cancelable: true,
               composed: true
-            }))).then(({providers}) => {
+            }))).then(({providers, isProviderConnected}) => {
               /** @type {GetSessionProvidersByStatusResult} */
               const result = {
                 connected: [],
                 disconnected: [],
               }
               Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
-                if (provider.connected || provider.synced) {
+                if (isProviderConnected(provider)) {
                   result.connected.push(`${providerName}${event.detail.separator}${url}`)
                 } else {
                   result.disconnected.push(`${providerName}${event.detail.separator}${url}`)

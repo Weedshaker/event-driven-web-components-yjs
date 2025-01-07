@@ -4,6 +4,13 @@
 /* global CustomEvent */
 
 /**
+ * Constructor options
+ @typedef {{
+  namespace?: string
+ }} options
+*/
+
+/**
  * Rooms is a helper to keep all rooms object at storage and forwarding the proper events helping having an overview of all participants
  *
  * @export
@@ -15,11 +22,15 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   /**
    * Creates an instance rooms. The constructor will be called for every custom element using this class when initially created.
    *
+   * @param {options} [options = {namespace=undefined}]
    * @param {*} args
    */
-  constructor (...args) {
+  constructor (options = { namespace: undefined }, ...args) {
     super(...args)
 
+    // set attribute namespace
+    if (options.namespace) this.namespace = options.namespace
+    else if (!this.namespace) this.namespace = 'yjs-'
     this.roomNamePrefix = 'chat-'
 
     // save room name and last focused timestamp to local storage
@@ -100,7 +111,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
   connectedCallback () {
     self.addEventListener('focus', this.focusEventListener)
-    this.globalEventTarget.addEventListener('yjs-providers-update', this.providersUpdateEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener('storage-get-rooms', this.getRoomsEventListener)
     this.globalEventTarget.addEventListener('storage-get-active-room', this.getActiveRoomEventListener)
     this.globalEventTarget.addEventListener('merge-active-room', this.mergeActiveRoomEventListener)
@@ -110,7 +121,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   }
 
   connectedCallbackOnce () {
-    this.dispatchEvent(new CustomEvent('yjs-get-room', {
+    this.dispatchEvent(new CustomEvent(`${this.namespace}get-room`, {
       detail: {
         resolve: this.roomResolve
       },
@@ -124,7 +135,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
   disconnectedCallback () {
     self.removeEventListener('focus', this.focusEventListener)
-    this.globalEventTarget.removeEventListener('yjs-providers-update', this.providersUpdateEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener('storage-get-rooms', this.getRoomsEventListener)
     this.globalEventTarget.removeEventListener('storage-get-active-room', this.getActiveRoomEventListener)
     this.globalEventTarget.removeEventListener('merge-active-room', this.mergeActiveRoomEventListener)

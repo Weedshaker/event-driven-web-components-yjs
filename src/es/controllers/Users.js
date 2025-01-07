@@ -99,7 +99,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       this.awarenessChangeEventListenerOnce(event)
       const yMap = (await this.yMap).type
       const stateValueUsers = event.detail.stateValues.map(stateValue => stateValue.user)
-      const selfUser = {
+      let selfUser = {
         epoch: event.detail.epoch,
         fingerprint: event.detail.fingerprint,
         localEpoch: event.detail.localEpoch,
@@ -117,11 +117,14 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         for (const key in selfUser) {
           if (typeof selfUser[key] === 'object') selfUser[key] = { ...selfUserFromMap[key], ...selfUser[key] }
         }
-        yMap.set(selfUser.uid, { ...selfUserFromMap, ...selfUser })
-      } else {
-        // newly set the first timer
-        yMap.set(selfUser.uid, selfUser)
+        selfUser = { ...selfUserFromMap, ...selfUser }
       }
+      // clean all connectedUsers according to the provider status
+      Array.from(event.detail.providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
+        let key
+        if (!event.detail.isProviderConnected(provider) && selfUser.connectedUsers[key = `${providerName}${separator}${(new URL(url)).origin}`]) selfUser.connectedUsers[key] = []
+      }))
+      yMap.set(selfUser.uid, selfUser)
     }
 
     this.usersObserveEventListener = async event => {

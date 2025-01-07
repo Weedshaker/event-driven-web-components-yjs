@@ -69,6 +69,8 @@ import * as Y from './dependencies/yjs.js'
  * outgoing event
  @typedef {{
   provider: ProviderTypes,
+  providers: Providers,
+  isProviderConnected: (ProviderTypes) => boolean,
   name: ProviderNames,
   url: URL | string,
   awareness: any,
@@ -82,6 +84,7 @@ import * as Y from './dependencies/yjs.js'
  * outgoing event
  @typedef {{
   providers: Providers,
+  isProviderConnected: (ProviderTypes) => boolean,
   websocketUrl: string,
   webrtcUrl: string,
   locationHref: string
@@ -402,6 +405,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       await (await this.yjs).providers
       const detail = {
         providers: this.providers,
+        isProviderConnected: EventDrivenYjs.isProviderConnected,
         websocketUrl: this.websocketUrl,
         webrtcUrl: this.webrtcUrl,
         locationHref: location.href
@@ -423,6 +427,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       await (await this.yjs).providers
       const detail = {
         providers: this.providers,
+        isProviderConnected: EventDrivenYjs.isProviderConnected,
         websocketUrl: this.websocketUrl,
         webrtcUrl: this.webrtcUrl,
         locationHref: location.href
@@ -591,15 +596,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           (provider, url) => {
             if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
               provider?.disconnect()
-              this.dispatchEvent(new CustomEvent('yjs-unsubscribe-notifications', {
-                detail: {
-                  url: (new URL(url)).origin,
-                  room
-                },
-                bubbles: true,
-                cancelable: true,
-                composed: true
-              }))
+              this.dispatch(`${this.namespace}unsubscribe-notifications`, {
+                url: (new URL(url)).origin,
+                room
+              })
             }
           }
         )
@@ -610,15 +610,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            */
           (provider, url) => {
             provider?.disconnect()
-            this.dispatchEvent(new CustomEvent('yjs-unsubscribe-notifications', {
-              detail: {
-                url: (new URL(url)).origin,
-                room
-              },
-              bubbles: true,
-              cancelable: true,
-              composed: true
-            }))
+            this.dispatch(`${this.namespace}unsubscribe-notifications`, {
+              url: (new URL(url)).origin,
+              room
+            })
           }
         )
       }
@@ -700,6 +695,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       /** @type {AwarenessUpdateChangeEventDetail} */
       const detail = {
         provider,
+        providers: this.providers,
+        isProviderConnected: EventDrivenYjs.isProviderConnected,
         name,
         // webrtc handles multiple urls for signaling, thats why this provider has no valid url, eg: ws://localhost:1234,ws://localhost:4444
         url: name === 'webrtc' ? url : new URL(url),
@@ -751,6 +748,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         /** @type {ProvidersUpdateEventDetail} */
         {
           providers: this.providers,
+          isProviderConnected: EventDrivenYjs.isProviderConnected,
           websocketUrl: this.websocketUrl,
           webrtcUrl: this.webrtcUrl,
           locationHref: location.href,
@@ -930,6 +928,18 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       cancelable: true,
       composed: true
     }))
+  }
+
+  /**
+   * Each provider has other flags to indicated its connection status, this function should work for all providers
+   * 
+   * @static
+   * @param {ProviderTypes} provider
+   * @returns {boolean}
+   */
+  static isProviderConnected (provider) {
+    // @ts-ignore
+    return provider.connected || provider.synced
   }
 
   /**
