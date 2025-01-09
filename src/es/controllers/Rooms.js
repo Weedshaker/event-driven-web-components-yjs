@@ -31,7 +31,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
-    this.roomNamePrefix = 'chat-'
+    this.roomNamePrefix = self.Environment?.roomNamePrefix || 'chat-'
 
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
