@@ -94,8 +94,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       this.uidResolve(event.detail.uid)
       this.awarenessChangeEventListenerOnce = () => {}
     }
+
+    let lastSelfUser = null
     // receive on awareness change event the details of the own user as well as the awareness stateValueUsers with all direct connections and save itself into the user ymap
-    this.awarenessChangeEventListener = async event => {
+    this.awarenessChangeEventListener = async (event, isUpdate = false) => {
       this.awarenessChangeEventListenerOnce(event)
       const yMap = (await this.yMap).type
       const stateValueUsers = event.detail.stateValues.map(stateValue => stateValue.user)
@@ -104,13 +106,14 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         fingerprint: event.detail.fingerprint,
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
-        awarenessEpoch: event.detail.awarenessEpoch,
         uid: event.detail.uid,
         connectedUsers: {
           [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
+      // only change the awarenessEpoch when awareness change event. the awareness update event fires regularly and would make too many changes to the user yMap.
+      if (!isUpdate) selfUser.awarenessEpoch = event.detail.awarenessEpoch // when event is fired it takes Date.now() to create this value
       if (yMap.has(selfUser.uid)) {
         // merge the map user with the awareness user
         const selfUserFromMap = yMap.get(selfUser.uid)
@@ -124,8 +127,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         let key
         if (!event.detail.isProviderConnected(provider) && selfUser.connectedUsers[key = `${providerName}${separator}${(new URL(url)).origin}`]) selfUser.connectedUsers[key] = []
       }))
-      yMap.set(selfUser.uid, selfUser)
+      if (JSON.stringify(lastSelfUser) !== JSON.stringify(selfUser)) yMap.set(selfUser.uid, (lastSelfUser = selfUser))
     }
+
+    this.awarenessUpdateEventListener = event => this.awarenessChangeEventListener(event, true)
 
     this.usersObserveEventListener = async event => {
       const uid = await this.uid
@@ -281,6 +286,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.addEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}websocket-awareness-update`, this.awarenessUpdateEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-update`, this.awarenessUpdateEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.addEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
@@ -308,6 +316,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}websocket-awareness-update`, this.awarenessUpdateEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-update`, this.awarenessUpdateEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.removeEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
     this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
