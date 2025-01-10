@@ -122,11 +122,13 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         }
         selfUser = { ...selfUserFromMap, ...selfUser }
       }
+      /** cleaning the providers showed, that smartphones somehow do disappear, at the moment, lets trust awareness by commenting the following out. Additionally, we now not only check on change but also on update awareness event 
       // clean all connectedUsers according to the provider status
       Array.from(event.detail.providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
         let key
         if (!event.detail.isProviderConnected(provider) && selfUser.connectedUsers[key = `${providerName}${separator}${(new URL(url)).origin}`]) selfUser.connectedUsers[key] = []
-      }))
+      }))  
+      */
       if (JSON.stringify(lastSelfUser) !== JSON.stringify(selfUser)) yMap.set(selfUser.uid, (lastSelfUser = selfUser))
     }
 
