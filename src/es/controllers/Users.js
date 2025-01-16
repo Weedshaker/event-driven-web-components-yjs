@@ -346,7 +346,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   }
 
   get randomNickname () {
-   return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get-active-room', {
+   return new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-active-room', {
       detail: {
         resolve
       },
@@ -356,7 +356,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     }))).then(room => {
       if (room?.randomNickname) return room.randomNickname
       const randomNickname = `no-name-${new Date().getUTCMilliseconds()}`
-      this.dispatchEvent(new CustomEvent('merge-active-room', {
+      this.dispatchEvent(new CustomEvent('yjs-merge-active-room', {
         detail: { randomNickname },
         bubbles: true,
         cancelable: true,

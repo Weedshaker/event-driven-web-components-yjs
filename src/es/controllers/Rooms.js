@@ -31,6 +31,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
+    // @ts-ignore
     this.roomNamePrefix = self.Environment?.roomNamePrefix || 'chat-'
 
     // save room name and last focused timestamp to local storage
@@ -56,7 +57,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
     this.getRoomsEventListener = async event => {
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(await this.getRooms())
-      this.dispatchEvent(new CustomEvent('storage-rooms', {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}rooms`, {
         detail: await this.getRooms(),
         bubbles: true,
         cancelable: true,
@@ -66,7 +67,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
     this.getActiveRoomEventListener = async event => {
       if (event && event.detail && event.detail.resolve) return event.detail.resolve((await this.getRooms()).value[await (await this.roomPromise).room])
-      this.dispatchEvent(new CustomEvent('storage-active-room', {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}active-room`, {
         detail: (await this.getRooms()).value[await (await this.roomPromise).room],
         bubbles: true,
         cancelable: true,
@@ -103,6 +104,51 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       }))
     }
 
+    this.mergeRoomEventListener = async event => {
+      this.dispatchEvent(new CustomEvent('storage-merge', {
+        detail: {
+          key: `${this.roomNamePrefix}rooms`,
+          value: {
+            [event.detail.key]: event.detail.value
+          }
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
+    this.deleteRoomEventListener = async event => {
+      // bug fix, it was possible to add rooms with double quotes " which escaped the attribute, see Line 481 (delete="${key.replace(/"/g, "'")}")
+      // this fix can be removed after a while
+      let rooms
+      if ((rooms = await this.getRooms()).value[event.detail.name]) {
+        delete rooms.value[event.detail.name]
+      } else {
+        delete rooms.value[event.detail.name.replace(/'/g, '"')]
+      }
+      this.dispatchEvent(new CustomEvent('storage-set', {
+        detail: {
+          key: `${this.roomNamePrefix}rooms`,
+          value: rooms.value
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
+    this.undoRoomEventListener = async event => {
+      this.dispatchEvent(new CustomEvent('storage-undo', {
+        detail: {
+          key: `${this.roomNamePrefix}rooms`
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
     /** @type {(any)=>void} */
     this.roomResolve = map => map
     /** @type {Promise<{ locationHref: string, room: Promise<string> & {done: boolean} }>} */
@@ -112,10 +158,13 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   connectedCallback () {
     self.addEventListener('focus', this.focusEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
-    this.globalEventTarget.addEventListener('storage-get-rooms', this.getRoomsEventListener)
-    this.globalEventTarget.addEventListener('storage-get-active-room', this.getActiveRoomEventListener)
-    this.globalEventTarget.addEventListener('merge-active-room', this.mergeActiveRoomEventListener)
-    this.globalEventTarget.addEventListener('merge-unique-active-room', this.mergeUniqueActiveRoomEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-active-room`, this.getActiveRoomEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}merge-active-room`, this.mergeActiveRoomEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}merge-room`, this.mergeRoomEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}merge-unique-active-room`, this.mergeUniqueActiveRoomEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}delete-room`, this.deleteRoomEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}undo-room`, this.undoRoomEventListener)
     this.saveRoom()
     this.connectedCallbackOnce()
   }
@@ -136,10 +185,13 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   disconnectedCallback () {
     self.removeEventListener('focus', this.focusEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
-    this.globalEventTarget.removeEventListener('storage-get-rooms', this.getRoomsEventListener)
-    this.globalEventTarget.removeEventListener('storage-get-active-room', this.getActiveRoomEventListener)
-    this.globalEventTarget.removeEventListener('merge-active-room', this.mergeActiveRoomEventListener)
-    this.globalEventTarget.removeEventListener('merge-unique-active-room', this.mergeUniqueActiveRoomEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room`, this.getActiveRoomEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}merge-active-room`, this.mergeActiveRoomEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}merge-room`, this.mergeRoomEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}merge-unique-active-room`, this.mergeUniqueActiveRoomEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}delete-room`, this.deleteRoomEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}undo-room`, this.undoRoomEventListener)
     this.saveRoom()
   }
 

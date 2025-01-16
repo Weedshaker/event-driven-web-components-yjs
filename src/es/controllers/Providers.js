@@ -119,7 +119,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           }, users, onlyMutuallyConnectedUsers, separator)
         }
         const providers = await getProviders((await event.detail.getData()).users, true)
-        if (addToStorage) this.dispatchEvent(new CustomEvent('merge-unique-active-room', {
+        if (addToStorage) this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
           // @ts-ignore
           detail: { providers: Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), []) },
           bubbles: true,
