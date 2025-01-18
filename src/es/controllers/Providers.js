@@ -2,8 +2,8 @@
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 import { separator } from './Users.js'
 
-/* global HTMLElement */
 /* global CustomEvent */
+/* global Image */
 
 // https://github.com/yjs
 /**
@@ -46,7 +46,6 @@ import { separator } from './Users.js'
   }
  } GetDataResult
 */
-
 
 /**
  * outgoing event
@@ -119,13 +118,15 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           }, users, onlyMutuallyConnectedUsers, separator)
         }
         const providers = await getProviders((await event.detail.getData()).users, true)
-        if (addToStorage) this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
+        if (addToStorage) {
+          this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
           // @ts-ignore
-          detail: { providers: Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), []) },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }))
+            detail: { providers: Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), []) },
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }))
+        }
         return (getDataResult = {
           allProviders: await getProviders((await event.detail.getData()).allUsers, false),
           providers,
@@ -139,11 +140,11 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
               bubbles: true,
               cancelable: true,
               composed: true
-            }))).then(({providers, isProviderConnected}) => {
+            }))).then(({ providers, isProviderConnected }) => {
               /** @type {GetSessionProvidersByStatusResult} */
               const result = {
                 connected: [],
-                disconnected: [],
+                disconnected: []
               }
               Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
                 if (isProviderConnected(provider)) {
@@ -161,11 +162,11 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
             if (!force && this.pingProvidersResult?.has(providers)) return this.pingProvidersResult.get(providers)
             // map with keys "websocket" aka. provider type and value with a map. This map holds keys "provider urls" and value user objects
             // @ts-ignore
-            const result = new Map(providers.values().reduce((acc, map) => [...acc, ...map.keys().map(key => [key, new Promise((resolve, reject) =>{
+            const result = new Map(providers.values().reduce((acc, map) => [...acc, ...map.keys().map(key => [key, new Promise((resolve, reject) => {
               const img = new Image()
               img.setAttribute('src', key.replace(new URL(key).protocol, 'http:'))
               const timeout = setTimeout(() => {
-                reject({
+                reject({ // eslint-disable-line
                   status: 'timeout'
                 })
                 img.remove()

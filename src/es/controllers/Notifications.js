@@ -1,9 +1,9 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 
-/* global HTMLElement */
-/* global CustomEvent */
-/* global Environment */
+/* global self */
+/* global location */
+/* global history */
 
 // https://github.com/yjs
 /**
@@ -67,7 +67,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     // set attribute namespace
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
-    
+
     this.updateNotificationsAfter = 5000
     this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
 
@@ -139,7 +139,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           )
         }
         if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
-      } else if (typeof event.detail.resolve === 'function')  {
+      } else if (typeof event.detail.resolve === 'function') {
         event.detail.resolve(false)
       }
     }
@@ -196,14 +196,16 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
      */
     this.providersUpdateEventListener = event => {
       this.providersPromise = Promise.resolve(event.detail)
-      if (this.bodyClicked && event.detail.message !== 'reconnectAllProviders') this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
-        detail: {
-          resolve: () => {}
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))
+      if (this.bodyClicked && event.detail.message !== 'reconnectAllProviders') {
+        this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
+          detail: {
+            resolve: () => {}
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
     }
 
     this.usersEventListener = async event => {
@@ -217,12 +219,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       const data = JSON.parse(event.data)
       if (data.key === 'notifications') {
         this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-          detail: await this.updateNotifications(data.notifications, data.message === 'requestClearNotifications' ? false : true),
+          detail: await this.updateNotifications(data.notifications, data.message !== 'requestClearNotifications'),
           bubbles: true,
           cancelable: true,
           composed: true
         }))
-      } else if(data.key === 'click' && location.origin && data.hostAndPort && data.room) {
+      } else if (data.key === 'click' && location.origin && data.hostAndPort && data.room) {
         // @ts-ignore
         history.pushState({ ...history.state, pageTitle: data.room }, data.room, `${location.origin}/?page=/chat&websocket-url=${data.hostAndPort}?keep-alive=${self.Environment.keepAlive || 86400000}&room=${data.room}`)
       }
@@ -242,12 +244,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     }
 
     this.focusEventListener = async event => {
-      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) {
+      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) { // eslint-disable-line
         this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
           if (!serviceWorkerRegistration.active) return
           serviceWorkerRegistration.active.postMessage(JSON.stringify({
             key: 'requestClearNotifications',
-            room: await (await this.roomPromise).room,
+            room: await (await this.roomPromise).room
           }))
         })
       } else {
@@ -296,8 +298,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       // @ts-ignore
       this._requestClearNotificationsTimeoutId = setTimeout(async () => serviceWorkerRegistration.active.postMessage(JSON.stringify({
         key: 'requestClearNotifications',
-        room: await (await this.roomPromise).room,
-      })), this.updateNotificationsAfter);
+        room: await (await this.roomPromise).room
+      })), this.updateNotificationsAfter)
     })
     clearInterval(this._intervalId)
     this._intervalId = setInterval(async () => {
@@ -383,7 +385,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   async getNotifications (getRoomsResult) {
     this.lastUpdatedNotifications = Date.now()
     const fetches = []
-    const {providers, websocketUrl} = await this.providersPromise
+    const { providers, websocketUrl } = await this.providersPromise
     // @ts-ignore
     providers.get('websocket').forEach(
       /**
@@ -393,13 +395,13 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         const origin = (new URL(url)).origin
         if (websocketUrl && websocketUrl.includes(origin)) {
           fetches.push(fetch(`${this.urlFixProtocol(origin)}/get-notifications`, {
-              method: 'POST',
-              body: JSON.stringify(Object.keys(getRoomsResult.value)),
-              headers: {
-                'Content-Type': 'application/json'
-              }
-              // @ts-ignore
-            }).then(resp => resp.json()).catch(error => console.error(error) || {}))
+            method: 'POST',
+            body: JSON.stringify(Object.keys(getRoomsResult.value)),
+            headers: {
+              'Content-Type': 'application/json'
+            }
+            // @ts-ignore
+          }).then(resp => resp.json()).catch(error => console.error(error) || {}))
         }
       }
     )
@@ -425,9 +427,9 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       const room = await roomPromise.room
       // @ts-ignore
       const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications)
-      this.notificationsResolve({notifications: notificationsData, rooms: getRoomsResult})
-      this.notificationsPromise = Promise.resolve({notifications: notificationsData, rooms: getRoomsResult})
-      return {notifications: notificationsData, rooms: getRoomsResult}
+      this.notificationsResolve({ notifications: notificationsData, rooms: getRoomsResult })
+      this.notificationsPromise = Promise.resolve({ notifications: notificationsData, rooms: getRoomsResult })
+      return { notifications: notificationsData, rooms: getRoomsResult }
     })
   }
 

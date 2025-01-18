@@ -2,6 +2,7 @@
 
 /* global HTMLElement */
 /* global CustomEvent */
+/* global self */
 
 /**
  * Constructor options
@@ -45,7 +46,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
           key: `${this.roomNamePrefix}rooms`,
           value: {
             [await (await this.roomPromise).room]: {
-              locationHref: event.detail.locationHref,
+              locationHref: event.detail.locationHref
             }
           }
         },
@@ -211,7 +212,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
     // @ts-ignore
-    this.roomPromise.then(async ({locationHref, room}) => (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
+    this.roomPromise.then(async ({ locationHref, room }) => (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
       detail: {
         key: `${this.roomNamePrefix}rooms`,
         value: {

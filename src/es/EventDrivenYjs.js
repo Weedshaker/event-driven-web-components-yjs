@@ -218,7 +218,6 @@ import * as Y from './dependencies/yjs.js'
 
 /* global document */
 /* global self */
-/* global fetch */
 /* global CustomEvent */
 /* global location */
 /* global history */
@@ -932,7 +931,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * Each provider has other flags to indicated its connection status, this function should work for all providers
-   * 
+   *
    * @static
    * @param {ProviderTypes} provider
    * @returns {boolean}

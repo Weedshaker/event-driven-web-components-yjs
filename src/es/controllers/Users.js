@@ -58,7 +58,6 @@ import("../EventDrivenYjs").InitialUserValue & {
  }} SetNicknameDetail
 */
 
-/* global HTMLElement */
 /* global CustomEvent */
 /* global self */
 
@@ -122,12 +121,12 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         }
         selfUser = { ...selfUserFromMap, ...selfUser }
       }
-      /** cleaning the providers showed, that smartphones somehow do disappear, at the moment, lets trust awareness by commenting the following out. Additionally, we now not only check on change but also on update awareness event 
+      /** cleaning the providers showed, that smartphones somehow do disappear, at the moment, lets trust awareness by commenting the following out. Additionally, we now not only check on change but also on update awareness event
       // clean all connectedUsers according to the provider status
       Array.from(event.detail.providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
         let key
         if (!event.detail.isProviderConnected(provider) && selfUser.connectedUsers[key = `${providerName}${separator}${(new URL(url)).origin}`]) selfUser.connectedUsers[key] = []
-      }))  
+      }))
       */
       if (JSON.stringify(lastSelfUser) !== JSON.stringify(selfUser)) yMap.set(selfUser.uid, (lastSelfUser = selfUser))
     }
@@ -170,7 +169,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                   }
                 })
               }
-            } 
+            }
             user = { ...user, connectedUsersCount, mutuallyConnectedUsersCount, isSelf: user.uid === uid }
             usersAll.set(key, user)
             if (user.mutuallyConnectedUsersCount > 0) users.set(key, user)
@@ -181,7 +180,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
           if ((mutuallyConnectedUsers = users.get(uid)?.mutuallyConnectedUsers)) {
             /**
              * Recursively fill all mutually connected users
-             * 
+             *
              * @param {{string: import("../EventDrivenYjs").InitialUserValue[]}} usersContainer
              * @returns {void}
              */
@@ -196,7 +195,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                 })
               }
             }
-            fillUsers (mutuallyConnectedUsers)
+            fillUsers(mutuallyConnectedUsers)
           }
           // allUsers just all ever written into the CRDT, users which have a confirmed mutual connection, usersConnectedWithSelf are directly or indirectly mutually connected
           return { allUsers: usersAll, users, usersConnectedWithSelf }
@@ -255,7 +254,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       let nickname = yMap.get(uid).nickname
       if (!nickname) {
         nickname = await this.randomNickname
-        this.setNicknameLEventListener({ detail: { nickname }})
+        this.setNicknameLEventListener({ detail: { nickname } })
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
@@ -346,7 +345,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   }
 
   get randomNickname () {
-   return new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-active-room', {
+    return new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-active-room', {
       detail: {
         resolve
       },
@@ -370,5 +369,4 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     // @ts-ignore
     return this._globalEventTarget || (this._globalEventTarget = self.Environment?.activeRoute || document.body)
   }
-  
 }
