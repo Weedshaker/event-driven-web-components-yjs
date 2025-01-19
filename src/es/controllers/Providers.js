@@ -117,18 +117,22 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
             return providers
           }, users, onlyMutuallyConnectedUsers, separator)
         }
+        const allProviders = await getProviders((await event.detail.getData()).allUsers, false)
         const providers = await getProviders((await event.detail.getData()).users, true)
+        const reduceProvidersToUrls = providers => Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), [])
         if (addToStorage) {
           this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
-          // @ts-ignore
-            detail: { providers: Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), []) },
+            detail: {
+              allProviders: reduceProvidersToUrls(allProviders),
+              providers: reduceProvidersToUrls(providers)
+            },
             bubbles: true,
             cancelable: true,
             composed: true
           }))
         }
         return (getDataResult = {
-          allProviders: await getProviders((await event.detail.getData()).allUsers, false),
+          allProviders,
           providers,
           // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
           getSessionProvidersByStatus: () => {
