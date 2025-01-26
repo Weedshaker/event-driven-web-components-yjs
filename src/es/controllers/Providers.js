@@ -183,6 +183,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
                 })
                 img.remove()
               })
+              // receiving an error means some instance answered
               img.addEventListener('error', event => {
                 clearTimeout(timeout)
                 resolve({
