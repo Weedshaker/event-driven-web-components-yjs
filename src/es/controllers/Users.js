@@ -237,11 +237,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const selfUser = yMap.get(uid)
       const nickname = event.detail.nickname
       if (selfUser.nickname !== nickname) yMap.set(uid, { ...selfUser, nickname })
-      if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
+      const detail = { nickname }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
-        detail: {
-          nickname
-        },
+        detail,
         bubbles: true,
         cancelable: true,
         composed: true
@@ -251,16 +250,15 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.getNicknameLEventListener = async event => {
       const uid = await this.uid
       const yMap = (await this.yMap).type
-      let nickname = yMap.get(uid).nickname
-      if (!nickname) {
-        nickname = await this.randomNickname
-        this.setNicknameLEventListener({ detail: { nickname } })
+      const detail = { nickname: yMap.get(uid).nickname }
+      if (!detail.nickname) {
+        detail.nickname = await this.randomNickname
+        this.setNicknameLEventListener({ detail })
+        detail.randomNickname = true
       }
-      if (event && event.detail && event.detail.resolve) return event.detail.resolve(nickname)
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
-        detail: {
-          nickname
-        },
+        detail,
         bubbles: true,
         cancelable: true,
         composed: true
