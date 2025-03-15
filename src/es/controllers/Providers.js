@@ -204,7 +204,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       const detail = { getData }
       this.providersEventDetailResolve(detail)
       this.providersEventDetail = Promise.resolve(detail)
-      this.dispatchEvent(new CustomEvent(`${this.namespace}providers`, {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}providers-data`, {
         /** @type {ProvidersEventDetail} */
         detail,
         bubbles: true,
