@@ -576,7 +576,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // @ts-ignore
       const websocketMap = this.providers.get('websocket')
       if (this.websocketUrl) {
-        const websocketUrls = this.websocketUrl.split(',').filter(websocketUrl => websocketUrl).map(websocketUrl => new URL(websocketUrl))
+        const websocketUrls = this.websocketUrl.split(',').filter(websocketUrl => {
+          try {
+            new URL(websocketUrl)
+            return true
+          } catch (error) {
+            return false
+          }
+        }).map(websocketUrl => new URL(websocketUrl))
         /** @type {import("./dependencies/y-websocket")} */
         const websocket = await import('./dependencies/y-websocket.js')
         websocketUrls.forEach(websocketUrl => {
@@ -630,7 +637,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           const webrtc = await import('./dependencies/y-webrtc.js')
           webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
             {
-              signaling: this.webrtcUrl.split(',').filter(url => url).map(url => self.decodeURIComponent(url))
+              signaling: this.webrtcUrl.split(',').filter(url => {
+                  try {
+                    new URL(url)
+                    return true
+                  } catch (error) {
+                    return false
+                  }
+              }).map(url => self.decodeURIComponent(url))
             }
           ))
         }
