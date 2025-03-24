@@ -371,7 +371,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       method: 'POST',
       body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
       }
     }).then(resp => resp.text()).then(text => console.info('notification subscription', { this: this, text, url }))
     ).catch(error => console.error(error))
@@ -398,7 +399,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             method: 'POST',
             body: JSON.stringify(Object.keys(getRoomsResult.value)),
             headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
             }
             // @ts-ignore
           }).then(resp => resp.json()).catch(error => console.error(error) || {}))
