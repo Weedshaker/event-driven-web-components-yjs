@@ -1,6 +1,7 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 import { separator } from './Users.js'
+import { urlFixProtocol } from '../helpers/Utils.js'
 
 /* global CustomEvent */
 /* global Image */
@@ -41,6 +42,7 @@ import { separator } from './Users.js'
     allProviders: ProvidersContainer,
     providers: ProvidersContainer,
     pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>,
+    getWebsocketInfo: () => Promise<Map<string, Promise<Response>>>,
     getSessionProvidersByStatus: () => Promise<GetSessionProvidersByStatusResult>,
     separator: string
   }
@@ -79,6 +81,9 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
+    /** @type {Map<string, Promise<Response>>} */
+    const getWebsocketInfoMap = new Map()
+
     this.usersEventListener =
     /**
      * @param {Event & {detail:UsersEventDetail} | any} event
@@ -88,8 +93,34 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       let getDataResult = null
       /** @type {null | GetSessionProvidersByStatusResult} */
       let getSessionProvidersByStatusResult = null
+      // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
+      const getSessionProvidersByStatus = (force = false) => {
+        if (!force && getSessionProvidersByStatusResult) return Promise.resolve(getSessionProvidersByStatusResult)
+        return new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
+          detail: {
+            resolve
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))).then(({ providers, isProviderConnected }) => {
+          /** @type {GetSessionProvidersByStatusResult} */
+          const result = {
+            connected: [],
+            disconnected: []
+          }
+          Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
+            if (isProviderConnected(provider)) {
+              result.connected.push(`${providerName}${event.detail.separator}${url}`)
+            } else {
+              result.disconnected.push(`${providerName}${event.detail.separator}${url}`)
+            }
+          }))
+          return (getSessionProvidersByStatusResult = result)
+        })
+      }
       /**
-       * * @param {boolean} [addToStorage=true]
+       * @param {boolean} [addToStorage=true]
        * @return {Promise<GetDataResult>}
        */
       const getData = async (addToStorage = true) => {
@@ -134,33 +165,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         return (getDataResult = {
           allProviders,
           providers,
-          // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
-          getSessionProvidersByStatus: () => {
-            if (getSessionProvidersByStatusResult) return Promise.resolve(getSessionProvidersByStatusResult)
-            return new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
-              detail: {
-                resolve
-              },
-              bubbles: true,
-              cancelable: true,
-              composed: true
-            }))).then(({ providers, isProviderConnected }) => {
-              /** @type {GetSessionProvidersByStatusResult} */
-              const result = {
-                connected: [],
-                disconnected: []
-              }
-              Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
-                if (isProviderConnected(provider)) {
-                  result.connected.push(`${providerName}${event.detail.separator}${url}`)
-                } else {
-                  result.disconnected.push(`${providerName}${event.detail.separator}${url}`)
-                }
-              }))
-              return (getSessionProvidersByStatusResult = result)
-            })
-          },
-          // TODO: WebSocket could have an api call to check the status and deliver some context from the owner
+          getSessionProvidersByStatus,
           pingProviders: function (providers = this.allProviders, force = false) {
             // @ts-ignore
             if (!force && this.pingProvidersResult?.has(providers)) return this.pingProvidersResult.get(providers)
@@ -197,6 +202,33 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
             this.pingProvidersResult = new Map([[providers, result], ...Array.from(this.pingProvidersResult || [])])
             return result
           },
+          getWebsocketInfo: async () => {
+            let connectedProviders
+            if (connectedProviders = (await getSessionProvidersByStatus()).connected) connectedProviders.reduce((acc, curr) => {
+              const [name, url] = curr.split(separator)
+              if (name === 'websocket') {
+                const origin = (new URL(url)).origin
+                // @ts-ignore
+                acc.push(origin)
+              }
+              return acc
+            }, []).forEach(providerUrl => {
+              if (!getWebsocketInfoMap.has(providerUrl)) getWebsocketInfoMap.set(providerUrl, fetch(`${urlFixProtocol(providerUrl)}/get-info`, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+                }
+              }).then(response => {
+                if (response.status >= 200 && response.status <= 299) {
+                  return response.json()
+                }
+                throw new Error(response.statusText)
+              // @ts-ignore
+              }).catch(error => console.error(error) || {error}))
+            })
+            return getWebsocketInfoMap
+          },
           separator: event.detail.separator
         })
       }
@@ -212,6 +244,15 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         composed: true
       }))
     }
+
+    // usersEventListener does not trigger when awareness changed but already nobody was connected. We still want to know, if providers are connected
+    this.awarenessChangeWithNoUserChangeEventListener = event => this.dispatchEvent(new CustomEvent(`${this.namespace}providers-change`, {
+      /** @type {ProvidersEventDetail} */
+      detail: event.detail,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
 
     this.getProvidersEventDetailEventListener = event => {
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(this.providersEventDetail)
@@ -232,11 +273,13 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   connectedCallback () {
     this.addEventListener(`${this.namespace}users`, this.usersEventListener)
+    this.addEventListener(`${this.namespace}awareness-change-with-no-user-change`, this.awarenessChangeWithNoUserChangeEventListener)
     this.addEventListener(`${this.namespace}get-providers-event-detail`, this.getProvidersEventDetailEventListener)
   }
 
   disconnectedCallback () {
     this.removeEventListener(`${this.namespace}users`, this.usersEventListener)
+    this.removeEventListener(`${this.namespace}awareness-change-with-no-user-change`, this.awarenessChangeWithNoUserChangeEventListener)
     this.removeEventListener(`${this.namespace}get-providers-event-detail`, this.getProvidersEventDetailEventListener)
   }
 

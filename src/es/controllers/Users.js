@@ -107,7 +107,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
         connectedUsers: {
-          [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
+          // clean all connectedUsers according to the provider status
+          [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider)
+            ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
+            : []
         },
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
@@ -121,14 +124,16 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         }
         selfUser = { ...selfUserFromMap, ...selfUser }
       }
-      /** cleaning the providers showed, that smartphones somehow do disappear, at the moment, lets trust awareness by commenting the following out. Additionally, we now not only check on change but also on update awareness event
-      // clean all connectedUsers according to the provider status
-      Array.from(event.detail.providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
-        let key
-        if (!event.detail.isProviderConnected(provider) && selfUser.connectedUsers[key = `${providerName}${separator}${(new URL(url)).origin}`]) selfUser.connectedUsers[key] = []
-      }))
-      */
-      if (JSON.stringify(lastSelfUser) !== JSON.stringify(selfUser)) yMap.set(selfUser.uid, (lastSelfUser = selfUser))
+      if (JSON.stringify(lastSelfUser) !== JSON.stringify(selfUser)) {
+        yMap.set(selfUser.uid, (lastSelfUser = selfUser))
+      } else {
+        this.dispatchEvent(new CustomEvent(`${this.namespace}awareness-change-with-no-user-change`, {
+          detail: event.detail,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
     }
 
     this.awarenessUpdateEventListener = event => this.awarenessChangeEventListener(event, true)

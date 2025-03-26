@@ -1,5 +1,6 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
+import { urlFixProtocol } from '../helpers/Utils.js'
 
 /* global self */
 /* global location */
@@ -122,10 +123,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       const result = await self.Notification.requestPermission()
       if (result === 'granted') {
         this.subscribeNotificationsEventListenerOnce()
-        if (event.detail.url) {
+        let websocketUrls
+        if (event.detail?.url) {
           this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+        } else if(event.detail?.locationHref && (websocketUrls = (new URL(event.detail.locationHref)).searchParams.get('websocket-url'))) {
+          websocketUrls.split(',').forEach(async websocketUrl => this.setNotification((new URL(websocketUrl)).origin, 'subscribe', event.detail.room || await (await this.roomPromise).room))
         } else {
-          // TODO: Only subscribe to one!
           // @ts-ignore
           (await this.providersPromise).providers.get('websocket').forEach(
             /**
@@ -133,13 +136,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
              */
             async (provider, url) => {
               const origin = (new URL(url)).origin
-              const websocketUrl = (await this.providersPromise).websocketUrl
-              if (websocketUrl && websocketUrl.includes(origin)) this.setNotification(origin, 'subscribe', event.detail.room || await (await this.roomPromise).room)
+              this.setNotification(origin, 'subscribe', event.detail?.room || await (await this.roomPromise).room)
             }
           )
         }
-        if (typeof event.detail.resolve === 'function') event.detail.resolve(true)
-      } else if (typeof event.detail.resolve === 'function') {
+        if (typeof event.detail?.resolve === 'function') event.detail.resolve(true)
+      } else if (typeof event.detail?.resolve === 'function') {
         event.detail.resolve(false)
       }
     }
@@ -150,15 +152,18 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
      * @param {any & {detail: UnsubscribeNotificationsEventDetail}} event
      */
     this.unsubscribeNotificationsEventListener = async (event) => {
-      if (event.detail.url) {
+      let websocketUrls
+      if (event.detail?.url) {
         this.setNotification(event.detail.url, 'unsubscribe', event.detail.room || await (await this.roomPromise).room)
+      } else if(event.detail?.locationHref && (websocketUrls = (new URL(event.detail.locationHref)).searchParams.get('websocket-url'))) {
+        websocketUrls.split(',').forEach(async websocketUrl => this.setNotification((new URL(websocketUrl)).origin, 'unsubscribe', event.detail.room || await (await this.roomPromise).room))
       } else {
         // @ts-ignore
         (await this.providersPromise).providers.get('websocket').forEach(
           /**
            * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
            */
-          async (provider, url) => this.setNotification((new URL(url)).origin, 'unsubscribe', event.detail.room || await (await this.roomPromise).room)
+          async (provider, url) => this.setNotification((new URL(url)).origin, 'unsubscribe', event.detail?.room || await (await this.roomPromise).room)
         )
       }
     }
@@ -198,9 +203,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       this.providersPromise = Promise.resolve(event.detail)
       if (this.bodyClicked && event.detail.message !== 'reconnectAllProviders') {
         this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
-          detail: {
-            resolve: () => {}
-          },
           bubbles: true,
           cancelable: true,
           composed: true
@@ -316,9 +318,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   connectedCallbackOnce () {
     document.body.addEventListener('click', event => {
       this.dispatchEvent(new CustomEvent(`${this.namespace}subscribe-notifications`, {
-        detail: {
-          resolve: () => {}
-        },
         bubbles: true,
         cancelable: true,
         composed: true
@@ -333,7 +332,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       cancelable: true,
       composed: true
     }))
-    this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
+    this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers-event-detail`, {
       detail: {
         resolve: this.providersResolve
       },
@@ -367,15 +366,20 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   setNotification (url, route, room) {
     if (!this.pushSubscription) return Promise.resolve()
     // Subscribe for notifications
-    return this.pushSubscription.then(pushSubscription => fetch(`${this.urlFixProtocol(url)}/${route}`, {
+    return this.pushSubscription.then(pushSubscription => fetch(`${urlFixProtocol(url)}/${route}`, {
       method: 'POST',
       body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
       headers: {
         'Content-Type': 'application/json',
         'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
       }
-    }).then(resp => resp.text()).then(text => console.info('notification subscription', { this: this, text, url }))
-    ).catch(error => console.error(error))
+    }).then(response => {
+      if (response.status >= 200 && response.status <= 299) {
+        return response.text()
+      }
+      throw new Error(response.statusText)
+    // @ts-ignore
+    }).then(text => console.info('notification subscription', { this: this, text, url })).catch(error => console.error(error)))
   }
 
   /**
@@ -386,7 +390,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   async getNotifications (getRoomsResult) {
     this.lastUpdatedNotifications = Date.now()
     const fetches = []
-    const { providers, websocketUrl } = await this.providersPromise
+    const { providers } = await this.providersPromise
     // @ts-ignore
     providers.get('websocket').forEach(
       /**
@@ -394,17 +398,20 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
        */
       (provider, url) => {
         const origin = (new URL(url)).origin
-        if (websocketUrl && websocketUrl.includes(origin)) {
-          fetches.push(fetch(`${this.urlFixProtocol(origin)}/get-notifications`, {
-            method: 'POST',
-            body: JSON.stringify(Object.keys(getRoomsResult.value)),
-            headers: {
-              'Content-Type': 'application/json',
-              'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
-            }
-            // @ts-ignore
-          }).then(resp => resp.json()).catch(error => console.error(error) || {}))
-        }
+        fetches.push(fetch(`${urlFixProtocol(origin)}/get-notifications`, {
+          method: 'POST',
+          body: JSON.stringify(Object.keys(getRoomsResult.value)),
+          headers: {
+            'Content-Type': 'application/json',
+            'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+          }
+        }).then(response => {
+          if (response.status >= 200 && response.status <= 299) {
+            return response.json()
+          }
+          throw new Error(response.statusText)
+        // @ts-ignore
+        }).catch(error => console.error(error) || {error}))
       }
     )
     // @ts-ignore
@@ -451,10 +458,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       if (notificationsData[roomName]) notificationsData[roomName] = notificationsData[roomName].sort((a, b) => b.timestamp - a.timestamp)
     })
     return notificationsData
-  }
-
-  urlFixProtocol (url) {
-    return url.replace('ws:', 'http:').replace('wss:', 'https:')
   }
 
   /**

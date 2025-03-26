@@ -951,6 +951,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @returns {boolean}
    */
   static isProviderConnected (provider) {
+    if (!provider) return false
     // @ts-ignore
     return provider.connected || provider.synced
   }
