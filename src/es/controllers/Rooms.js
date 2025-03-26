@@ -83,7 +83,8 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
           value: {
             [await (await this.roomPromise).room]: event.detail
           },
-          uniqueArray: true
+          uniqueArray: true,
+          resolve: event.detail.resolve
         },
         bubbles: true,
         cancelable: true,
@@ -97,7 +98,8 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
           key: `${this.roomNamePrefix}rooms`,
           value: {
             [await (await this.roomPromise).room]: event.detail
-          }
+          },
+          resolve: event.detail.resolve
         },
         bubbles: true,
         cancelable: true,
@@ -111,7 +113,8 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
           key: `${this.roomNamePrefix}rooms`,
           value: {
             [event.detail.key]: event.detail.value
-          }
+          },
+          resolve: event.detail.resolve
         },
         bubbles: true,
         cancelable: true,
@@ -131,7 +134,8 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       this.dispatchEvent(new CustomEvent('storage-set', {
         detail: {
           key: `${this.roomNamePrefix}rooms`,
-          value: rooms.value
+          value: rooms.value,
+          resolve: event.detail?.resolve
         },
         bubbles: true,
         cancelable: true,
@@ -142,7 +146,8 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.undoRoomEventListener = async event => {
       this.dispatchEvent(new CustomEvent('storage-undo', {
         detail: {
-          key: `${this.roomNamePrefix}rooms`
+          key: `${this.roomNamePrefix}rooms`,
+          resolve: event.detail?.resolve
         },
         bubbles: true,
         cancelable: true,
