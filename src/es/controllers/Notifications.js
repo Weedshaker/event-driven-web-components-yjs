@@ -126,7 +126,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         let websocketUrls
         if (event.detail?.url) {
           this.setNotification(event.detail.url, 'subscribe', event.detail.room || await (await this.roomPromise).room)
-        } else if(event.detail?.locationHref && (websocketUrls = (new URL(event.detail.locationHref)).searchParams.get('websocket-url'))) {
+        } else if (event.detail?.locationHref && (websocketUrls = (new URL(event.detail.locationHref)).searchParams.get('websocket-url'))) {
           websocketUrls.split(',').forEach(async websocketUrl => this.setNotification((new URL(websocketUrl)).origin, 'subscribe', event.detail.room || await (await this.roomPromise).room))
         } else {
           // @ts-ignore
@@ -155,7 +155,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       let websocketUrls
       if (event.detail?.url) {
         this.setNotification(event.detail.url, 'unsubscribe', event.detail.room || await (await this.roomPromise).room)
-      } else if(event.detail?.locationHref && (websocketUrls = (new URL(event.detail.locationHref)).searchParams.get('websocket-url'))) {
+      } else if (event.detail?.locationHref && (websocketUrls = (new URL(event.detail.locationHref)).searchParams.get('websocket-url'))) {
         websocketUrls.split(',').forEach(async websocketUrl => this.setNotification((new URL(websocketUrl)).origin, 'unsubscribe', event.detail.room || await (await this.roomPromise).room))
       } else {
         // @ts-ignore
@@ -371,7 +371,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
       headers: {
         'Content-Type': 'application/json',
-        'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+        'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
       }
     }).then(response => {
       if (response.status >= 200 && response.status <= 299) {
@@ -403,7 +403,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           body: JSON.stringify(Object.keys(getRoomsResult.value)),
           headers: {
             'Content-Type': 'application/json',
-            'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+            'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
           }
         }).then(response => {
           if (response.status >= 200 && response.status <= 299) {
@@ -411,7 +411,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           }
           throw new Error(response.statusText)
         // @ts-ignore
-        }).catch(error => console.error(error) || {error}))
+        }).catch(error => console.error(error) || { error }))
       }
     )
     // @ts-ignore

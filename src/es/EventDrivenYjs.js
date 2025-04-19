@@ -578,7 +578,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       if (this.websocketUrl) {
         const websocketUrls = this.websocketUrl.split(',').filter(websocketUrl => {
           try {
-            new URL(websocketUrl)
+            new URL(websocketUrl) // eslint-disable-line
             return true
           } catch (error) {
             return false
@@ -638,12 +638,12 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
             {
               signaling: this.webrtcUrl.split(',').filter(url => {
-                  try {
-                    new URL(url)
-                    return true
-                  } catch (error) {
-                    return false
-                  }
+                try {
+                  new URL(url) // eslint-disable-line
+                  return true
+                } catch (error) {
+                  return false
+                }
               }).map(url => self.decodeURIComponent(url))
             }
           ))

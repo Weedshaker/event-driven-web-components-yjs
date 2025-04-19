@@ -204,29 +204,33 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           },
           getWebsocketInfo: async () => {
             let connectedProviders
-            if (connectedProviders = (await getSessionProvidersByStatus()).connected) connectedProviders.reduce((acc, curr) => {
-              const [name, url] = curr.split(separator)
-              if (name === 'websocket') {
-                const origin = (new URL(url)).origin
-                // @ts-ignore
-                acc.push(origin)
-              }
-              return acc
-            }, []).forEach(providerUrl => {
-              if (!getWebsocketInfoMap.has(providerUrl)) getWebsocketInfoMap.set(providerUrl, fetch(`${urlFixProtocol(providerUrl)}/get-info`, {
-                method: 'GET',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Bypass-Tunnel-Reminder': 'yup', // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+            if ((connectedProviders = (await getSessionProvidersByStatus()).connected)) {
+              connectedProviders.reduce((acc, curr) => {
+                const [name, url] = curr.split(separator)
+                if (name === 'websocket') {
+                  const origin = (new URL(url)).origin
+                  // @ts-ignore
+                  acc.push(origin)
                 }
-              }).then(response => {
-                if (response.status >= 200 && response.status <= 299) {
-                  return response.json()
+                return acc
+              }, []).forEach(providerUrl => {
+                if (!getWebsocketInfoMap.has(providerUrl)) {
+                  getWebsocketInfoMap.set(providerUrl, fetch(`${urlFixProtocol(providerUrl)}/get-info`, {
+                    method: 'GET',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+                    }
+                  }).then(response => {
+                    if (response.status >= 200 && response.status <= 299) {
+                      return response.json()
+                    }
+                    throw new Error(response.statusText)
+                  // @ts-ignore
+                  }).catch(error => console.error(error) || { error }))
                 }
-                throw new Error(response.statusText)
-              // @ts-ignore
-              }).catch(error => console.error(error) || {error}))
-            })
+              })
+            }
             return getWebsocketInfoMap
           },
           separator: event.detail.separator
