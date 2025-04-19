@@ -235,7 +235,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       }))
     }
 
-    this.setNicknameLEventListener = async event => {
+    this.setNicknameEventListener = async event => {
       if (!event.detail.nickname) return
       const uid = await this.uid
       const yMap = (await this.yMap).type
@@ -252,13 +252,13 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       }))
     }
 
-    this.getNicknameLEventListener = async event => {
+    this.getNicknameEventListener = async event => {
       const uid = await this.uid
       const yMap = (await this.yMap).type
       const detail = { nickname: yMap.get(uid).nickname }
       if (!detail.nickname) {
         detail.nickname = await this.randomNickname
-        this.setNicknameLEventListener({ detail })
+        this.setNicknameEventListener({ detail })
         detail.randomNickname = true
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
@@ -268,6 +268,16 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         cancelable: true,
         composed: true
       }))
+    }
+
+    // manually update the awareness epoch
+    this.updateAwarenessEpochEventListener = async event => {
+      const uid = await this.uid
+      const yMap = (await this.yMap).type
+      const selfUser = yMap.get(uid)
+      // same format as in EventDrivenYjs.js:1057
+      const awarenessEpoch = JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID() })
+      if (selfUser.awarenessEpoch !== awarenessEpoch) yMap.set(uid, { ...selfUser, awarenessEpoch })
     }
 
     /** @type {(UsersEventDetail)=>void} */
@@ -295,8 +305,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.addEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
-    this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
-    this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
+    this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameEventListener)
+    this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameEventListener)
+    this.addEventListener(`${this.namespace}update-awareness-epoch`, this.updateAwarenessEpochEventListener)
     this.connectedCallbackOnce()
   }
 
@@ -325,8 +336,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.removeEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
-    this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameLEventListener)
-    this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameLEventListener)
+    this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameEventListener)
+    this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameEventListener)
+    this.removeEventListener(`${this.namespace}update-awareness-epoch`, this.updateAwarenessEpochEventListener)
   }
 
   /**
