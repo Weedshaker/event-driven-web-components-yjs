@@ -723,7 +723,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         /** @type {AwarenessUpdateChangeEventDetail} */
         {
           ...detail,
-          awarenessEpoch: this.epochDateNow, // awareness update time
+          awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
           changes,
           stateValues: Array.from(provider.awareness.getStates().values())
         }
@@ -732,7 +732,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         /** @type {AwarenessUpdateChangeEventDetail} */
         {
           ...detail,
-          awarenessEpoch: this.epochDateNow, // awareness update time
+          awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
           changes,
           stateValues: Array.from(provider.awareness.getStates().values())
         }
@@ -1047,13 +1047,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @return {string}
    */
   get epoch () {
-    return this._epoch || (this._epoch = this.epochDateNow)
+    return this._epoch || (this._epoch = EventDrivenYjs.epochDateNow)
   }
 
   /**
    * @return {string}
    */
-  get epochDateNow () {
+  static get epochDateNow () {
     return JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID() })
   }
 

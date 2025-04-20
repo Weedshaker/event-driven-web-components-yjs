@@ -1,5 +1,6 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
+import { EventDrivenYjs } from '../EventDrivenYjs.js'
 
 // https://github.com/yjs
 /**
@@ -61,7 +62,10 @@ import("../EventDrivenYjs").InitialUserValue & {
 /* global CustomEvent */
 /* global self */
 
+// separator used for separating provider name <> origin eg.: 'webrtc<>wss://local.it:8080' as key in connectedUsers object
 export const separator = '<>'
+// EventDrivenYjsClass.epochDateNow
+const EventDrivenYjsClass = EventDrivenYjs()
 
 // Supported attributes:
 // Attribute {namespace} string default is yjs-, which gets prepend to each outgoing event string as well as on each listener event string
@@ -275,8 +279,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const uid = await this.uid
       const yMap = (await this.yMap).type
       const selfUser = yMap.get(uid)
-      // same format as in EventDrivenYjs.js:1057
-      const awarenessEpoch = JSON.stringify({ epoch: Date.now(), uuid: self.crypto.randomUUID() })
+      const awarenessEpoch = EventDrivenYjsClass.epochDateNow
       if (selfUser.awarenessEpoch !== awarenessEpoch) yMap.set(uid, { ...selfUser, awarenessEpoch })
     }
 
