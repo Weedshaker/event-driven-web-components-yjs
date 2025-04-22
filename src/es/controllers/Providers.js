@@ -35,15 +35,15 @@ import { urlFixProtocol } from '../helpers/Utils.js'
 /**
  * allProviders: All ever registered providers to the users CRDT connected to this room
  * providers: Mutually connected providers
- * pingProviders: Test if provider is reachable
+ * pingProvider: Test if provider is reachable
  * getSessionProvidersByStatus: Connected and disconnected providers of current session
  @typedef {
   {
     allProviders: ProvidersContainer,
     providers: ProvidersContainer,
-    pingProviders: (providers: ProvidersContainer, force: boolean) => Map<string, Promise<{status: 'timeout'|'success'|'navigator offline', event: Event}>>,
-    getWebsocketInfo: () => Promise<Map<string, Promise<Response>>>,
-    getSessionProvidersByStatus: () => Promise<GetSessionProvidersByStatusResult>,
+    pingProvider: (url: string) => Promise<{status: 'timeout'|'success'|'offline', event: Event}>,
+    getWebsocketInfo: (nameUrlSeparator: string) => Promise<Map<string, Promise<Response>>>,
+    getSessionProvidersByStatus: (nameUrlSeparator: string) => Promise<GetSessionProvidersByStatusResult>,
     separator: string
   }
  } GetDataResult
@@ -82,7 +82,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     else if (!this.namespace) this.namespace = 'yjs-'
 
     /** @type {Map<string, Promise<Response>>} */
-    const getWebsocketInfoMap = new Map()
+    this.getWebsocketInfoMap = new Map()
 
     this.usersEventListener =
     /**
@@ -91,34 +91,6 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     event => {
       /** @type {null | GetDataResult} */
       let getDataResult = null
-      /** @type {null | GetSessionProvidersByStatusResult} */
-      let getSessionProvidersByStatusResult = null
-      // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
-      const getSessionProvidersByStatus = (force = false) => {
-        if (!force && getSessionProvidersByStatusResult) return Promise.resolve(getSessionProvidersByStatusResult)
-        return new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
-          detail: {
-            resolve
-          },
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }))).then(({ providers, isProviderConnected }) => {
-          /** @type {GetSessionProvidersByStatusResult} */
-          const result = {
-            connected: [],
-            disconnected: []
-          }
-          Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
-            if (isProviderConnected(provider)) {
-              result.connected.push(`${providerName}${event.detail.separator}${url}`)
-            } else {
-              result.disconnected.push(`${providerName}${event.detail.separator}${url}`)
-            }
-          }))
-          return (getSessionProvidersByStatusResult = result)
-        })
-      }
       /**
        * @param {boolean} [addToStorage=true]
        * @return {Promise<GetDataResult>}
@@ -165,74 +137,9 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         return (getDataResult = {
           allProviders,
           providers,
-          getSessionProvidersByStatus,
-          pingProviders: function (providers = this.allProviders, force = false) {
-            // @ts-ignore
-            if (!force && this.pingProvidersResult?.has(providers)) return this.pingProvidersResult.get(providers)
-            // map with keys "websocket" aka. provider type and value with a map. This map holds keys "provider urls" and value user objects
-            // @ts-ignore
-            const result = new Map(providers.values().reduce((acc, map) => [...acc, ...map.keys().map(key => [key, new Promise((resolve, reject) => {
-              const img = new Image()
-              img.setAttribute('src', key.replace(new URL(key).protocol, 'http:'))
-              const timeout = setTimeout(() => {
-                reject({ // eslint-disable-line
-                  status: 'timeout'
-                })
-                img.remove()
-              }, 1500)
-              img.addEventListener('load', event => {
-                clearTimeout(timeout)
-                resolve({
-                  status: 'success',
-                  event
-                })
-                img.remove()
-              })
-              // receiving an error means some instance answered
-              img.addEventListener('error', event => {
-                clearTimeout(timeout)
-                resolve({
-                  status: navigator.onLine ? 'success' : 'navigator offline',
-                  event
-                })
-                img.remove()
-              })
-            }).catch(error => error)])], []))
-            // @ts-ignore
-            this.pingProvidersResult = new Map([[providers, result], ...Array.from(this.pingProvidersResult || [])])
-            return result
-          },
-          getWebsocketInfo: async () => {
-            let connectedProviders
-            if ((connectedProviders = (await getSessionProvidersByStatus()).connected)) {
-              connectedProviders.reduce((acc, curr) => {
-                const [name, url] = curr.split(separator)
-                if (name === 'websocket') {
-                  const origin = (new URL(url)).origin
-                  // @ts-ignore
-                  acc.push(origin)
-                }
-                return acc
-              }, []).forEach(providerUrl => {
-                if (!getWebsocketInfoMap.has(providerUrl)) {
-                  getWebsocketInfoMap.set(providerUrl, fetch(`${urlFixProtocol(providerUrl)}/get-info`, {
-                    method: 'GET',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
-                    }
-                  }).then(response => {
-                    if (response.status >= 200 && response.status <= 299) {
-                      return response.json()
-                    }
-                    throw new Error(response.statusText)
-                  // @ts-ignore
-                  }).catch(error => console.error(error) || { error }))
-                }
-              })
-            }
-            return getWebsocketInfoMap
-          },
+          getSessionProvidersByStatus: this.getSessionProvidersByStatus,
+          pingProvider: Providers.pingProvider,
+          getWebsocketInfo: this.getWebsocketInfo,
           separator: event.detail.separator
         })
       }
@@ -285,6 +192,95 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     this.removeEventListener(`${this.namespace}users`, this.usersEventListener)
     this.removeEventListener(`${this.namespace}awareness-change-with-no-user-change`, this.awarenessChangeWithNoUserChangeEventListener)
     this.removeEventListener(`${this.namespace}get-providers-event-detail`, this.getProvidersEventDetailEventListener)
+  }
+
+  // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
+  getSessionProvidersByStatus = (nameUrlSeparator = separator) => {
+    return new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))).then(({ providers, isProviderConnected }) => {
+      /** @type {GetSessionProvidersByStatusResult} */
+      const result = {
+        connected: [],
+        disconnected: []
+      }
+      Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
+        if (isProviderConnected(provider)) {
+          result.connected.push(`${providerName}${nameUrlSeparator}${url}`)
+        } else {
+          result.disconnected.push(`${providerName}${nameUrlSeparator}${url}`)
+        }
+      }))
+      return result
+    })
+  }
+
+  // TODO: work with url instead of getSessionProvidersByStatus
+  getWebsocketInfo = async (nameUrlSeparator = separator) => {
+    let connectedProviders
+    if ((connectedProviders = (await this.getSessionProvidersByStatus(nameUrlSeparator)).connected)) {
+      connectedProviders.reduce((acc, curr) => {
+        const [name, url] = curr.split(nameUrlSeparator)
+        if (name === 'websocket') {
+          const origin = (new URL(url)).origin
+          // @ts-ignore
+          acc.push(origin)
+        }
+        return acc
+      }, []).forEach(providerUrl => {
+        if (!this.getWebsocketInfoMap.has(providerUrl)) {
+          this.getWebsocketInfoMap.set(providerUrl, fetch(`${urlFixProtocol(providerUrl)}/get-info`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+            }
+          }).then(response => {
+            if (response.status >= 200 && response.status <= 299) {
+              return response.json()
+            }
+            throw new Error(response.statusText)
+          // @ts-ignore
+          }).catch(error => console.error(error) || { error }))
+        }
+      })
+    }
+    return this.getWebsocketInfoMap
+  }
+
+  static pingProvider (url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.setAttribute('src', url.replace(new URL(url).protocol, 'http:'))
+      const timeout = setTimeout(() => {
+        reject({ // eslint-disable-line
+          status: 'timeout'
+        })
+        img.remove()
+      }, 1500)
+      img.addEventListener('load', event => {
+        clearTimeout(timeout)
+        resolve({
+          status: 'success',
+          event
+        })
+        img.remove()
+      })
+      // receiving an error means some instance answered
+      img.addEventListener('error', event => {
+        clearTimeout(timeout)
+        resolve({
+          status: navigator.onLine ? 'success' : 'offline',
+          event
+        })
+        img.remove()
+      })
+    }).catch(error => error)
   }
 
   /**
