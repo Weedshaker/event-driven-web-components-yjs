@@ -27,7 +27,7 @@ import { urlFixProtocol } from '../helpers/Utils.js'
 */
 
 /**
- * fsa
+ * GetSessionProvidersByStatusResult
  @typedef {{connected: string[], disconnected: string[]}
  } GetSessionProvidersByStatusResult
 */
@@ -41,8 +41,8 @@ import { urlFixProtocol } from '../helpers/Utils.js'
   {
     allProviders: ProvidersContainer,
     providers: ProvidersContainer,
-    pingProvider: (url: string) => Promise<{status: 'timeout'|'success'|'offline', event: Event}>,
-    getWebsocketInfo: (nameUrlSeparator: string) => Promise<Map<string, Promise<Response>>>,
+    pingProvider: (url: string, force: boolean) => Promise<{status: 'timeout'|'success'|'offline', event: Event}>,
+    getWebsocketInfo: (url: string, force: boolean) => Promise<Response>,
     getSessionProvidersByStatus: (nameUrlSeparator: string) => Promise<GetSessionProvidersByStatusResult>,
     separator: string
   }
@@ -83,6 +83,9 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
     /** @type {Map<string, Promise<Response>>} */
     this.getWebsocketInfoMap = new Map()
+
+    /** @type {Map<string, Promise<{status: string, event?: any}>>} */
+    this.pingProviderMap = new Map()
 
     this.usersEventListener =
     /**
@@ -138,7 +141,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           allProviders,
           providers,
           getSessionProvidersByStatus: this.getSessionProvidersByStatus,
-          pingProvider: Providers.pingProvider,
+          pingProvider: this.pingProvider,
           getWebsocketInfo: this.getWebsocketInfo,
           separator: event.detail.separator
         })
@@ -220,41 +223,43 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     })
   }
 
-  // TODO: work with url instead of getSessionProvidersByStatus
-  getWebsocketInfo = async (nameUrlSeparator = separator) => {
-    let connectedProviders
-    if ((connectedProviders = (await this.getSessionProvidersByStatus(nameUrlSeparator)).connected)) {
-      connectedProviders.reduce((acc, curr) => {
-        const [name, url] = curr.split(nameUrlSeparator)
-        if (name === 'websocket') {
-          const origin = (new URL(url)).origin
-          // @ts-ignore
-          acc.push(origin)
-        }
-        return acc
-      }, []).forEach(providerUrl => {
-        if (!this.getWebsocketInfoMap.has(providerUrl)) {
-          this.getWebsocketInfoMap.set(providerUrl, fetch(`${urlFixProtocol(providerUrl)}/get-info`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
-            }
-          }).then(response => {
-            if (response.status >= 200 && response.status <= 299) {
-              return response.json()
-            }
-            throw new Error(response.statusText)
-          // @ts-ignore
-          }).catch(error => console.error(error) || { error }))
-        }
-      })
-    }
-    return this.getWebsocketInfoMap
+  
+  /**
+   * get /get-info from a websocket
+   * 
+   * @param {string} url
+   * @param {boolean} [force=false]
+   * @returns {Promise<Response>}
+   */
+  getWebsocketInfo = (url, force = false) => {
+    // @ts-ignore
+    if (!force && this.getWebsocketInfoMap.has(url)) return this.getWebsocketInfoMap.get(url)
+    // @ts-ignore
+    return this.getWebsocketInfoMap.set(url, fetch(`${urlFixProtocol(url)}/get-info`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+      }
+    }).then(response => {
+      if (response.status >= 200 && response.status <= 299) return response.json()
+      throw new Error(response.statusText)
+    // @ts-ignore
+    }).catch(error => console.error(error) || { error })).get(url)
   }
 
-  static pingProvider (url) {
-    return new Promise((resolve, reject) => {
+  /**
+   * check if a server responses
+   * 
+   * @param {string} url
+   * @param {boolean} [force=false]
+   * @returns {Promise<{status: 'timeout'|'success'|'offline', event: Event}>}
+   */
+  pingProvider = (url, force = false) => {
+    // @ts-ignore
+    if (!force && this.pingProviderMap.has(url)) return this.pingProviderMap.get(url)
+    // @ts-ignore
+    return this.pingProviderMap.set(url, new Promise((resolve, reject) => {
       const img = new Image()
       img.setAttribute('src', url.replace(new URL(url).protocol, 'http:'))
       const timeout = setTimeout(() => {
@@ -280,7 +285,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         })
         img.remove()
       })
-    }).catch(error => error)
+    }).catch(error => error)).get(url)
   }
 
   /**
