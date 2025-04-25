@@ -44,6 +44,7 @@ import { urlFixProtocol } from '../helpers/Utils.js'
     pingProvider: (url: string, force: boolean) => Promise<{status: 'timeout'|'success'|'offline', event: Event}>,
     getWebsocketInfo: (url: string, force: boolean) => Promise<Response>,
     getSessionProvidersByStatus: (nameUrlSeparator: string) => Promise<GetSessionProvidersByStatusResult>,
+    getProvidersFromRooms: () => Promise<{}>,
     separator: string
   }
  } GetDataResult
@@ -125,7 +126,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         }
         const allProviders = await getProviders((await event.detail.getData()).allUsers, false)
         const providers = await getProviders((await event.detail.getData()).users, true)
-        const reduceProvidersToUrls = providers => Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, url], acc), [])
+        const reduceProvidersToUrls = providers => Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, `${providerName}${separator}${url}`], acc), [])
         if (addToStorage) {
           this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
             detail: {
@@ -141,6 +142,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           allProviders,
           providers,
           getSessionProvidersByStatus: this.getSessionProvidersByStatus,
+          getProvidersFromRooms: this.getProvidersFromRooms,
           pingProvider: this.pingProvider,
           getWebsocketInfo: this.getWebsocketInfo,
           separator: event.detail.separator
@@ -223,10 +225,39 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     })
   }
 
-  
+  /**
+   * Get rooms from local storage and grab all reported providers
+   *
+   * @returns {Promise<{room: string, url: string, prop: 'allProviders' | 'providers'}[]>}
+   */
+  getProvidersFromRooms = async () => {
+    const rooms = await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-rooms', {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+    const providers = []
+    for (const key in rooms?.value) {
+      rooms.value[key].allProviders?.forEach(url => providers.push({
+        room: key,
+        url,
+        prop: 'allProviders'
+      }))
+      rooms.value[key].providers?.forEach(url => providers.push({
+        room: key,
+        url,
+        prop: 'providers'
+      }))
+    }
+    return providers
+  }
+
   /**
    * get /get-info from a websocket
-   * 
+   *
    * @param {string} url
    * @param {boolean} [force=false]
    * @returns {Promise<Response>}
@@ -250,7 +281,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   /**
    * check if a server responses
-   * 
+   *
    * @param {string} url
    * @param {boolean} [force=false]
    * @returns {Promise<{status: 'timeout'|'success'|'offline', event: Event}>}
