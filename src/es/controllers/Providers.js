@@ -244,11 +244,13 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       rooms.value[key].allProviders?.forEach(url => providers.push({
         room: key,
         url,
+        providerFallbacks: rooms.value[key]?.providerFallbacks || [],
         prop: 'allProviders'
       }))
       rooms.value[key].providers?.forEach(url => providers.push({
         room: key,
         url,
+        providerFallbacks: rooms.value[key]?.providerFallbacks || [],
         prop: 'providers'
       }))
     }
@@ -275,7 +277,27 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     }).then(response => {
       if (response.status >= 200 && response.status <= 299) return response.json()
       throw new Error(response.statusText)
-    // @ts-ignore
+    }).then(result => {
+      try {
+        // @ts-ignore
+        url = new URL(url)
+      } catch (error) {}
+      this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
+        detail: {
+          providerFallbacks: {
+            // @ts-ignore
+            [url.hostname ? url.hostname : url]: {
+              name: 'websocket',
+              urls: Array.from(new Map(result.providerFallbacks))
+            }
+          }
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+      return result
+      // @ts-ignore
     }).catch(error => console.error(error) || { error })).get(url)
   }
 

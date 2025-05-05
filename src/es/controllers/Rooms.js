@@ -84,6 +84,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
             [await (await this.roomPromise).room]: event.detail
           },
           uniqueArray: true,
+          uniqueMap: true,
           resolve: event.detail.resolve
         },
         bubbles: true,
