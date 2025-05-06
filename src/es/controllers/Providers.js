@@ -128,7 +128,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         const providers = await getProviders((await event.detail.getData()).users, true)
         const reduceProvidersToUrls = providers => Array.from(providers).reduce((acc, [providerName, providerMap]) => Array.from(providerMap).reduce((acc, [url, users]) => [...acc, `${providerName}${separator}${url}`], acc), [])
         if (addToStorage) {
-          this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
+          this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
             detail: {
               allProviders: reduceProvidersToUrls(allProviders),
               providers: reduceProvidersToUrls(providers)
@@ -231,7 +231,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
    * @returns {Promise<{room: string, url: string, prop: 'allProviders' | 'providers'}[]>}
    */
   getProvidersFromRooms = async () => {
-    const rooms = await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-rooms', {
+    const rooms = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-rooms`, {
       detail: {
         resolve
       },
@@ -282,7 +282,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         // @ts-ignore
         url = new URL(url)
       } catch (error) {}
-      this.dispatchEvent(new CustomEvent('yjs-merge-unique-active-room', {
+      this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
         detail: {
           providerFallbacks: {
             // @ts-ignore
