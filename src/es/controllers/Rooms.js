@@ -242,12 +242,12 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
           } catch (error) {}
           return acc
         }, [])],
-        messagesTimestamps: await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
+        messagesTimestamps: (await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
           detail: { resolve },
           bubbles: true,
           cancelable: true,
           composed: true
-        })))
+        })))).reverse()
       }
       // @ts-ignore
       if (!roomValue.enteredProviders[0].length) delete roomValue.enteredProviders;
