@@ -246,7 +246,13 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
                   if (providersObj.isProviderConnected(provider)) acc.push(new URL(url).origin)
                 } catch (error) {}
                 return acc
-              }, [])]
+              }, [])],
+              messagesTimestamps: await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
+                detail: { resolve },
+                bubbles: true,
+                cancelable: true,
+                composed: true
+              })))
             }
           },
           concat: 'unshift',

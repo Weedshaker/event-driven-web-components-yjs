@@ -499,13 +499,14 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       const looped = []
       const notificationsDataToRemove = []
       const lastEnteredProviders = (rooms[roomName].enteredProviders?.[0] || []).map(lastEnteredProvider => lastEnteredProvider.replace(urlRemoveProtocolRegex, ''))
+      const lastMessagesTimestamps = rooms[roomName].messagesTimestamps || []
       fetchMessages.forEach(fetchedNotification => {
         if (Array.isArray(fetchedNotification[roomName])) {
           if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
           notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => {
             // TODO: ignore providers regarding notifications (allow to mute providers)
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
-            const result = (roomName !== activeRoom || !messageTimestamps.includes(notification.timestamp)) && (!lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered)
+            const result = !lastMessagesTimestamps.includes(notification.timestamp) && (roomName !== activeRoom || !messageTimestamps.includes(notification.timestamp)) && (!lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered)
             if (looped.includes(notification.timestamp)) {
               if (!result) notificationsDataToRemove.push(notification.timestamp)
               return false
