@@ -1,6 +1,7 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
-import { urlFixProtocol } from '../helpers/Utils.js'
+import { urlFixProtocol, urlRemoveProtocolRegex } from '../helpers/Utils.js'
+import { separator } from './Users.js'
 
 /* global self */
 /* global location */
@@ -71,6 +72,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
 
     this.updateNotificationsAfter = 5000
     this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
+    this.succeededGetNotificationsOrigins = []
+    this.failedGetNotificationsOrigins = new Map()
 
     /** @type {string} */
     this.importMetaUrl = import.meta.url.replace(/(.*\/)(.*)$/, '$1')
@@ -332,7 +335,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       cancelable: true,
       composed: true
     }))
-    this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers-event-detail`, {
+    this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
       detail: {
         resolve: this.providersResolve
       },
@@ -349,10 +352,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}send-notification`, this.sendNotificationEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}users`, this.usersEventListener)
     navigator.serviceWorker?.removeEventListener('message', this.pushEventMessageListener)
     self.removeEventListener('focus', this.focusEventListener)
     clearTimeout(this._requestClearNotificationsTimeoutId)
     clearInterval(this._intervalId)
+    this.failedGetNotificationsOrigins.clear()
   }
 
   /**
@@ -389,33 +394,67 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
    */
   async getNotifications (getRoomsResult) {
     this.lastUpdatedNotifications = Date.now()
-    const fetches = []
-    const { providers } = await this.providersPromise
+    let roomNames = Object.keys(getRoomsResult.value)
+    // get websocket provider origins from other rooms
+    /** @type {string[]} */
+    const origins = roomNames.reduce((acc, roomName) => {
+      let room
+      if ((room = getRoomsResult.value[roomName])) {
+        room.providers?.forEach(url => {
+          let [name, realUrl] = url.split(separator)
+          // incase no separator is found (fallback for old room provider array)
+          if (!realUrl) {
+            realUrl = name
+            name = undefined
+          }
+          try {
+            // @ts-ignore
+            acc.push((new URL(realUrl)).origin)
+          } catch (error) {}
+        })
+      }
+      return acc
+    }, []);
+    // get websocket provider origins from ${this.namespace}providers-update, the providers map from EventDrivenYjs.js
     // @ts-ignore
-    providers.get('websocket').forEach(
+    (await this.providersPromise).providers.get('websocket').forEach(
       /**
        * @param {import("../EventDrivenYjs.js").ProviderTypes} provider
        */
       (provider, url) => {
-        const origin = (new URL(url)).origin
-        fetches.push(fetch(`${urlFixProtocol(origin)}/get-notifications`, {
-          method: 'POST',
-          body: JSON.stringify(Object.keys(getRoomsResult.value)),
-          headers: {
-            'Content-Type': 'application/json',
-            'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
-          }
-        }).then(response => {
-          if (response.status >= 200 && response.status <= 299) {
-            return response.json()
-          }
-          throw new Error(response.statusText)
-        // @ts-ignore
-        }).catch(error => console.error(error) || { error }))
+        try {
+          // @ts-ignore
+          origins.push((new URL(url)).origin)
+        } catch (error) {}
       }
     )
     // @ts-ignore
-    return await Promise.all(fetches)
+    roomNames = JSON.stringify(roomNames)
+    // @ts-ignore
+    return await Promise.all(Array.from(new Set(origins.map(origin => urlFixProtocol(origin)))).map(origin => this.fetchNotifications(origin, roomNames)))
+  }
+
+  fetchNotifications (origin, body) {
+    if (this.failedGetNotificationsOrigins.has(origin) && !this.succeededGetNotificationsOrigins.includes(origin)) return Promise.resolve(this.failedGetNotificationsOrigins.get(origin))
+    return fetch(`${origin}/get-notifications`, {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+      }
+    }).then(response => {
+      if (response.status >= 200 && response.status <= 299) {
+        if (this.failedGetNotificationsOrigins.has(origin)) this.failedGetNotificationsOrigins.delete(origin)
+        if (!this.succeededGetNotificationsOrigins.includes(origin)) this.succeededGetNotificationsOrigins.push(origin)
+        return response.json()
+      }
+      throw new Error(response.statusText)
+    }).then(json => Object.assign({ origin }, json)).catch(error => {
+      this.failedGetNotificationsOrigins.set(origin, { error })
+      // @ts-ignore
+      return console.error(error) || { error }
+    })
   }
 
   updateNotifications (pushMessageNotifications = this.lastPushMessageNotifications || {}, force = false) {
@@ -433,26 +472,41 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       this.roomPromise
     ]).then(async ([getRoomsResult, roomPromise]) => {
       const fetchedNotifications = await this.getNotifications(getRoomsResult)
-      const room = await roomPromise.room
       // @ts-ignore
-      const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications)
+      const notificationsData = await this.webWorker(Notifications._updateNotifications, getRoomsResult.value, pushMessageNotifications, fetchedNotifications, urlRemoveProtocolRegex)
       this.notificationsResolve({ notifications: notificationsData, rooms: getRoomsResult })
-      this.notificationsPromise = Promise.resolve({ notifications: notificationsData, rooms: getRoomsResult })
+      this.notificationsPromise = Promise.resolve({ notifications: notificationsData, rooms: getRoomsResult, activeRoom: await roomPromise.room })
       return { notifications: notificationsData, rooms: getRoomsResult }
     })
   }
 
-  static _updateNotifications (activeRoom, rooms, pushMessages, fetchMessages) {
+  static _updateNotifications (rooms, pushMessages, fetchMessages, urlRemoveProtocolRegex) {
     const notificationsData = {}
-    Object.keys(rooms).filter(roomName => roomName !== activeRoom).forEach(roomName => {
+    Object.keys(rooms).forEach(roomName => {
       const lastEntered = rooms[roomName].entered?.[0] || Date.now()
+      // tread push messages
       if (Array.isArray(pushMessages[roomName])) {
         notificationsData[roomName] = pushMessages[roomName].filter(notification => notification && notification.timestamp > lastEntered)
       }
+      // tread fetched messages
+      const looped = []
+      const notificationsDataToRemove = []
+      const lastEnteredProviders = (rooms[roomName].enteredProviders?.[0] || []).map(lastEnteredProvider => lastEnteredProvider.replace(urlRemoveProtocolRegex, ''))
       fetchMessages.forEach(fetchedNotification => {
         if (Array.isArray(fetchedNotification[roomName])) {
           if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
-          notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => notification && notification.timestamp > lastEntered && !notificationsData[roomName].some(setNotification => setNotification.timestamp === notification.timestamp)))
+          notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => {
+            // TODO: ignore providers regarding notifications (allow to mute providers)
+            // TODO: eventually simply check if the message is already present (not that the chat controller is inside the chat repo, so make it clean and not relying on chat as such)
+            notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
+            const result = !lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered
+            if (looped.includes(notification.timestamp)) {
+              if (!result) notificationsDataToRemove.push(notification.timestamp)
+              return false
+            }
+            looped.push(notification.timestamp)
+            return result
+          }).filter(notification => !notificationsDataToRemove.includes(notification.timestamp)))
         }
       })
       if (notificationsData[roomName]) notificationsData[roomName] = notificationsData[roomName].sort((a, b) => b.timestamp - a.timestamp)

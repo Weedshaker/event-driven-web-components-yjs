@@ -41,6 +41,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
     // save room name to local storage
     this.providersUpdateEventListener = async event => {
+      this.providersPromise = Promise.resolve(event.detail)
       this.dispatchEvent(new CustomEvent('storage-merge', {
         detail: {
           key: `${this.roomNamePrefix}rooms`,
@@ -157,6 +158,11 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     }
 
     /** @type {(any)=>void} */
+    this.providersResolve = map => map
+    /** @type {Promise<import("../EventDrivenYjs.js").ProvidersUpdateEventDetail>} */
+    this.providersPromise = new Promise(resolve => (this.providersResolve = resolve))
+
+    /** @type {(any)=>void} */
     this.roomResolve = map => map
     /** @type {Promise<{ locationHref: string, room: Promise<string> & {done: boolean} }>} */
     this.roomPromise = new Promise(resolve => (this.roomResolve = resolve))
@@ -177,6 +183,14 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   }
 
   connectedCallbackOnce () {
+    this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
+      detail: {
+        resolve: this.providersResolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
     this.dispatchEvent(new CustomEvent(`${this.namespace}get-room`, {
       detail: {
         resolve: this.roomResolve
@@ -217,22 +231,32 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   saveRoom () {
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
-    // @ts-ignore
-    this.roomPromise.then(async ({ locationHref, room }) => (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
-      detail: {
-        key: `${this.roomNamePrefix}rooms`,
-        value: {
-          [await room]: {
-            entered: [Date.now()]
-          }
+    this.roomPromise.then(async ({ locationHref, room }) => {
+      const providersObj = await this.providersPromise;
+      // @ts-ignore
+      (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
+        detail: {
+          key: `${this.roomNamePrefix}rooms`,
+          value: {
+            [await room]: {
+              entered: [Date.now()],
+              enteredProviders: [Array.from(providersObj.providers?.get('websocket') || []).reduce((acc, [url, provider]) => {
+                try {
+                  // @ts-ignore
+                  if (providersObj.isProviderConnected(provider)) acc.push(new URL(url).origin)
+                } catch (error) {}
+                return acc
+              }, [])]
+            }
+          },
+          concat: 'unshift',
+          maxLength: 10
         },
-        concat: 'unshift',
-        maxLength: 100
-      },
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    })))
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    })
   }
 
   get globalEventTarget () {
