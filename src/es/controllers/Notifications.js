@@ -472,15 +472,22 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       this.roomPromise
     ]).then(async ([getRoomsResult, roomPromise]) => {
       const fetchedNotifications = await this.getNotifications(getRoomsResult)
+      const room = await roomPromise.room
+      const messageTimestamps = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
+        detail: { resolve },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })))
       // @ts-ignore
-      const notificationsData = await this.webWorker(Notifications._updateNotifications, getRoomsResult.value, pushMessageNotifications, fetchedNotifications, urlRemoveProtocolRegex)
+      const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications, urlRemoveProtocolRegex, messageTimestamps)
       this.notificationsResolve({ notifications: notificationsData, rooms: getRoomsResult })
-      this.notificationsPromise = Promise.resolve({ notifications: notificationsData, rooms: getRoomsResult, activeRoom: await roomPromise.room })
+      this.notificationsPromise = Promise.resolve({ notifications: notificationsData, rooms: getRoomsResult, activeRoom: room })
       return { notifications: notificationsData, rooms: getRoomsResult }
     })
   }
 
-  static _updateNotifications (rooms, pushMessages, fetchMessages, urlRemoveProtocolRegex) {
+  static _updateNotifications (activeRoom, rooms, pushMessages, fetchMessages, urlRemoveProtocolRegex, messageTimestamps) {
     const notificationsData = {}
     Object.keys(rooms).forEach(roomName => {
       const lastEntered = rooms[roomName].entered?.[0] || Date.now()
@@ -497,9 +504,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
           notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => {
             // TODO: ignore providers regarding notifications (allow to mute providers)
-            // TODO: eventually simply check if the message is already present (not that the chat controller is inside the chat repo, so make it clean and not relying on chat as such)
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
-            const result = !lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered
+            const result = (roomName !== activeRoom || !messageTimestamps.includes(notification.timestamp)) && (!lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered)
             if (looped.includes(notification.timestamp)) {
               if (!result) notificationsDataToRemove.push(notification.timestamp)
               return false
