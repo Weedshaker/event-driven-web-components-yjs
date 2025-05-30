@@ -232,31 +232,34 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
     this.roomPromise.then(async ({ locationHref, room }) => {
-      const providersObj = await this.providersPromise;
+      const providersObj = await this.providersPromise
+      const roomValue = {
+        entered: [Date.now()],
+        enteredProviders: [Array.from(providersObj.providers?.get('websocket') || []).reduce((acc, [url, provider]) => {
+          try {
+            // @ts-ignore
+            if (providersObj.isProviderConnected(provider)) acc.push(new URL(url).origin)
+          } catch (error) {}
+          return acc
+        }, [])],
+        messagesTimestamps: await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
+          detail: { resolve },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        })))
+      }
+      // @ts-ignore
+      if (!roomValue.enteredProviders[0].length) delete roomValue.enteredProviders;
       // @ts-ignore
       (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
         detail: {
           key: `${this.roomNamePrefix}rooms`,
           value: {
-            [await room]: {
-              entered: [Date.now()],
-              enteredProviders: [Array.from(providersObj.providers?.get('websocket') || []).reduce((acc, [url, provider]) => {
-                try {
-                  // @ts-ignore
-                  if (providersObj.isProviderConnected(provider)) acc.push(new URL(url).origin)
-                } catch (error) {}
-                return acc
-              }, [])],
-              messagesTimestamps: await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
-                detail: { resolve },
-                bubbles: true,
-                cancelable: true,
-                composed: true
-              })))
-            }
+            [await room]: roomValue
           },
           concat: 'unshift',
-          maxLength: 10
+          maxLength: 20
         },
         bubbles: true,
         cancelable: true,
