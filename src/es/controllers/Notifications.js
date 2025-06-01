@@ -436,6 +436,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
 
   fetchNotifications (origin, body) {
     if (this.failedGetNotificationsOrigins.has(origin) && !this.succeededGetNotificationsOrigins.includes(origin)) return Promise.resolve(this.failedGetNotificationsOrigins.get(origin))
+    const wasOnline = navigator.onLine
     return fetch(`${origin}/get-notifications`, {
       method: 'POST',
       body,
@@ -451,7 +452,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }
       throw new Error(response.statusText)
     }).then(json => Object.assign({ origin }, json)).catch(error => {
-      this.failedGetNotificationsOrigins.set(origin, { error })
+      if (wasOnline && navigator.onLine) this.failedGetNotificationsOrigins.set(origin, { error })
       // @ts-ignore
       return console.error(error) || { error }
     })
