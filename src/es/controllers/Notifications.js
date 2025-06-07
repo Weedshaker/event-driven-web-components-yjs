@@ -73,7 +73,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
-    this.updateNotificationsAfter = 5000
+    // @ts-ignore
+    this.updateNotificationsAfter = self.Environment?.updateNotificationsAfter || 5000
     this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
     this.succeededGetNotificationsOrigins = []
     this.failedGetNotificationsOrigins = new Map()
@@ -255,6 +256,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }, 50)
     }
 
+    // mute notifications for hostname else roomName
     this.muteNotificationsEventListener = event => {
       const value = {}
       if (event.detail.hostname) {
@@ -272,13 +274,18 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         bubbles: true,
         cancelable: true,
         composed: true
-      }))).then(async () => this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-        detail: await this.updateNotifications(),
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      })))
+      }))).then(async () => {
+        const result = await this.updateNotifications()
+        if (event.detail?.resolve) event.detail.resolve(result)
+        this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+          detail: result,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      })
     }
+    // unmute notifications for hostname else roomName
     this.unmuteNotificationsEventListener = event => {
       new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
         detail: {
@@ -304,12 +311,16 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           bubbles: true,
           cancelable: true,
           composed: true
-        }))).then(async () => this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-          detail: await this.updateNotifications(undefined, true),
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        })))
+        }))).then(async () => {
+          const result = await this.updateNotifications(undefined, true)
+          if (event.detail?.resolve) event.detail.resolve(result)
+          this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+            detail: result,
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }))
+        })
       })
     }
 
@@ -383,7 +394,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }))
     }, this.updateNotificationsAfter * 10)
     clearInterval(this._clearFailedIntervalId)
-    this._clearFailedIntervalId = setInterval(() => this.failedGetNotificationsOrigins.clear(), this.updateNotificationsAfter * 50);
+    this._clearFailedIntervalId = setInterval(() => this.failedGetNotificationsOrigins.clear(), this.updateNotificationsAfter * 100);
     this.connectedCallbackOnce()
   }
 
@@ -464,7 +475,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
    *
    * @return {Promise<[{string: [{timestamp: number}]}]>}
    */
-  async getNotifications (getRoomsResult, notificationMutes) {
+  async _getNotifications (getRoomsResult, notificationMutes) {
     let roomNames = Object.keys(getRoomsResult.value)
     // get websocket provider origins from other rooms
     /** @type {string[]} */
@@ -505,10 +516,10 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     origins = Array.from(new Set(origins.map(origin => urlFixProtocol(origin))))
     if (notificationMutes.value?.hostnames) origins = origins.filter(origin => notificationMutes.value.hostnames.every(hostname => !origin.includes(hostname)))
     // @ts-ignore
-    return await Promise.all(origins.map(origin => this.fetchNotifications(origin, roomNames)))
+    return await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames)))
   }
 
-  fetchNotifications (origin, body) {
+  _fetchNotifications (origin, body) {
     if (this.failedGetNotificationsOrigins.has(origin) && !this.succeededGetNotificationsOrigins.includes(origin)) return Promise.resolve(this.failedGetNotificationsOrigins.get(origin))
     const wasOnline = navigator.onLine
     return fetch(`${origin}/get-notifications`, {
@@ -534,8 +545,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
 
   updateNotifications (pushMessageNotifications = this.lastPushMessageNotifications || {}, force = false) {
     this.lastPushMessageNotifications = pushMessageNotifications
-    if (!force && this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now()) return this.notificationsPromise
-    this.lastUpdatedNotifications = Date.now()
     const getNotificationMutes = () => new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
       detail: {
         key: `${this.roomNamePrefix}notification-mutes`,
@@ -545,6 +554,16 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       cancelable: true,
       composed: true
     })))
+    // return set notificationsPromise when not done yet or without force but too soon of a new request
+    // @ts-ignore
+    if (!force && (this.notificationsPromise.done === false || this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now())) return this.notificationsPromise.then(async result => ({...result, notificationMutes: (await getNotificationMutes()).value}))
+    // @ts-ignore
+    this.notificationsPromise.done = false
+    clearTimeout(this._waitForNotificationsPromiseResolveTimeout)
+    // force to resolve the promise, that a new fetch can start after this.updateNotificationsAfter * 10
+    // @ts-ignore
+    this._waitForNotificationsPromiseResolveTimeout = setTimeout(() => (this.notificationsPromise.done = true), this.updateNotificationsAfter * 10)
+    this.lastUpdatedNotifications = Date.now()
     return Promise.all([
       new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-rooms`, {
         detail: {
@@ -557,7 +576,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       this.roomPromise,
       getNotificationMutes()
     ]).then(async ([getRoomsResult, roomPromise, notificationMutes]) => {
-      const fetchedNotifications = await this.getNotifications(getRoomsResult, notificationMutes)
+      const fetchedNotifications = await this._getNotifications(getRoomsResult, notificationMutes)
       const room = await roomPromise.room
       const messageTimestamps = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
         detail: { resolve },
@@ -570,6 +589,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       const result = { notifications: notificationsData, rooms: getRoomsResult, activeRoom: room, notificationMutes: (await getNotificationMutes()).value }
       this.notificationsResolve(result)
       this.notificationsPromise = Promise.resolve(result)
+      // @ts-ignore
+      this.notificationsPromise.done = true
       return result
     })
   }
@@ -591,7 +612,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         if (Array.isArray(fetchedNotification[roomName])) {
           if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
           notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => {
-            // TODO: ignore providers regarding notifications (allow to mute providers)
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
             const result = !lastMessagesTimestamps.includes(notification.timestamp) && (roomName !== activeRoom || !messageTimestamps.includes(notification.timestamp)) && (!lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered)
             if (looped.includes(notification.timestamp)) {
