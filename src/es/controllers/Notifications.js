@@ -578,14 +578,14 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     ]).then(async ([getRoomsResult, roomPromise, notificationMutes]) => {
       const fetchedNotifications = await this._getNotifications(getRoomsResult, notificationMutes)
       const room = await roomPromise.room
-      const messageTimestamps = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
+      const activeRoomMessageTimestamps = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
         detail: { resolve },
         bubbles: true,
         cancelable: true,
         composed: true
       })))
       // @ts-ignore
-      const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications, urlRemoveProtocolRegex, messageTimestamps)
+      const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications, urlRemoveProtocolRegex, activeRoomMessageTimestamps)
       const result = { notifications: notificationsData, rooms: getRoomsResult, activeRoom: room, notificationMutes: (await getNotificationMutes()).value }
       this.notificationsResolve(result)
       this.notificationsPromise = Promise.resolve(result)
@@ -595,32 +595,31 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     })
   }
 
-  static _updateNotifications (activeRoom, rooms, pushMessages, fetchMessages, urlRemoveProtocolRegex, messageTimestamps) {
+  static _updateNotifications (activeRoom, rooms, pushMessages, fetchMessages, urlRemoveProtocolRegex, activeRoomMessageTimestamps) {
     const notificationsData = {}
     Object.keys(rooms).forEach(roomName => {
       const lastEntered = rooms[roomName].entered?.[0] || Date.now()
       // tread push messages
-      if (Array.isArray(pushMessages[roomName])) {
-        notificationsData[roomName] = pushMessages[roomName].filter(notification => notification && notification.timestamp > lastEntered)
-      }
+      if (Array.isArray(pushMessages[roomName])) notificationsData[roomName] = pushMessages[roomName].filter(notification => notification && notification.timestamp > lastEntered)
       // tread fetched messages
-      const looped = []
-      const notificationsDataToRemove = []
       const lastEnteredProviders = (rooms[roomName].enteredProviders?.[0] || []).map(lastEnteredProvider => lastEnteredProvider.replace(urlRemoveProtocolRegex, ''))
-      const lastMessagesTimestamps = rooms[roomName].messagesTimestamps || []
+      const storageMessagesTimestamps = rooms[roomName].messagesTimestamps || []
+      const looped = []
       fetchMessages.forEach(fetchedNotification => {
         if (Array.isArray(fetchedNotification[roomName])) {
           if (!Array.isArray(notificationsData[roomName])) notificationsData[roomName] = []
           notificationsData[roomName] = notificationsData[roomName].concat(fetchedNotification[roomName].filter(notification => {
+            if (looped.includes(notification.timestamp)) return false
+            looped.push(notification.timestamp)
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
-            const result = !lastMessagesTimestamps.includes(notification.timestamp) && (roomName !== activeRoom || !messageTimestamps.includes(notification.timestamp)) && (!lastEnteredProviders.includes(notification.host) || notification && notification.timestamp > lastEntered)
-            if (looped.includes(notification.timestamp)) {
-              if (!result) notificationsDataToRemove.push(notification.timestamp)
+            if (roomName === activeRoom) {
+              if (activeRoomMessageTimestamps.includes(notification.timestamp)) return false
+              if (lastEnteredProviders.includes(notification.host)) return notification.timestamp > lastEntered
+            } else if (storageMessagesTimestamps.includes(notification.timestamp)) {
               return false
             }
-            looped.push(notification.timestamp)
-            return result
-          }).filter(notification => !notificationsDataToRemove.includes(notification.timestamp)))
+            return true
+          }))
         }
       })
       if (notificationsData[roomName]) notificationsData[roomName] = notificationsData[roomName].sort((a, b) => b.timestamp - a.timestamp)

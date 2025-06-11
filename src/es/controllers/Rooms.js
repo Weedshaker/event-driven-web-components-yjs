@@ -38,6 +38,10 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
     this.focusEventListener = event => this.saveRoom()
+    this.chatUpdateEventListener = async event => {
+      await event.detail.getAll()
+      this.saveRoom()
+    }
 
     // save room name to local storage
     this.providersUpdateEventListener = async event => {
@@ -170,6 +174,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
   connectedCallback () {
     self.addEventListener('focus', this.focusEventListener)
+    this.globalEventTarget.addEventListener('yjs-chat-update', this.chatUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-active-room`, this.getActiveRoomEventListener)
@@ -205,6 +210,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
   disconnectedCallback () {
     self.removeEventListener('focus', this.focusEventListener)
+    this.globalEventTarget.removeEventListener('yjs-chat-update', this.chatUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room`, this.getActiveRoomEventListener)
@@ -213,7 +219,6 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.removeEventListener(`${this.namespace}merge-unique-active-room`, this.mergeUniqueActiveRoomEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}delete-room`, this.deleteRoomEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}undo-room`, this.undoRoomEventListener)
-    this.saveRoom()
   }
 
   getRooms () {
