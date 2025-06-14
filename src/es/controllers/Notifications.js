@@ -258,54 +258,76 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
 
     // mute notifications for hostname else roomName
     this.muteNotificationsEventListener = event => {
-      const value = {}
-      if (event.detail.hostname) {
-        value.hostnames = [event.detail.hostname]
-      } else if (event.detail.roomName) {
-        value.roomNames = [event.detail.roomName]
-      }
-      new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-merge', {
+      new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
         detail: {
-          key: `${this.roomNamePrefix}notification-mutes`,
-          value,
-          uniqueArray: true,
+          key: `${this.roomNamePrefix}notifications`,
           resolve
         },
         bubbles: true,
         cancelable: true,
         composed: true
-      }))).then(async () => {
-        const result = await this.updateNotifications()
-        if (event.detail?.resolve) event.detail.resolve(result)
-        this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
-          detail: result,
+      }))).then((notifications) => {
+        notifications.value = {
+          mutes: {},
+          amplified: {},
+          ...notifications.value
+        }
+        if (event.detail.hostname) {
+          notifications.value.mutes.hostnames = Array.from(new Set((notifications.value.mutes.hostnames || []).concat([event.detail.hostname])))
+          notifications.value.amplified.hostnames = Array.from(new Set(notifications.value.amplified.hostnames?.filter(hostname => event.detail.hostname !== hostname) || []))
+        } else if (event.detail.roomName) {
+          notifications.value.mutes.roomNames = Array.from(new Set((notifications.value.mutes.roomNames || []).concat([event.detail.roomName])))
+        }
+        new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
+          detail: {
+            key: `${this.roomNamePrefix}notifications`,
+            value: notifications.value,
+            resolve
+          },
           bubbles: true,
           cancelable: true,
           composed: true
-        }))
+        }))).then(async () => {
+          const result = await this.updateNotifications()
+          if (event.detail?.resolve) event.detail.resolve(result)
+          this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
+            detail: result,
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }))
+        })
       })
     }
     // unmute notifications for hostname else roomName
     this.unmuteNotificationsEventListener = event => {
       new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
         detail: {
-          key: `${this.roomNamePrefix}notification-mutes`,
+          key: `${this.roomNamePrefix}notifications`,
           resolve
         },
         bubbles: true,
         cancelable: true,
         composed: true
-      }))).then((notificationMutes) => {
+      }))).then((notifications) => {
+        notifications.value = {
+          mutes: {},
+          amplified: {},
+          ...notifications.value
+        }
         if (event.detail.hostname) {
-          if (notificationMutes.value.hostnames) notificationMutes.value.hostnames = notificationMutes.value.hostnames.filter(hostname => event.detail.hostname !== hostname)
+          notifications.value.mutes.hostnames = notifications.value.mutes.hostnames?.filter(hostname => event.detail.hostname !== hostname) || []
+          notifications.value.amplified.hostnames = Array.from(new Set((notifications.value.amplified.hostnames || []).concat([event.detail.hostname])))
+          this.failedGetNotificationsOrigins.forEach((value, origin) => {
+            if (origin.includes(event.detail.hostname)) this.failedGetNotificationsOrigins.delete(origin)
+          })
         } else if (event.detail.roomName) {
-          if (notificationMutes.value.roomNames) notificationMutes.value.roomNames = notificationMutes.value.roomNames.filter(roomName => event.detail.roomName !== roomName)
+          notifications.value.mutes.roomNames = notifications.value.mutes.roomNames?.filter(roomName => event.detail.roomName !== roomName) || []
         }
         new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
           detail: {
-            key: `${this.roomNamePrefix}notification-mutes`,
-            value: notificationMutes.value,
-            uniqueArray: true,
+            key: `${this.roomNamePrefix}notifications`,
+            value: notifications.value,
             resolve
           },
           bubbles: true,
@@ -473,13 +495,13 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   /**
    * get all notifications from websocket
    *
-   * @return {Promise<[{string: [{timestamp: number}]}]>}
+   * @return {Promise<{ fetches: Promise<[{string: [{timestamp: number}]}]>, origins: string[]}>}
    */
-  async _getNotifications (getRoomsResult, notificationMutes) {
+  async _getNotifications (getRoomsResult, notificationMutes, notificationAmplified) {
     let roomNames = Object.keys(getRoomsResult.value)
     // get websocket provider origins from other rooms
-    /** @type {string[]} */
-    let origins = roomNames.reduce((acc, roomName) => {
+    /** @type {URL[]} */
+    let urls = roomNames.reduce((acc, roomName) => {
       let room
       if ((room = getRoomsResult.value[roomName])) {
         room.providers?.forEach(url => {
@@ -491,13 +513,13 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           }
           try {
             // @ts-ignore
-            acc.push((new URL(realUrl)).origin)
+            acc.push(new URL(realUrl))
           } catch (error) {}
         })
       }
       return acc
     }, []);
-    // get websocket provider origins from ${this.namespace}providers-update, the providers map from EventDrivenYjs.js
+    // get websocket provider urls from ${this.namespace}providers-update, the providers map from EventDrivenYjs.js
     // @ts-ignore
     (await this.providersPromise).providers.get('websocket').forEach(
       /**
@@ -506,17 +528,29 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       (provider, url) => {
         try {
           // @ts-ignore
-          origins.push((new URL(url)).origin)
+          urls.push(new URL(url))
         } catch (error) {}
       }
     )
-    if (notificationMutes.value?.roomNames) roomNames = roomNames.filter(roomName => !notificationMutes.value.roomNames.includes(roomName))
+    if (notificationMutes.roomNames) roomNames = roomNames.filter(roomName => !notificationMutes.roomNames.includes(roomName))
+    // get storage amplified providers
+    notificationAmplified.hostnames?.forEach(
+      /**
+       * @param {string} url
+       */
+      url => {
+        try {
+          // @ts-ignore
+          urls.push(new URL(`wss://${url}`))
+        } catch (error) {}
+      }
+    )
     // @ts-ignore
     roomNames = JSON.stringify(roomNames)
-    origins = Array.from(new Set(origins.map(origin => urlFixProtocol(origin))))
-    if (notificationMutes.value?.hostnames) origins = origins.filter(origin => notificationMutes.value.hostnames.every(hostname => !origin.includes(hostname)))
+    if (notificationMutes.hostnames) urls = urls.filter(url => notificationMutes.hostnames.every(hostname => hostname !== url.hostname))
+      const origins = Array.from(new Set(urls.map(url => urlFixProtocol(url.origin))))
     // @ts-ignore
-    return await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames)))
+    return { fetches: await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames))), origins}
   }
 
   _fetchNotifications (origin, body) {
@@ -545,18 +579,21 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
 
   updateNotifications (pushMessageNotifications = this.lastPushMessageNotifications || {}, force = false) {
     this.lastPushMessageNotifications = pushMessageNotifications
-    const getNotificationMutes = () => new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
+    let notificationsFromStorage = null
+    const getNotificationsFromStorage = (force = false) => (!force && notificationsFromStorage || (notificationsFromStorage = new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
       detail: {
-        key: `${this.roomNamePrefix}notification-mutes`,
+        key: `${this.roomNamePrefix}notifications`,
         resolve
       },
       bubbles: true,
       cancelable: true,
       composed: true
-    })))
+    })))))
+    const getNotificationMutes = force => getNotificationsFromStorage(force).then(notifications => notifications.value.mutes || {})
+    const getNotificationAmplified = force => getNotificationsFromStorage().then(notifications => notifications.value.amplified || {})
     // return set notificationsPromise when not done yet or without force but too soon of a new request
     // @ts-ignore
-    if (!force && (this.notificationsPromise.done === false || this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now())) return this.notificationsPromise.then(async result => ({...result, notificationMutes: (await getNotificationMutes()).value}))
+    if (!force && (this.notificationsPromise.done === false || this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now())) return this.notificationsPromise.then(async result => ({...result, notificationMutes: (await getNotificationMutes())}))
     // @ts-ignore
     this.notificationsPromise.done = false
     clearTimeout(this._waitForNotificationsPromiseResolveTimeout)
@@ -574,9 +611,10 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
         composed: true
       }))),
       this.roomPromise,
-      getNotificationMutes()
-    ]).then(async ([getRoomsResult, roomPromise, notificationMutes]) => {
-      const fetchedNotifications = await this._getNotifications(getRoomsResult, notificationMutes)
+      getNotificationMutes(),
+      getNotificationAmplified()
+    ]).then(async ([getRoomsResult, roomPromise, notificationMutes, notificationAmplified]) => {
+      const {origins, fetches: fetchedNotifications} = await this._getNotifications(getRoomsResult, notificationMutes, notificationAmplified)
       const room = await roomPromise.room
       const activeRoomMessageTimestamps = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
         detail: { resolve },
@@ -586,11 +624,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       })))
       // @ts-ignore
       const notificationsData = await this.webWorker(Notifications._updateNotifications, room, getRoomsResult.value, pushMessageNotifications, fetchedNotifications, urlRemoveProtocolRegex, activeRoomMessageTimestamps)
-      const result = { notifications: notificationsData, rooms: getRoomsResult, activeRoom: room, notificationMutes: (await getNotificationMutes()).value }
+      const result = { notifications: notificationsData, rooms: getRoomsResult, activeRoom: room, notificationMutes: (await getNotificationMutes(true)), origins }
       this.notificationsResolve(result)
       this.notificationsPromise = Promise.resolve(result)
       // @ts-ignore
       this.notificationsPromise.done = true
+      console.log('***notifications result******', result)
       return result
     })
   }
