@@ -78,6 +78,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.lastUpdatedNotifications = Date.now() - this.updateNotificationsAfter
     this.succeededGetNotificationsOrigins = []
     this.failedGetNotificationsOrigins = new Map()
+    this.abortControllersGetNotifications = new Map()
 
     /** @type {string} */
     this.importMetaUrl = import.meta.url.replace(/(.*\/)(.*)$/, '$1')
@@ -556,13 +557,16 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   _fetchNotifications (origin, body) {
     if (this.failedGetNotificationsOrigins.has(origin) && !this.succeededGetNotificationsOrigins.includes(origin)) return Promise.resolve(this.failedGetNotificationsOrigins.get(origin))
     const wasOnline = navigator.onLine
+    if (this.abortControllersGetNotifications.has(origin)) this.abortControllersGetNotifications.get(origin).abort()
+    this.abortControllersGetNotifications.set(origin, new AbortController())
     return fetch(`${origin}/get-notifications`, {
       method: 'POST',
       body,
       headers: {
         'Content-Type': 'application/json',
         'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
-      }
+      },
+      signal: this.abortControllersGetNotifications.get(origin).signal
     }).then(response => {
       if (response.status >= 200 && response.status <= 299) {
         if (this.failedGetNotificationsOrigins.has(origin)) this.failedGetNotificationsOrigins.delete(origin)
