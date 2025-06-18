@@ -575,7 +575,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }
       throw new Error(response.statusText)
     }).then(json => Object.assign({ origin }, json)).catch(error => {
-      if (wasOnline && navigator.onLine) this.failedGetNotificationsOrigins.set(origin, { error })
+      if (wasOnline && navigator.onLine && !error.toLocaleString().includes('abort')) this.failedGetNotificationsOrigins.set(origin, { error })
       // @ts-ignore
       return console.error(error) || { error }
     })
