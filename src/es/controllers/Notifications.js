@@ -417,7 +417,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }))
     }, this.updateNotificationsAfter * 10)
     clearInterval(this._clearFailedIntervalId)
-    this._clearFailedIntervalId = setInterval(() => this.failedGetNotificationsOrigins.clear(), this.updateNotificationsAfter * 100);
+    this._clearFailedIntervalId = setInterval(() => this.failedGetNotificationsOrigins.clear(), this.updateNotificationsAfter * 100)
     this.connectedCallbackOnce()
   }
 
@@ -549,9 +549,9 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     // @ts-ignore
     roomNames = JSON.stringify(roomNames)
     if (notificationMutes.hostnames) urls = urls.filter(url => notificationMutes.hostnames.every(hostname => hostname !== url.hostname))
-      const origins = Array.from(new Set(urls.map(url => urlFixProtocol(url.origin))))
+    const origins = Array.from(new Set(urls.map(url => urlFixProtocol(url.origin))))
     // @ts-ignore
-    return { fetches: await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames))), origins}
+    return { fetches: await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames))), origins }
   }
 
   _fetchNotifications (origin, body) {
@@ -584,7 +584,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   updateNotifications (pushMessageNotifications = this.lastPushMessageNotifications || {}, force = false) {
     this.lastPushMessageNotifications = pushMessageNotifications
     let notificationsFromStorage = null
-    const getNotificationsFromStorage = (force = false) => (!force && notificationsFromStorage || (notificationsFromStorage = new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
+    const getNotificationsFromStorage = (force = false) => ((!force && notificationsFromStorage) || (notificationsFromStorage = new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
       detail: {
         key: `${this.roomNamePrefix}notifications`,
         resolve
@@ -597,7 +597,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     const getNotificationAmplified = force => getNotificationsFromStorage().then(notifications => notifications.value.amplified || {})
     // return set notificationsPromise when not done yet or without force but too soon of a new request
     // @ts-ignore
-    if (!force && (this.notificationsPromise.done === false || this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now())) return this.notificationsPromise.then(async result => ({...result, notificationMutes: (await getNotificationMutes())}))
+    if (!force && (this.notificationsPromise.done === false || this.lastUpdatedNotifications + this.updateNotificationsAfter > Date.now())) return this.notificationsPromise.then(async result => ({ ...result, notificationMutes: (await getNotificationMutes()) }))
     // @ts-ignore
     this.notificationsPromise.done = false
     clearTimeout(this._waitForNotificationsPromiseResolveTimeout)
@@ -618,7 +618,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       getNotificationMutes(),
       getNotificationAmplified()
     ]).then(async ([getRoomsResult, roomPromise, notificationMutes, notificationAmplified]) => {
-      const {origins, fetches: fetchedNotifications} = await this._getNotifications(getRoomsResult, notificationMutes, notificationAmplified)
+      const { origins, fetches: fetchedNotifications } = await this._getNotifications(getRoomsResult, notificationMutes, notificationAmplified)
       const room = await roomPromise.room
       const activeRoomMessageTimestamps = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
         detail: { resolve },
@@ -633,7 +633,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       this.notificationsPromise = Promise.resolve(result)
       // @ts-ignore
       this.notificationsPromise.done = true
-      console.log('***notifications result******', result)
       return result
     })
   }
