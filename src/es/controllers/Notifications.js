@@ -557,7 +557,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   _fetchNotifications (origin, body) {
     if (this.failedGetNotificationsOrigins.has(origin) && !this.succeededGetNotificationsOrigins.includes(origin)) return Promise.resolve(this.failedGetNotificationsOrigins.get(origin))
     const wasOnline = navigator.onLine
-    if (this.abortControllersGetNotifications.has(origin)) this.abortControllersGetNotifications.get(origin).abort()
+    if (this.abortControllersGetNotifications.has(origin)) this.abortControllersGetNotifications.get(origin).abort('new request coming')
     this.abortControllersGetNotifications.set(origin, new AbortController())
     return fetch(`${origin}/get-notifications`, {
       method: 'POST',
