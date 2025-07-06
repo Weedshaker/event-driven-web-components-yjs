@@ -656,7 +656,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
             if (roomName === activeRoom && activeRoomMessageTimestamps.includes(notification.timestamp)) {
               return false
-            } else if(roomName !== activeRoom && storageMessagesTimestamps.includes(notification.timestamp)) {
+            } else if(storageMessagesTimestamps.includes(notification.timestamp)) {
               return false
             } else if (lastEnteredProviders.includes(notification.host)) {
               return notification.timestamp > lastEntered
