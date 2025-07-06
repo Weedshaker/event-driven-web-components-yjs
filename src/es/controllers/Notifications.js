@@ -654,11 +654,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             if (looped.includes(notification.timestamp)) return false
             looped.push(notification.timestamp)
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
-            if (roomName === activeRoom) {
-              if (activeRoomMessageTimestamps.includes(notification.timestamp)) return false
-              if (lastEnteredProviders.includes(notification.host)) return notification.timestamp > lastEntered
-            } else if (storageMessagesTimestamps.includes(notification.timestamp)) {
+            if (roomName === activeRoom && activeRoomMessageTimestamps.includes(notification.timestamp)) {
               return false
+            } else if(roomName !== activeRoom && storageMessagesTimestamps.includes(notification.timestamp)) {
+              return false
+            } else if (lastEnteredProviders.includes(notification.host)) {
+              return notification.timestamp > lastEntered
             }
             return true
           }))
