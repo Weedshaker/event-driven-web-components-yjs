@@ -221,6 +221,14 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           result.disconnected.push(`${providerName}${nameUrlSeparator}${url}`)
         }
       }))
+      this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
+        detail: {
+          connectedProviders: result.connected
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
       return result
     })
   }
@@ -228,7 +236,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
   /**
    * Get rooms from local storage and grab all reported providers
    *
-   * @returns {Promise<{room: string, url: string, prop: 'allProviders' | 'providers'}[]>}
+   * @returns {Promise<{room: string, url: string, prop: 'allProviders' | 'providers' | 'connectedProviders'}[]>}
    */
   getProvidersFromRooms = async () => {
     const rooms = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-rooms`, {
@@ -241,11 +249,11 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     })))
     const providers = []
     for (const key in rooms?.value) {
-      rooms.value[key].allProviders?.forEach(url => providers.push({
+      rooms.value[key].connectedProviders?.forEach(url => providers.push({
         room: key,
         url,
         providerFallbacks: rooms.value[key]?.providerFallbacks || [],
-        prop: 'allProviders'
+        prop: 'connectedProviders' // 'allProviders' delivers junk provider names, which never were connected
       }))
       rooms.value[key].providers?.forEach(url => providers.push({
         room: key,
