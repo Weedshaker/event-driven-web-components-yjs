@@ -241,20 +241,20 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     }
 
     let timeoutId = null
-    this.requestNotificationsEventListener = event => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(async () => {
-        if (event && event.detail && event.detail.resolve) {
-          event.detail.resolve(await this.updateNotifications(undefined, event.detail?.force))
-        } else {
+    this.requestNotificationsEventListener = async event => {
+      if (event && event.detail && event.detail.resolve) {
+        event.detail.resolve(await this.updateNotifications(undefined, event.detail?.force))
+      } else {
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(async () => {
           this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
             detail: await this.updateNotifications(undefined, event.detail?.force),
             bubbles: true,
             cancelable: true,
             composed: true
           }))
-        }
-      }, 50)
+        }, 50)
+      }
     }
 
     // mute notifications for hostname else roomName
