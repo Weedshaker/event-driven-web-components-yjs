@@ -22,13 +22,51 @@ import { urlFixProtocol } from '../helpers/Utils.js'
 */
 
 /**
+ * Provider container for rendering
+ @typedef {
+  'environment' | 'crdt' | 'session' | string
+ } Origin
+*/
+
+/**
+ * Provider container for rendering
+ * Status gets filled by 5 runs, so max. length 5
+ @typedef {
+  'connected' | 'disconnected' | 'default' | 'once-established' | 'active' | 'unknown'
+ } Status
+*/
+
+/**
+ * Provider container for rendering
+ @typedef {{
+  origins: Origin[],
+  status: Status[],
+  statusCount?: number,
+  providerFallbacks?: Map<string, string[]>,
+  permanentFallback?: string,
+  urls: Map<string, {
+    name: import("../../../../event-driven-web-components-yjs/src/es/EventDrivenYjs.js").ProviderNames,
+    status: Status,
+    origins: Origin,
+    url: URL
+  }>
+}} Provider
+
+/**
+ * Provider container for rendering
+ @typedef {
+  Map<string, Provider>
+ } CompleteProvidersContainer
+*/
+
+/**
  * ingoing event
  @typedef {import("./Users").UsersEventDetail} UsersEventDetail
 */
 
 /**
  * GetSessionProvidersByStatusResult
- @typedef {{connected: string[], disconnected: string[]}
+ @typedef {{connected: string[], disconnected: string[], websocketUrl: string, webrtcUrl: string}
  } GetSessionProvidersByStatusResult
 */
 
@@ -44,6 +82,7 @@ import { urlFixProtocol } from '../helpers/Utils.js'
     pingProvider: (url: string, force: boolean) => Promise<{status: 'timeout'|'success'|'offline', event: Event}>,
     getWebsocketInfo: (url: string, force: boolean) => Promise<Response>,
     getSessionProvidersByStatus: (nameUrlSeparator: string) => Promise<GetSessionProvidersByStatusResult>,
+    getCompleteProviders: () => Promise<CompleteProvidersContainer>,
     getProvidersFromRooms: () => Promise<{}>,
     separator: string
   }
@@ -95,6 +134,8 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     event => {
       /** @type {null | GetDataResult} */
       let getDataResult = null
+      /** @type {null | CompleteProvidersContainer} */
+      let getCompleteProvidersResult = null
       /**
        * @param {boolean} [addToStorage=true]
        * @return {Promise<GetDataResult>}
@@ -143,6 +184,12 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           providers,
           getSessionProvidersByStatus: this.getSessionProvidersByStatus,
           getProvidersFromRooms: this.getProvidersFromRooms,
+          // @ts-ignore
+          getCompleteProviders: (force = false) => {
+            if (!force && getCompleteProvidersResult) return getCompleteProvidersResult
+            // @ts-ignore
+            return (getCompleteProvidersResult = this.getCompleteProviders(getDataResult))
+          },
           pingProvider: this.pingProvider,
           getWebsocketInfo: this.getWebsocketInfo,
           separator: event.detail.separator
@@ -199,6 +246,77 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     this.removeEventListener(`${this.namespace}get-providers-event-detail`, this.getProvidersEventDetailEventListener)
   }
 
+  /**
+   * Grab all providers from all possible sources
+   * 
+   * @param {GetDataResult} data
+   * @returns {Promise<CompleteProvidersContainer>}
+   */
+  async getCompleteProviders (data) {
+    /** @type {CompleteProvidersContainer} */
+    const providers = new Map()
+    // Note: WebWorkers 900ms are slower than this 240ms, tested 06/25/25
+    // important, keep order not that less information overwrites the more precise information at mergeProvider
+    Providers.fillProvidersWithProvidersFromCrdt(providers, data.allProviders)
+    Providers.fillProvidersWithProvidersFromRooms(providers, await data.getProvidersFromRooms(), data.separator)
+    Providers.fillProvidersWithProvidersFromCrdt(providers, data.providers, 'once-established')
+    // @ts-ignore
+    Providers.fillProvidersWithProvidersFromEnvironment(providers, self.Environment)
+    const sessionProvidersByStatus = await data.getSessionProvidersByStatus(data.separator)
+    Providers.fillProvidersWithSessionProvidersByStatus(providers, sessionProvidersByStatus, data.separator)
+    // @ts-ignore
+    Providers.fillProvidersWithPermanentFallbacksFromEnvironment(providers, self.Environment)
+    const mapHostname = url => {
+      try {
+        return (new URL(url)).hostname
+      } catch (error) {
+        return null
+      }
+    }
+    const websocketHostnames = (sessionProvidersByStatus.websocketUrl || '').split(',').map(mapHostname)
+    const webrtcHostnames = (sessionProvidersByStatus.webrtcUrl || '').split(',').map(mapHostname)
+    const mapOrigin = url => {
+      try {
+        return (new URL(url)).origin
+      } catch (error) {
+        return null
+      }
+    }
+    const websocketOrigins = (sessionProvidersByStatus.websocketUrl || '').split(',').map(mapOrigin)
+    const webrtcOrigins = (sessionProvidersByStatus.webrtcUrl || '').split(',').map(mapOrigin)
+    // check if the provider is active
+    providers.forEach((provider, key) => {
+      if (websocketHostnames?.includes(key) || webrtcHostnames?.includes(key)) {
+        provider.status.push('active')
+        provider.urls.forEach((urlContainer, key) => {
+          if ((urlContainer.name === 'websocket' ? websocketOrigins : webrtcOrigins || '').includes(urlContainer.url.origin)) urlContainer.status = 'active'
+        })
+      }
+    })
+    // Sorting 'connected' | 'disconnected' | 'default' | 'once-established' | 'active' | 'unknown'; the lower the number the higher ranked
+    const statusPriority = {
+      active: 1,
+      connected: 2,
+      disconnected: 3,
+      default: 4,
+      'once-established': 5,
+      unknown: 6
+    }
+    const lowestPriority = 6
+    // @ts-ignore
+    return new Map(Array.from(providers).map(([name, providerData]) => {
+      // calc the status number; the lower the number the higher it shall rank in the ascending list
+      providerData.statusCount = providerData.status.reduce((acc, curr, i) => {
+        acc[i] = statusPriority[curr] ? statusPriority[curr] : lowestPriority
+        return acc
+        // prefill the array with 5 elements, since it gets filled 5 times above, if all found
+      }, new Array(5).fill(lowestPriority)).reduce((acc, curr) => acc + curr, 0)
+      return [name, providerData]
+      // Note: A negative value indicates that a should come before b
+      // @ts-ignore
+    }).sort(([aName, aProviderData], [bName, bProviderData]) => aProviderData.statusCount - bProviderData.statusCount))
+  }
+
   // Note: Putting getSessionProvidersByStatus into a web worker is going to use more calc power to get the provider object through the message channel than running it in the main thread
   getSessionProvidersByStatus = (nameUrlSeparator = separator) => {
     return new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-providers`, {
@@ -208,11 +326,13 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(({ providers, isProviderConnected }) => {
+    }))).then(({ providers, isProviderConnected, websocketUrl, webrtcUrl }) => {
       /** @type {GetSessionProvidersByStatusResult} */
       const result = {
         connected: [],
-        disconnected: []
+        disconnected: [],
+        websocketUrl,
+        webrtcUrl
       }
       Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
         if (isProviderConnected(provider)) {
@@ -263,6 +383,119 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       }))
     }
     return providers
+  }
+
+  static fillProvidersWithProvidersFromCrdt (providers, data, status = 'unknown') {
+    Array.from(data).forEach(([name, providersMap]) => Array.from(providersMap).forEach(([url, users]) => {
+      try {
+        url = new URL(url)
+      } catch (error) {
+        return providers
+      }
+      providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+        status: [status],
+        urls: new Map([[url.origin, { name, url, status, origin: 'crdt' }]]),
+        origins: ['crdt']
+      }))
+    }))
+    return providers
+  }
+
+  static fillProvidersWithProvidersFromRooms (providers, data, separator) {
+    Array.from(data).forEach(({ room, url, prop, providerFallbacks }) => {
+      let [name, realUrl] = url.split(separator)
+      // incase no separator is found (fallback for old room provider array)
+      if (!realUrl) {
+        realUrl = name
+        name = undefined
+      }
+      try {
+        url = new URL(realUrl)
+      } catch (error) {
+        return providers
+      }
+      const status = prop === 'providers' ? 'once-established' : 'unknown'
+      providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+        status: [status],
+        urls: new Map([[url.origin, { name, url, status, origin: room }]]),
+        origins: [room],
+        providerFallbacks: new Map(providerFallbacks[url.hostname]?.urls)
+      }))
+    })
+    return providers
+  }
+
+  static fillProvidersWithProvidersFromEnvironment (providers, data, status = 'default') {
+    data.providers.forEach(provider => {
+      const url = new URL(provider.url)
+      providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+        status: [status],
+        urls: new Map([[url.origin, { name: provider.name, url, status, origin: 'environment' }]]),
+        origins: ['environment']
+      }))
+    })
+    return providers
+  }
+
+  static fillProvidersWithSessionProvidersByStatus (providers, data, separator) {
+    const loopProviders = (providersArr, key) => providersArr.forEach(url => {
+      const [name, realUrl] = url.split(separator)
+      url = new URL(realUrl)
+      providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+        status: [key],
+        urls: new Map([[url.origin, { name, url, status: key, origin: 'session' }]]),
+        origins: ['session']
+      }))
+    })
+    // keep strictly this order, that the connected overwrites the disconnected
+    loopProviders(data.disconnected, 'disconnected')
+    loopProviders(data.connected, 'connected')
+    return providers
+  }
+
+  static fillProvidersWithPermanentFallbacksFromEnvironment (providers, data) {
+    Array.from(data.permanentFallbacks).forEach(([provider, fallback]) => {
+      const url = new URL(provider)
+      if (providers.has(url.hostname)) {
+        providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+          permanentFallback: fallback
+        }))
+      }
+    })
+    return providers
+  }
+
+  static mergeProvider (providerA, providerB) {
+    if (!providerA) return providerB
+    const providerNew = {}
+    if (providerA.origins && providerB.origins) providerNew.origins = Array.from(new Set(providerA.origins.concat(providerB.origins)))
+    if (providerA.status && providerB.status) providerNew.status = Array.from(new Set(providerA.status.concat(providerB.status)))
+    providerNew.urls = Providers.mergeMap(providerA.urls, providerB.urls)
+    providerNew.providerFallbacks = Providers.mergeMap(providerA.providerFallbacks, providerB.providerFallbacks)
+    return Object.assign(providerA, providerB, providerNew)
+  }
+
+  static mergeMap (mapA, mapB) {
+    if (!mapA) return mapB
+    if (!mapB) return mapA
+    const reduce = arr => Array.from(arr).reduce((acc, [key, value]) => {
+      acc.push(key)
+      return acc
+    }, [])
+    const keys = Array.from(new Set(reduce(mapA).concat(reduce(mapB))))
+    return keys.reduce((acc, key) => {
+      const valueA = mapA.get(key)
+      const valueB = mapB.get(key)
+      acc.set(key, !valueA
+        ? valueB
+        : !valueB
+            ? valueA
+            : Array.isArray(valueA) && Array.isArray(valueB)
+              ? Array.from(new Set(valueA.concat(valueB)))
+              : Object.assign(valueA, valueB)
+      ).get(key)
+      return acc
+    }, new Map())
   }
 
   /**
