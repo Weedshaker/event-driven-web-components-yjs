@@ -11,14 +11,19 @@ import { EventDrivenYjs } from '../EventDrivenYjs.js'
 */
 
 /**
+ * Connected User Expl.: { providerName: InitialUserValue[] }
+ @typedef {{string: import("../EventDrivenYjs").InitialUserValue[]}} ConnectedUsers
+*/
+
+/**
  * User container
  @typedef {
 import("../EventDrivenYjs").InitialUserValue & {
-    connectedUsers: {string: import("../EventDrivenYjs").InitialUserValue[]},
+    connectedUsers: ConnectedUsers,
     connectedUsersCount: number,
     isSelf: boolean,
     hasTimeout: boolean,
-    mutuallyConnectedUsers: {string: import("../EventDrivenYjs").InitialUserValue[]},
+    mutuallyConnectedUsers: ConnectedUsers,
     mutuallyConnectedUsersCount: number,
     nickname?: string
   }
