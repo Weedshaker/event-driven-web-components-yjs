@@ -404,7 +404,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       await (await this.yjs).providers
       const detail = {
         providers: this.providers,
-        isProviderConnected: EventDrivenYjs.isProviderConnected,
+        isProviderConnected: this.isProviderConnected,
         websocketUrl: this.websocketUrl,
         webrtcUrl: this.webrtcUrl,
         locationHref: location.href
@@ -426,7 +426,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       await (await this.yjs).providers
       const detail = {
         providers: this.providers,
-        isProviderConnected: EventDrivenYjs.isProviderConnected,
+        isProviderConnected: this.isProviderConnected,
         websocketUrl: this.websocketUrl,
         webrtcUrl: this.webrtcUrl,
         locationHref: location.href
@@ -444,7 +444,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       if (!doc) doc = (await this.yjs).doc
 
       /** @type {import("./dependencies/y-indexeddb")} */
-      const indexeddb = await import('./dependencies/y-indexeddb.js')
+      const indexeddb = await this.importIndexeddb
       /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
       const indexeddbPersistence = new indexeddb.IndexeddbPersistence(await this.room, doc)
       indexeddbPersistence.whenSynced.then(data => {
@@ -585,7 +585,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           }
         }).map(websocketUrl => new URL(websocketUrl))
         /** @type {import("./dependencies/y-websocket")} */
-        const websocket = await import('./dependencies/y-websocket.js')
+        const websocket = await this.importWebsocket
         websocketUrls.forEach(websocketUrl => {
           if (websocketMap.has(websocketUrl.href)) {
             websocketMap.get(websocketUrl.href)?.connect()
@@ -634,7 +634,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           webrtcMap.get(this.webrtcUrl)?.connect()
         } else {
           /** @type {import("./dependencies/y-webrtc")} */
-          const webrtc = await import('./dependencies/y-webrtc.js')
+          const webrtc = await this.importWebrtc
           webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
             {
               signaling: this.webrtcUrl.split(',').filter(url => {
@@ -667,6 +667,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       }
     }
 
+    // TODO: P2pt is not yet working... see task add/make new providers
     if (!name) {
       /** @type {Map<string, ProviderTypes>} */
       // @ts-ignore
@@ -676,7 +677,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           p2ptMap.get('p2pt')?.connect()
         } else {
           /** @type {import("./dependencies/y-p2pt")} */
-          const p2pt = await import('./dependencies/y-p2pt.js')
+          const p2pt = await this.importP2pt
           p2ptMap.set('p2pt', new p2pt.P2ptProvider(room, doc))
         }
       } else if (p2ptMap.has('p2pt')) {
@@ -709,7 +710,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const detail = {
         provider,
         providers: this.providers,
-        isProviderConnected: EventDrivenYjs.isProviderConnected,
+        isProviderConnected: this.isProviderConnected,
         name,
         // webrtc handles multiple urls for signaling, thats why this provider has no valid url, eg: ws://localhost:1234,ws://localhost:4444
         url: name === 'webrtc' ? url : new URL(url),
@@ -761,7 +762,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         /** @type {ProvidersUpdateEventDetail} */
         {
           providers: this.providers,
-          isProviderConnected: EventDrivenYjs.isProviderConnected,
+          isProviderConnected: this.isProviderConnected,
           websocketUrl: this.websocketUrl,
           webrtcUrl: this.webrtcUrl,
           locationHref: location.href,
@@ -946,14 +947,59 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
   /**
    * Each provider has other flags to indicated its connection status, this function should work for all providers
    *
-   * @static
    * @param {ProviderTypes} provider
    * @returns {boolean}
    */
-  static isProviderConnected (provider) {
+  isProviderConnected = provider => {
     if (!provider) return false
-    // @ts-ignore
-    return provider.connected || provider.synced
+    // check if instanceof...
+    switch (provider.constructor) {
+      // @ts-ignore
+      case this.importWebsocket.WebsocketProvider:
+        // @ts-ignore
+        return provider.synced
+      // @ts-ignore
+      case this.importWebrtc.WebrtcProvider:
+        // @ts-ignore
+        return provider.signalingConns.some(signalingConn => signalingConn.connected)
+      default:
+        // @ts-ignore
+        return provider.connected || provider.synced
+    }
+  }
+
+  /**
+   * @name (get) importIndexeddb
+   * @returns {Promise<import("./dependencies/y-indexeddb.js")> | import("./dependencies/y-indexeddb.js")}
+   */
+  get importIndexeddb () {
+    return this._importIndexeddb || import('./dependencies/y-indexeddb.js').then(module => (this._importIndexeddb = module))
+  }
+
+  /**
+   * @name (get) importIndexeddb
+   * @returns {Promise<import("./dependencies/y-websocket")> | import("./dependencies/y-websocket")}
+   */
+  get importWebsocket () {
+    return this._importWebsocket || import('./dependencies/y-websocket.js').then(module => (this._importWebsocket = module))
+  }
+
+  /**
+   * @name (get) importIndexeddb
+   * @returns {Promise<import("./dependencies/y-webrtc.js")> | import("./dependencies/y-webrtc.js")}
+   */
+  get importWebrtc () {
+    return this._importWebrtc || import('./dependencies/y-webrtc.js').then(module => (this._importWebrtc = module))
+  }
+
+  /**
+   * TODO: P2pt is not yet working... see task add/make new providers
+   * 
+   * @name (get) importIndexeddb
+   * @returns {Promise<import("./dependencies/y-p2pt.js")> | import("./dependencies/y-p2pt.js")}
+   */
+  get importP2pt () {
+    return this._importP2pt || import('./dependencies/y-p2pt.js').then(module => (this._importP2pt = module))
   }
 
   /**
