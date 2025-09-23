@@ -316,7 +316,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameEventListener)
     this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameEventListener)
     this.addEventListener(`${this.namespace}update-awareness-epoch`, this.updateAwarenessEpochEventListener)
-    this.connectedCallbackOnce()
+    if (this.isConnected) this.connectedCallbackOnce()
   }
 
   connectedCallbackOnce () {

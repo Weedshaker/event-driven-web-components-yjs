@@ -184,7 +184,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.addEventListener(`${this.namespace}delete-room`, this.deleteRoomEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}undo-room`, this.undoRoomEventListener)
     this.saveRoom()
-    this.connectedCallbackOnce()
+    if (this.isConnected) this.connectedCallbackOnce()
   }
 
   connectedCallbackOnce () {

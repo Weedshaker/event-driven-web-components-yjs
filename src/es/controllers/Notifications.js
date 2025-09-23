@@ -418,7 +418,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     }, this.updateNotificationsAfter * 10)
     clearInterval(this._clearFailedIntervalId)
     this._clearFailedIntervalId = setInterval(() => this.failedGetNotificationsOrigins.clear(), this.updateNotificationsAfter * 50) // approx. 4min
-    this.connectedCallbackOnce()
+    if (this.isConnected) this.connectedCallbackOnce()
   }
 
   connectedCallbackOnce () {
