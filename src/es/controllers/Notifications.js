@@ -644,7 +644,6 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       // tread push messages
       if (Array.isArray(pushMessages[roomName])) notificationsData[roomName] = pushMessages[roomName].filter(notification => notification && notification.timestamp > lastEntered)
       // tread fetched messages
-      const lastEnteredProviders = (rooms[roomName].enteredProviders?.[0] || []).map(lastEnteredProvider => lastEnteredProvider.replace(urlRemoveProtocolRegex, ''))
       const storageMessagesTimestamps = rooms[roomName].messagesTimestamps || []
       const looped = []
       fetchMessages.forEach(fetchedNotification => {
@@ -654,12 +653,17 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             if (looped.includes(notification.timestamp)) return false
             looped.push(notification.timestamp)
             notification.host = fetchedNotification.origin.replace(urlRemoveProtocolRegex, '')
+            try {
+              notification.hostname = new URL(fetchedNotification.origin).hostname
+            } catch (error) {
+              notification.hostname = null
+            }
             if (roomName === activeRoom && activeRoomMessageTimestamps.includes(notification.timestamp)) {
               return false
             } else if(storageMessagesTimestamps.includes(notification.timestamp)) {
               return false
-            } else if (lastEnteredProviders.includes(notification.host)) {
-              return notification.timestamp > lastEntered
+            } else if (rooms[roomName].enteredProviders?.[notification.hostname]) {
+              return notification.timestamp > rooms[roomName].enteredProviders[notification.hostname][0]
             }
             return true
           }))

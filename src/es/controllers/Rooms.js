@@ -240,13 +240,12 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       const providersObj = await this.providersPromise
       const roomValue = {
         entered: [Date.now()],
-        enteredProviders: [Array.from(providersObj.providers?.get('websocket') || []).reduce((acc, [url, provider]) => {
+        enteredProviders: Array.from(providersObj.providers?.get('websocket') || []).reduce((acc, [url, provider]) => {
           try {
-            // @ts-ignore
-            if (providersObj.isProviderConnected(provider)) acc.push(new URL(url).origin)
+            if (providersObj.isProviderConnected(provider)) acc[new URL(url).hostname] = [Date.now()]
           } catch (error) {}
           return acc
-        }, [])],
+        }, {}),
         messagesTimestamps: (await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-timestamps-of-messages`, {
           detail: { resolve },
           bubbles: true,
@@ -255,7 +254,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
         })))).reverse()
       }
       // @ts-ignore
-      if (!roomValue.enteredProviders[0].length) delete roomValue.enteredProviders;
+      if (!roomValue.enteredProviders || !Object.keys(roomValue.enteredProviders).length) delete roomValue.enteredProviders;
       // @ts-ignore
       (self.Environment?.router || this).dispatchEvent(new CustomEvent('storage-merge', {
         detail: {
