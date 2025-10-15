@@ -1,6 +1,6 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
-import { urlFixProtocol, urlRemoveProtocolRegex } from '../helpers/Utils.js'
+import { urlHttpProtocol, urlRemoveProtocolRegex } from '../helpers/Utils.js'
 import { separator } from './Users.js'
 
 /* global self */
@@ -477,7 +477,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   setNotification (url, route, room) {
     if (!this.pushSubscription) return Promise.resolve()
     // Subscribe for notifications
-    return this.pushSubscription.then(pushSubscription => fetch(`${urlFixProtocol(url)}/${route}`, {
+    return this.pushSubscription.then(pushSubscription => fetch(`${urlHttpProtocol(url)}/${route}`, {
       method: 'POST',
       body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
       headers: {
@@ -549,7 +549,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     // @ts-ignore
     roomNames = JSON.stringify(roomNames)
     if (notificationMutes.hostnames) urls = urls.filter(url => notificationMutes.hostnames.every(hostname => hostname !== url.hostname))
-    const origins = Array.from(new Set(urls.map(url => urlFixProtocol(url.origin))))
+    const origins = Array.from(new Set(urls.map(url => urlHttpProtocol(url.origin))))
     // @ts-ignore
     return { fetches: await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames))), origins }
   }

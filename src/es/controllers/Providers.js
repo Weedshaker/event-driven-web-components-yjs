@@ -1,7 +1,7 @@
 // @ts-check
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 import { separator } from './Users.js'
-import { urlFixProtocol } from '../helpers/Utils.js'
+import { urlHttpProtocol } from '../helpers/Utils.js'
 
 /* global CustomEvent */
 /* global Image */
@@ -24,7 +24,7 @@ import { urlFixProtocol } from '../helpers/Utils.js'
 /**
  * Provider container for rendering
  @typedef {
-  'environment' | 'crdt' | 'session' | string
+  'environment' | 'crdt' | 'session' | 'get-info' | string
  } Origin
 */
 
@@ -32,7 +32,7 @@ import { urlFixProtocol } from '../helpers/Utils.js'
  * Provider container for rendering
  * Status gets filled by 5 runs, so max. length 5
  @typedef {
-  'connected' | 'disconnected' | 'default' | 'once-established' | 'active' | 'unknown'
+  'connected' | 'disconnected' | 'default' | 'once-established' | 'active' | 'unknown' | 'fallback'
  } Status
 */
 
@@ -509,7 +509,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     // @ts-ignore
     if (!force && this.getWebsocketInfoMap.has(url)) return this.getWebsocketInfoMap.get(url)
     // @ts-ignore
-    return this.getWebsocketInfoMap.set(url, fetch(`${urlFixProtocol(url)}/get-info`, {
+    return this.getWebsocketInfoMap.set(url, fetch(`${urlHttpProtocol(url)}/get-info`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -555,7 +555,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     // @ts-ignore
     return this.pingProviderMap.set(url, new Promise((resolve, reject) => {
       const img = new Image()
-      img.setAttribute('src', url.replace(new URL(url).protocol, 'http:'))
+      img.setAttribute('src', urlHttpProtocol(url))
       const timeout = setTimeout(() => {
         reject({ // eslint-disable-line
           status: 'timeout'

@@ -1,4 +1,4 @@
-export const urlFixProtocol = url => {
+export const urlHttpProtocol = url => {
   return url.replace('ws:', 'http:').replace('wss:', 'https:')
 }
 
