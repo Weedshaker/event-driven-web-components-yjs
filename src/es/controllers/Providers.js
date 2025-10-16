@@ -407,7 +407,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       // incase no separator is found (fallback for old room provider array)
       if (!realUrl) {
         realUrl = name
-        name = undefined
+        name = 'websocket'
       }
       try {
         url = new URL(realUrl)
