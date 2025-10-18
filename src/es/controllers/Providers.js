@@ -264,8 +264,6 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     Providers.fillProvidersWithProvidersFromEnvironment(providers, self.Environment)
     const sessionProvidersByStatus = await data.getSessionProvidersByStatus(data.separator)
     Providers.fillProvidersWithSessionProvidersByStatus(providers, sessionProvidersByStatus, data.separator)
-    // @ts-ignore
-    Providers.fillProvidersWithPermanentFallbacksFromEnvironment(providers, self.Environment)
     const mapHostname = url => {
       try {
         return (new URL(url)).hostname
@@ -450,18 +448,6 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     // keep strictly this order, that the connected overwrites the disconnected
     loopProviders(data.disconnected, 'disconnected')
     loopProviders(data.connected, 'connected')
-    return providers
-  }
-
-  static fillProvidersWithPermanentFallbacksFromEnvironment (providers, data) {
-    Array.from(data.permanentFallbacks).forEach(([provider, fallback]) => {
-      const url = new URL(provider)
-      if (providers.has(url.hostname)) {
-        providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
-          permanentFallback: fallback
-        }))
-      }
-    })
     return providers
   }
 

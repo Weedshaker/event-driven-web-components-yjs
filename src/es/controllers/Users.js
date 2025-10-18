@@ -108,19 +108,21 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.awarenessChangeEventListener = async (event, isUpdate = false) => {
       this.awarenessChangeEventListenerOnce(event)
       const yMap = (await this.yMap).type
-      const stateValueUsers = event.detail.stateValues.map(stateValue => stateValue.user)
+      const stateValueUsers = event.detail.stateValues ? event.detail.stateValues.map(stateValue => stateValue.user) : []
       let selfUser = {
         epoch: event.detail.epoch,
         fingerprint: event.detail.fingerprint,
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
-        connectedUsers: {
-          // clean all connectedUsers according to the provider status
-          [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider)
-            ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
-            : []
-        },
+        connectedUsers: stateValueUsers.length
+          ? {
+            // clean all connectedUsers according to the provider status
+            [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider)
+              ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
+              : []
+          }
+          : [],
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
       // only change the awarenessEpoch when awareness change event. the awareness update event fires regularly and would make too many changes to the user yMap.

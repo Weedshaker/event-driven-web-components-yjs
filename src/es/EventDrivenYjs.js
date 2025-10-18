@@ -66,12 +66,13 @@ import * as Y from './dependencies/yjs.js'
 */
 
 /**
+ * AwarenessUpdateChangeEvent can be triggered manually, when there is no provider active, to create uid, etc. Then some values are null.
  * outgoing event
  @typedef {{
-  provider: ProviderTypes,
+  provider: ProviderTypes | null,
   providers: Providers,
   isProviderConnected: (ProviderTypes) => boolean,
-  name: ProviderNames,
+  name: ProviderNames | null,
   url: URL | string,
   awareness: any,
   changes?: any,
@@ -266,6 +267,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.providers.set('websocket', new Map())
     this.providers.set('webrtc', new Map())
     this.providers.set('p2pt', new Map()) // NOTE: the p2pt provider is not ready yet and only for test purposes here
+    this.hasProvider = (providers = this.providers) => Array.from(providers).some(([name, providerMap]) => providerMap.size)
     /**
      * keep track of all awareness to which we have an event listener
      *
@@ -699,13 +701,15 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     /**
      * listen to awareness update & change
      *
-     * @param {ProviderTypes} provider
-     * @param {ProviderNames} name
+     * @param {ProviderTypes | null} provider
+     * @param {ProviderNames | null} name
      * @param {string} url
      */
     const awarenessAddEventListener = (provider, name, url) => {
-      if (this.awarenesses.includes(provider.awareness)) return
-      this.awarenesses.push(provider.awareness)
+      if (provider) {
+        if(this.awarenesses.includes(provider.awareness)) return
+        this.awarenesses.push(provider.awareness)
+      }
       /** @type {AwarenessUpdateChangeEventDetail} */
       const detail = {
         provider,
@@ -713,48 +717,66 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         isProviderConnected: this.isProviderConnected,
         name,
         // webrtc handles multiple urls for signaling, thats why this provider has no valid url, eg: ws://localhost:1234,ws://localhost:4444
-        url: name === 'webrtc' ? url : new URL(url),
+        url: !url || name === 'webrtc' ? url : new URL(url),
         room,
-        awareness: provider.awareness,
+        awareness: provider?.awareness,
         ...initialUserValue
       }
-      // awareness events
-      // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
-      provider.awareness.on('update', changes => this.dispatch(`${this.namespace}${name}-awareness-update`,
-        /** @type {AwarenessUpdateChangeEventDetail} */
-        {
-          ...detail,
-          awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
-          changes,
-          stateValues: Array.from(provider.awareness.getStates().values())
-        }
-      ))
-      provider.awareness.on('change', changes => this.dispatch(`${this.namespace}${name}-awareness-change`,
-        /** @type {AwarenessUpdateChangeEventDetail} */
-        {
-          ...detail,
-          awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
-          changes,
-          stateValues: Array.from(provider.awareness.getStates().values())
-        }
-      ))
-      // set the initial user local state field
-      provider.awareness.setLocalStateField('user', initialUserValue)
+      if (provider) {
+        // awareness events
+        // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
+        provider.awareness.on('update', changes => this.dispatch(`${this.namespace}${name}-awareness-update`,
+          /** @type {AwarenessUpdateChangeEventDetail} */
+          {
+            ...detail,
+            awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
+            changes,
+            stateValues: Array.from(provider.awareness.getStates().values())
+          }
+        ))
+        provider.awareness.on('change', changes => this.dispatch(`${this.namespace}${name}-awareness-change`,
+          /** @type {AwarenessUpdateChangeEventDetail} */
+          {
+            ...detail,
+            awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
+            changes,
+            stateValues: Array.from(provider.awareness.getStates().values())
+          }
+        ))
+        // set the initial user local state field
+        provider.awareness.setLocalStateField('user', initialUserValue)
+      } else {
+        // no providers but trigger the event listener awarenessChangeEventListener at src/es/event-driven-web-components-yjs/src/es/controllers/Users.js:108 by using webrtc-awareness-change
+        this.dispatch(`${this.namespace}webrtc-awareness-change`,
+          /** @type {AwarenessUpdateChangeEventDetail} */
+          {
+            ...detail,
+            awarenessEpoch: EventDrivenYjs.epochDateNow, // awareness update time
+            changes: null,
+            stateValues: null
+          }
+        )
+      }
     }
     // loop each provider to add awareness event listener
-    this.providers.forEach(
-      /**
-       * @param {Map<string, ProviderTypes>} providerMap
-       * @param {ProviderNames} name
-       */
-      (providerMap, name) => providerMap.forEach(
+    if (this.hasProvider()) {
+      this.providers.forEach(
         /**
-         * @param {ProviderTypes} provider
-         * @param {string} url
+         * @param {Map<string, ProviderTypes>} providerMap
+         * @param {ProviderNames} name
          */
-        (provider, url) => awarenessAddEventListener(provider, name, url)
+        (providerMap, name) => providerMap.forEach(
+          /**
+           * @param {ProviderTypes} provider
+           * @param {string} url
+           */
+          (provider, url) => awarenessAddEventListener(provider, name, url)
+        )
       )
-    )
+    } else {
+      // no event is fired when there is no provider where no awareness gets connected, so we send the initial values about the own user manually
+      awarenessAddEventListener(null, null, '')
+    }
     // without timeout this gets fired on boot up twice, since init and attribute changed call update providers
     clearTimeout(this._updateProviderTimeoutId)
     this._updateProviderTimeoutId = setTimeout(() => {
