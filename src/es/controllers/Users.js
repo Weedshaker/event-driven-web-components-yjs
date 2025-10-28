@@ -22,7 +22,6 @@ import("../EventDrivenYjs").InitialUserValue & {
     connectedUsers: ConnectedUsers,
     connectedUsersCount: number,
     isSelf: boolean,
-    hasTimeout: boolean,
     mutuallyConnectedUsers: ConnectedUsers,
     mutuallyConnectedUsersCount: number,
     nickname?: string
