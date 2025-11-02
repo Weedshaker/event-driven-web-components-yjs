@@ -114,7 +114,6 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
-        publicKey: event.detail.publicKey,
         connectedUsers: stateValueUsers.length
           ? {
             // clean all connectedUsers according to the provider status
@@ -334,6 +333,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       cancelable: true,
       composed: true
     }))
+    this.#updatePublicKey()
     this.connectedCallbackOnce = () => {}
   }
 
@@ -349,6 +349,19 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameEventListener)
     this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameEventListener)
     this.removeEventListener(`${this.namespace}update-awareness-epoch`, this.updateAwarenessEpochEventListener)
+  }
+
+  async #updatePublicKey () {
+    const uid = await this.uid
+    const yMap = (await this.yMap).type
+    const selfUser = yMap.get(uid)
+    const publicKey = JSON.stringify(await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room-public-key`, {
+      detail: { resolve },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))))
+    if (selfUser.publicKey !== publicKey) yMap.set(uid, { ...selfUser, publicKey })
   }
 
   /**
