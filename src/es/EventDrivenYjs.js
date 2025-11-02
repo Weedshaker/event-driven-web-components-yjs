@@ -53,6 +53,7 @@ import * as Y from './dependencies/yjs.js'
   fingerprint: string,
   uid: string,
   awarenessEpoch?: string,
+  publicKey?: string
   }} InitialUserValue
 */
 
@@ -695,7 +696,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       fingerprint: await this.fingerprint,
       // TODO: Already tried: https://github.com/jackspirou/clientjs and now https://fingerprintjs.github.io/fingerprintjs/ but both libraries do not deliver consistent fingerprints, means the same browser with the same localStorage would get different fingerprints assigned. Conclusion: Using the uuid with the timestamp for this uid property.
       // uid: JSON.stringify({ ...JSON.parse(await this.getEpochStorage('local')), fingerprint: await this.fingerprint })
-      uid: await this.getEpochStorage('local')
+      uid: await this.getEpochStorage('local'),
+      publicKey: this.hasAttribute('use-public-key')
+        ? JSON.stringify(await new Promise(resolve => this.dispatch(`${this.namespace}get-active-room-public-key`,{ resolve })))
+        : undefined
     }
 
     /**

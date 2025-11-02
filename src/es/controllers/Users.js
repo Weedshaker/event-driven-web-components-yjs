@@ -114,6 +114,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
+        publicKey: event.detail.publicKey,
         connectedUsers: stateValueUsers.length
           ? {
             // clean all connectedUsers according to the provider status
