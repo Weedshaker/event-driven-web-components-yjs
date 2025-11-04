@@ -24,7 +24,7 @@ import { urlHttpProtocol } from '../helpers/Utils.js'
 /**
  * Provider container for rendering
  @typedef {
-  'environment' | 'crdt' | 'session' | 'get-info' | string
+  'environment' | 'crdt' | 'session' | 'get-info' | 'notifications' | string
  } Origin
 */
 
@@ -83,7 +83,8 @@ import { urlHttpProtocol } from '../helpers/Utils.js'
     getWebsocketInfo: (url: string, force: boolean) => Promise<Response>,
     getSessionProvidersByStatus: (nameUrlSeparator: string) => Promise<GetSessionProvidersByStatusResult>,
     getCompleteProviders: () => Promise<CompleteProvidersContainer>,
-    getProvidersFromRooms: () => Promise<{}>,
+    getProvidersFromRooms: () => Promise<{room: string, url: string, prop: 'allProviders' | 'providers' | 'connectedProviders'}[]>,
+    getProvidersFromNotificationsSettings: () => Promise<string[]|null>,
     separator: string
   }
  } GetDataResult
@@ -184,6 +185,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
           providers,
           getSessionProvidersByStatus: this.getSessionProvidersByStatus,
           getProvidersFromRooms: this.getProvidersFromRooms,
+          getProvidersFromNotificationsSettings: this.getProvidersFromNotificationsSettings,
           // @ts-ignore
           getCompleteProviders: (force = false) => {
             if (!force && getCompleteProvidersResult) return getCompleteProvidersResult
@@ -259,6 +261,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     // important, keep order not that less information overwrites the more precise information at mergeProvider
     Providers.fillProvidersWithProvidersFromCrdt(providers, data.allProviders)
     Providers.fillProvidersWithProvidersFromRooms(providers, await data.getProvidersFromRooms(), data.separator)
+    Providers.fillProvidersWithProvidersFromNotificationsSettings(providers, await data.getProvidersFromNotificationsSettings())
     Providers.fillProvidersWithProvidersFromCrdt(providers, data.providers, 'once-established')
     // @ts-ignore
     Providers.fillProvidersWithProvidersFromEnvironment(providers, self.Environment)
@@ -383,6 +386,25 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     return providers
   }
 
+  /**
+   * Get rooms from local storage and grab all reported providers
+   *
+   * @param {boolean} [includeMutes=false]
+   * @returns {Promise<string[]|null>}
+   */
+  getProvidersFromNotificationsSettings = async (includeMutes = false) => {
+    const notifications = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-notifications-settings`, {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+    if (notifications.error) return null
+    return [...(notifications.value?.amplified?.hostnames || []), ...(includeMutes ? notifications.value?.mutes?.hostnames || [] : [])]
+  }
+
   static fillProvidersWithProvidersFromCrdt (providers, data, status = 'unknown') {
     Array.from(data).forEach(([name, providersMap]) => Array.from(providersMap).forEach(([url, users]) => {
       try {
@@ -418,6 +440,28 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         urls: new Map([[url.origin, { name, url, status, origin: room }]]),
         origins: [room],
         providerFallbacks: new Map(providerFallbacks[url.hostname]?.urls)
+      }))
+    })
+    return providers
+  }
+
+  static fillProvidersWithProvidersFromNotificationsSettings (providers, data) {
+    if (!Array.isArray(data)) return providers
+    Array.from(data).forEach(hostname => {
+      let urlWss, urlWs
+      try {
+        urlWss = new URL(`wss://${hostname}`)
+        urlWs = new URL(`ws://${hostname}`)
+      } catch (error) {
+        return providers
+      }
+      providers.set(hostname, Providers.mergeProvider(providers.get(hostname), {
+        status: ['unknown'],
+        urls: new Map([
+          [urlWss.origin, { name: 'websocket', url: urlWss, status: 'unknown', origin: 'notifications' }],
+          [urlWs.origin, { name: 'websocket', url: urlWs, status: 'unknown', origin: 'notifications' }]
+        ]),
+        origins: ['notifications']
       }))
     })
     return providers

@@ -347,6 +347,25 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       })
     }
 
+    this.getNotificationsSettingsEventListener = async event => {
+      const result = new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
+        detail: {
+          key: `${this.roomNamePrefix}notifications`,
+          resolve
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })))
+      if (event.detail?.resolve) return event.detail.resolve(result)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}notifications-settings`, {
+        detail: result,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
     this.focusEventListener = async event => {
       if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) { // eslint-disable-line
         this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
@@ -394,6 +413,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.addEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}mute-notifications`, this.muteNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}unmute-notifications`, this.unmuteNotificationsEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-notifications-settings`, this.getNotificationsSettingsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users`, this.usersEventListener)
     navigator.serviceWorker?.addEventListener('message', this.pushEventMessageListener)
@@ -456,6 +476,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}mute-notifications`, this.muteNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}unmute-notifications`, this.unmuteNotificationsEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-notifications-settings`, this.getNotificationsSettingsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users`, this.usersEventListener)
     navigator.serviceWorker?.removeEventListener('message', this.pushEventMessageListener)
