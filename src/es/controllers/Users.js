@@ -267,9 +267,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const yMap = (await this.yMap).type
       const detail = { nickname: yMap.get(uid).nickname }
       if (!detail.nickname) {
-        detail.nickname = await this.randomNickname
+        const { randomNickname, newlyGenerated } = await this.getRandomNickname()
+        detail.nickname = randomNickname
         this.setNicknameEventListener({ detail })
-        detail.randomNickname = true
+        detail.randomNickname = newlyGenerated
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
@@ -364,6 +365,33 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     if (selfUser.publicKey !== publicKey) yMap.set(uid, { ...selfUser, publicKey })
   }
 
+  getRandomNickname () {
+    return new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-active-room', {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))).then(room => {
+      if (room?.randomNickname) return {
+        randomNickname: room.randomNickname,
+        newlyGenerated: false
+      }
+      const randomNickname = `no-name-${new Date().getUTCMilliseconds()}`
+      this.dispatchEvent(new CustomEvent('yjs-merge-active-room', {
+        detail: { randomNickname },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+      return {
+        randomNickname,
+        newlyGenerated: true
+      }
+    })
+  }
+
   /**
    * The namespace is prepended to the custom event names
    * priority of value appliance: options, attribute
@@ -380,27 +408,6 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   get namespace () {
     // @ts-ignore
     return this.getAttribute('namespace')
-  }
-
-  get randomNickname () {
-    return new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-active-room', {
-      detail: {
-        resolve
-      },
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    }))).then(room => {
-      if (room?.randomNickname) return room.randomNickname
-      const randomNickname = `no-name-${new Date().getUTCMilliseconds()}`
-      this.dispatchEvent(new CustomEvent('yjs-merge-active-room', {
-        detail: { randomNickname },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))
-      return randomNickname
-    })
   }
 
   get globalEventTarget () {
