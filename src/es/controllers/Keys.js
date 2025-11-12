@@ -11,8 +11,17 @@
  }} options
 */
 
+// TODO: KEY needs to gather origin (created, received and used in which room)
+// TODO: Get message CRDT intel of who has received, requested or used which keys in current chat | shared (shared to which users)
 /**
- * @typedef {{cryptoKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY, disabled?: boolean, privateName?: string, publicName?: string}} KEY
+ * @typedef {{
+ *  cryptoKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY, // TODO: other name but cryptoKey
+ *  disabled?: boolean,
+ *  privateName?: string,
+ *  publicName?: string,
+ * }} KEY
+ *  TODO: better structure of key! Best there is a public part and a private part, plus an export function for sharing a key without private props.
+ *  TODO: more info of key, origins [room, etc.], used with, received from, shared with, key is used in current chat crdt, etc.
  */
 
 /**
@@ -45,6 +54,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     else if (!this.namespace) this.namespace = 'yjs-'
 
     this.getActiveRoomPublicKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}active-room-public-key`, (await this.#getActiveRoomKeyPair()).publicKey)
+    this.setKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setKey(event.detail.key))
     this.getKeysEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
     this.setNewKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
     this.setKeyDisabledEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
@@ -55,6 +65,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
 
   connectedCallback () {
     this.globalEventTarget.addEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}set-key`, this.setKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
@@ -65,6 +76,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
 
   disconnectedCallback () {
     this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}set-key`, this.setKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
@@ -137,6 +149,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @returns {Promise<KEYS>}
    */
   async #setKey (key) {
+    // TODO: CAREFUL HERE! This is where a foreign key would be added. make sure it has all the required properties or check it through json to crypto key function! Return { error: true, message... }
     let allKeys
     if ((allKeys = await this.#getKeys()).some(allKey => allKey.cryptoKey.epoch === key.cryptoKey.epoch)) return allKeys
     return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-merge', {
