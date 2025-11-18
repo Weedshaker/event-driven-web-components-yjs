@@ -11,9 +11,8 @@
  }} options
 */
 
-// TODO: KEY_CONTAINER needs to gather origin (created, received and used in which room)
-// TODO: Get message CRDT intel of who has received, requested or used which keys in current chat | shared (shared to which users)
-// TODO: more info of key, origins [room, etc.], used with, received from, shared with, key is used in current chat crdt, etc.
+// TODO: this.#setKeyProperty probably does not persist the changes to the entered object!!! TEST!
+
 /**
  * @typedef {{
  *  key: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
@@ -75,8 +74,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
     this.setKeyPublicNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
     this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch))
-    this.encryptEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
-    this.decryptEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key)))
+    this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
+    this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key)))
+    this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
+    this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey))
 
     /** @type {(any)=>void} */
     this.roomResolve = map => map
@@ -94,6 +95,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.globalEventTarget.addEventListener(`${this.namespace}delete-key`, this.deleteKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}encrypt`, this.encryptEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}decrypt`, this.decryptEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}share-key`, this.shareKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}receive-key`, this.receiveKeyEventListener)
     if (this.isConnected) this.connectedCallbackOnce()
   }
 
@@ -120,6 +123,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.globalEventTarget.removeEventListener(`${this.namespace}delete-key`, this.deleteKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}encrypt`, this.encryptEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}decrypt`, this.decryptEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}share-key`, this.shareKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}receive-key`, this.receiveKeyEventListener)
   }
 
   /**
