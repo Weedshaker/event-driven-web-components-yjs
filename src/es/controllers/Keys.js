@@ -11,6 +11,7 @@
  }} options
 */
 
+// TODO: Error handling of event responses like crypto-derive-key, ...
 // TODO: this.#setKeyProperty probably does not persist the changes to the entered object!!! TEST!
 
 /**
