@@ -11,21 +11,35 @@
  }} options
 */
 
-// TODO: KEY needs to gather origin (created, received and used in which room)
+// TODO: KEY_CONTAINER needs to gather origin (created, received and used in which room)
 // TODO: Get message CRDT intel of who has received, requested or used which keys in current chat | shared (shared to which users)
+// TODO: more info of key, origins [room, etc.], used with, received from, shared with, key is used in current chat crdt, etc.
 /**
  * @typedef {{
- *  cryptoKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY, // TODO: other name but cryptoKey
- *  disabled?: boolean,
- *  privateName?: string,
- *  publicName?: string,
- * }} KEY
- *  TODO: better structure of key! Best there is a public part and a private part, plus an export function for sharing a key without private props.
- *  TODO: more info of key, origins [room, etc.], used with, received from, shared with, key is used in current chat crdt, etc.
+ *  key: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
+ *  disabled: boolean,
+ *  private: {
+ *    name?: string,
+ *    origin?: {
+ *      room: string
+ *      publicKey?: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY
+ *    },
+ *    shared?: {
+ *      room: string
+ *      publicKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
+ *    }[],
+ *    received?: {
+ *      room: string
+ *      publicKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
+ *    }[],
+ *    used?: {string:number[]}
+ *  },
+ *  public: {name?: string},
+ * }} KEY_CONTAINER
  */
 
 /**
- * @typedef {KEY[]} KEYS
+ * @typedef {KEY_CONTAINER[]} KEY_CONTAINERS
  */
 
 /**
@@ -54,35 +68,58 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     else if (!this.namespace) this.namespace = 'yjs-'
 
     this.getActiveRoomPublicKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}active-room-public-key`, (await this.#getActiveRoomKeyPair()).publicKey)
-    this.setKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setKey(event.detail.key))
-    this.getKeysEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
-    this.setNewKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
-    this.setKeyDisabledEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
-    this.setKeyPrivateNameEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'privateName', event.detail.propertyValue))
-    this.setKeyPublicNameEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'publicName', event.detail.propertyValue))
-    this.deleteKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch))
+    // @ts-ignore
+    this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
+    this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
+    this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
+    this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
+    this.setKeyPublicNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
+    this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch))
+    this.encryptEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
+    this.decryptEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key)))
+
+    /** @type {(any)=>void} */
+    this.roomResolve = map => map
+    /** @type {Promise<{ locationHref: string, room: Promise<string> & {done: boolean} }>} */
+    this.roomPromise = new Promise(resolve => (this.roomResolve = resolve))
   }
 
   connectedCallback () {
     this.globalEventTarget.addEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
-    this.globalEventTarget.addEventListener(`${this.namespace}set-key`, this.setKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-private-name`, this.setKeyPrivateNameEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-public-name`, this.setKeyPublicNameEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}delete-key`, this.deleteKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}encrypt`, this.encryptEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}decrypt`, this.decryptEventListener)
+    if (this.isConnected) this.connectedCallbackOnce()
+  }
+
+  connectedCallbackOnce () {
+    this.dispatchEvent(new CustomEvent('yjs-get-room', {
+      detail: {
+        resolve: this.roomResolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
+    // @ts-ignore
+    this.connectedCallbackOnce = () => {}
   }
 
   disconnectedCallback () {
     this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
-    this.globalEventTarget.removeEventListener(`${this.namespace}set-key`, this.setKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-private-name`, this.setKeyPrivateNameEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-public-name`, this.setKeyPublicNameEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}delete-key`, this.deleteKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}encrypt`, this.encryptEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}decrypt`, this.decryptEventListener)
   }
 
   /**
@@ -143,19 +180,37 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   /**
    * setKey
    * to the storage [chat-keys]
+   * a key can only be set once with the same epoch
    * 
    * @async
-   * @param {KEY} key
-   * @returns {Promise<KEYS>}
+   * @param {KEY_CONTAINER} keyContainer
+   * @param {import("../../event-driven-web-components-prototypes/src/controllers/Crypto.js").KEY | null} publicKey
+   * @returns {Promise<KEY_CONTAINERS|import("../../event-driven-web-components-prototypes/src/controllers/Crypto.js").JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
    */
-  async #setKey (key) {
-    // TODO: CAREFUL HERE! This is where a foreign key would be added. make sure it has all the required properties or check it through json to crypto key function! Return { error: true, message... }
-    let allKeys
-    if ((allKeys = await this.#getKeys()).some(allKey => allKey.cryptoKey.epoch === key.cryptoKey.epoch)) return allKeys
+  async #setKey (keyContainer, publicKey = null) {
+    let allKeyContainers
+    if ((allKeyContainers = await this.#getKeys()).some(allKeyContainer => allKeyContainer.key.epoch === keyContainer.key.epoch)) return allKeyContainers
+    const origin = {}
+    // when foreign received key check the validity of the jsonWebKey by converting it to a cryptoKey object
+    if (publicKey) {
+      const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
+        detail: {
+          resolve,
+          jsonWebKey: keyContainer.key.jsonWebKey
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })))
+      if (cryptoKey.error) return cryptoKey
+      origin.publicKey = publicKey
+    }
+    origin.room = await (await this.roomPromise).room
+    this.#setKeyProperty(keyContainer, 'private.origin', origin)
     return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-merge', {
       detail: {
         key: `${this.roomNamePrefix}keys`,
-        value: [key],
+        value: [keyContainer],
         resolve
       },
       bubbles: true,
@@ -171,13 +226,14 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * to the storage [chat-keys]
    * 
    * @async
-   * @returns {Promise<{allKeys: KEYS, newKey: KEY}>}
+   * @returns {Promise<{keyContainers: KEY_CONTAINERS, newKey: KEY_CONTAINER}>}
    */
   async #setNewKey () {
     const newKey = await this.#getNewKey()
     return {
       newKey,
-      allKeys: await this.#setKey(newKey)
+      // @ts-ignore
+      keyContainers: await this.#setKey(newKey)
     }
   }
 
@@ -186,7 +242,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * from the storage [chat-keys]
    * 
    * @async
-   * @returns {Promise<KEYS>}
+   * @returns {Promise<KEY_CONTAINERS>}
    */
   #getKeys () {
     return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
@@ -207,21 +263,21 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * from the storage [chat-keys][?]
    * 
    * @async
-   * @returns {Promise<KEY|undefined>}
+   * @returns {Promise<KEY_CONTAINER|undefined>}
    */
   async #getKey (epoch) {
-    return (await this.#getKeys()).find(key => key.cryptoKey.epoch === epoch)
+    return (await this.#getKeys()).find(keyContainer => keyContainer.key.epoch === epoch)
   }
 
   /**
    * getNewKey
    * 
    * @async
-   * @returns {Promise<KEY>}
+   * @returns {Promise<KEY_CONTAINER>}
    */
   async #getNewKey () {
     return {
-      cryptoKey: await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-generate-key', {
+      key: await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-generate-key', {
         detail: {
           resolve,
           synchronous: true,
@@ -230,7 +286,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         bubbles: true,
         cancelable: true,
         composed: true
-      })))
+      }))),
+      disabled: false,
+      private: {},
+      public: {}
     }
   }
 
@@ -239,27 +298,81 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * at the storage [chat-keys][?]
    * 
    * @async
-   * @prop {string} epoch
-   * @prop {string} name
-   * @prop {string} value
-   * @returns {Promise<false|{epoch: string, modified: {name: string, value: string, key: KEY}, allKeys: KEYS}>}
+   * @prop {string|KEY_CONTAINER} epoch
+   * @prop {string} propNames
+   * @prop {string|any} value
+   * @prop {any} storageDeepMergeDetail
+   * @returns {Promise<false|{epoch: string, modified: {propNames: string, value: string, keyContainer: KEY_CONTAINER}, keyContainers: KEY_CONTAINERS}>}
    */
-  async #setKeyProperty (epoch, name, value) {
-    const allKeys = await this.#getKeys()
-    const key = allKeys.find(key => key.cryptoKey.epoch === epoch)
-    if (!key) return false
-    key[name] = value
+  async #setKeyProperty (epoch, propNames, value, storageDeepMergeDetail = {}) {
+    const keyContainers = await this.#getKeys()
+    // storage has to be handled manually, when KEY_CONTAINER instead of epoch. Split and replace would have to be used
+    let noStorage
+    let keyContainer = (noStorage = typeof epoch.key === 'object')
+      ? epoch
+      : keyContainers.find(keyContainer => keyContainer.key.epoch === epoch)
+    if (!keyContainer) return false
+    // set value to the keyContainer
+    value = propNames.split('.').reduceRight((acc, propName) => {
+      return {
+        [propName]: acc
+      }
+    }, value)
+    keyContainer = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-deep-merge', {
+      detail: {
+        ...storageDeepMergeDetail,
+        target: keyContainer,
+        source: value,
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))).value
     return {
       epoch,
       modified: {
-        name,
+        propNames,
         value,
-        key
+        keyContainer
       },
-      allKeys: await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
+      keyContainers: noStorage
+        ? keyContainers
+        : await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
+            detail: {
+              key: `${this.roomNamePrefix}keys`,
+              value: keyContainers,
+              resolve
+            },
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }))).then(data => Array.isArray(data.value)
+            ? data.value
+            : []
+          )
+    }
+  }
+
+  /**
+   * deleteKey
+   * at the storage [chat-keys][?]
+   * 
+   * @async
+   * @returns {Promise<false|{epoch: string, deleted: KEY_CONTAINER, keyContainers: KEY_CONTAINERS}>}
+   */
+  async #deleteKey (epoch) {
+    const keyContainers = await this.#getKeys()
+    const keyIndex = keyContainers.findIndex(key => key.key.epoch === epoch)
+    if (keyIndex === -1) return false
+    const deleted = keyContainers.splice(keyIndex, 1)[0]
+    return {
+      epoch,
+      deleted,
+      keyContainers: await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
         detail: {
           key: `${this.roomNamePrefix}keys`,
-          value: allKeys,
+          value: keyContainers,
           resolve
         },
         bubbles: true,
@@ -272,33 +385,139 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   }
 
   /**
-   * deleteKey
-   * at the storage [chat-keys][?]
+   * encrypt text
    * 
    * @async
-   * @returns {Promise<false|{epoch: string, deleted: KEY, allKeys: KEYS}>}
+   * @prop {string} text
+   * @prop {KEY_CONTAINER} keyContainer
+   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
    */
-  async #deleteKey (epoch) {
-    const allKeys = await this.#getKeys()
-    const keyIndex = allKeys.findIndex(key => key.cryptoKey.epoch === epoch)
-    if (keyIndex === -1) return false
-    const deleted = allKeys.splice(keyIndex, 1)[0]
-    return {
-      epoch,
-      deleted,
-      allKeys: await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
-        detail: {
-          key: `${this.roomNamePrefix}keys`,
-          value: allKeys,
-          resolve
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))).then(data => Array.isArray(data.value)
-        ? data.value
-        : [])
-    }
+  async #encrypt (text, keyContainer) {
+    this.#setKeyProperty(keyContainer.key.epoch, 'private.used', {
+      [await (await this.roomPromise).room]: [Date.now()]
+    }, {
+      concat: 'unshift',
+      maxLength: 20
+    })
+    return new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-encrypt', {
+      detail: {
+        resolve,
+        text,
+        key: keyContainer.key,
+        jsonWebKey: true
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+  }
+
+  /**
+   * decrypt text
+   * 
+   * @async
+   * @prop {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').encrypted} encrypted
+   * @prop {KEY_CONTAINER} keyContainer
+   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
+   */
+  async #decrypt (encrypted, keyContainer) {
+    this.#setKeyProperty(keyContainer.key.epoch, 'private.used', {
+      [await (await this.roomPromise).room]: [Date.now()]
+    }, {
+      concat: 'unshift',
+      maxLength: 20
+    })
+    return new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-decrypt', {
+      detail: {
+        resolve,
+        encrypted,
+        key: keyContainer.key,
+        jsonWebKey: true
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+  }
+
+  /**
+   * Share a key with someone
+   * Step1: Derive key with foreign publicKey and own privateKey
+   * Step2: Encrypt the key to share "shareKey" with the derived key
+   * 
+   * @async
+   * @param {KEY_CONTAINER} shareKeyContainer
+   * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} privateKey
+   * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} publicKey
+   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
+   */
+  async #shareKey (shareKeyContainer, privateKey, publicKey) {
+    /** @type {KEY_CONTAINER} */
+    const derivedKey = Keys.getKeyContainer(await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
+      detail: {
+        resolve,
+        privateKey: privateKey || (await this.#getActiveRoomKeyPair()).privateKey,
+        publicKey: publicKey,
+        jsonWebKey: true
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))))
+    this.#setKeyProperty(shareKeyContainer.key.epoch, 'private.shared', [{
+      publicKey: publicKey,
+      room: await (await this.roomPromise).room,
+      timestamp: Date.now()
+    }])
+    return this.#encrypt(JSON.stringify(shareKeyContainer), derivedKey)
+  }
+
+  /**
+   * Receive a key from someone
+   * Step1: Derive key with foreign publicKey and own privateKey
+   * Step2: Decrypt the key to share "shareKey" with the derived key
+   * 
+   * @async
+   * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED} encrypted
+   * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} privateKey
+   * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} publicKey
+   * @returns {Promise<KEY_CONTAINER>}
+   */
+  async #receiveKey (encrypted, privateKey, publicKey) {
+    /** @type {KEY_CONTAINER} */
+    const derivedKey = Keys.getKeyContainer(await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
+      detail: {
+        resolve,
+        privateKey: privateKey || (await this.#getActiveRoomKeyPair()).privateKey,
+        publicKey: publicKey,
+        jsonWebKey: true
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))))
+    // @ts-ignore
+    const receiveKeyContainer = JSON.parse((await this.#decrypt(encrypted, derivedKey)).text)
+    this.#setKey(receiveKeyContainer, publicKey)
+    this.#setKeyProperty(receiveKeyContainer.key.epoch, 'private.received', [{
+      publicKey: publicKey,
+      room: await (await this.roomPromise).room,
+      timestamp: Date.now()
+    }])
+    return receiveKeyContainer
+  }
+
+  /**
+   * Always get a container back
+   * 
+   * @static
+   * @param {KEY_CONTAINER | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY | any} key
+   * @returns {KEY_CONTAINER | any}
+   */
+  static getKeyContainer (key) {
+    return key.key?.jsonWebKey
+      ? key
+      : {key: { jsonWebKey: key}}
   }
 
   get globalEventTarget () {
