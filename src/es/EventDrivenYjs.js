@@ -592,8 +592,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           if (websocketMap.has(websocketUrl.href)) {
             websocketMap.get(websocketUrl.href)?.connect()
           } else {
-            // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
-            websocketMap.set(websocketUrl.href, new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc))
+            const provider = new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc)
+            try {
+              new URL(provider.url)
+              // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
+              websocketMap.set(websocketUrl.href, provider)
+            } catch (error) {
+              provider.destroy()
+            }
           }
         })
         websocketMap.forEach(
@@ -637,18 +643,21 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         } else {
           /** @type {import("./dependencies/y-webrtc")} */
           const webrtc = await this.importWebrtc
-          webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
-            {
-              signaling: this.webrtcUrl.split(',').filter(url => {
-                try {
-                  new URL(url) // eslint-disable-line
-                  return true
-                } catch (error) {
-                  return false
-                }
-              }).map(url => self.decodeURIComponent(url))
-            }
-          ))
+          try {
+            // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
+            webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
+              {
+                signaling: this.webrtcUrl.split(',').filter(url => {
+                  try {
+                    new URL(url) // eslint-disable-line
+                    return true
+                  } catch (error) {
+                    return false
+                  }
+                }).map(url => self.decodeURIComponent(url))
+              }
+            ))
+          } catch (error) {}
         }
         webrtcMap.forEach(
           /**
