@@ -11,8 +11,7 @@
  }} options
 */
 
-// TODO: Error handling of event responses like crypto-derive-key, ...
-// TODO: this.#setKeyProperty probably does not persist the changes to the entered object!!! TEST!
+// TODO: Error handling of event responses like crypto-derive-key, crypto-decrypt, crypto-encrypt, ...
 
 /**
  * @typedef {{
@@ -196,7 +195,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   async #setKey (keyContainer, publicKey = null) {
     let allKeyContainers
     if ((allKeyContainers = await this.#getKeys()).some(allKeyContainer => allKeyContainer.key.epoch === keyContainer.key.epoch)) return allKeyContainers
-    const origin = {}
+    if (!keyContainer.private) keyContainer.private = {}
+    if (!keyContainer.private.origin) keyContainer.private.origin = { room: ''}
     // when foreign received key check the validity of the jsonWebKey by converting it to a cryptoKey object
     if (publicKey) {
       const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
@@ -209,10 +209,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         composed: true
       })))
       if (cryptoKey.error) return cryptoKey
-      origin.publicKey = publicKey
+      keyContainer.private.origin.publicKey = publicKey
     }
-    origin.room = await (await this.roomPromise).room
-    this.#setKeyProperty(keyContainer, 'private.origin', origin)
+    keyContainer.private.origin.room = await (await this.roomPromise).room
     return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-merge', {
       detail: {
         key: `${this.roomNamePrefix}keys`,
@@ -304,7 +303,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * at the storage [chat-keys][?]
    * 
    * @async
-   * @prop {string|KEY_CONTAINER} epoch
+   * @prop {string} epoch
    * @prop {string} propNames
    * @prop {string|any} value
    * @prop {any} storageDeepMergeDetail
@@ -312,11 +311,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    */
   async #setKeyProperty (epoch, propNames, value, storageDeepMergeDetail = {}) {
     const keyContainers = await this.#getKeys()
-    // storage has to be handled manually, when KEY_CONTAINER instead of epoch. Split and replace would have to be used
-    let noStorage
-    let keyContainer = (noStorage = typeof epoch.key === 'object')
-      ? epoch
-      : keyContainers.find(keyContainer => keyContainer.key.epoch === epoch)
+    /** @type {KEY_CONTAINER|any} */
+    const keyContainer = keyContainers.find(keyContainer => keyContainer.key.epoch === epoch)
     if (!keyContainer) return false
     // set value to the keyContainer
     value = propNames.split('.').reduceRight((acc, propName) => {
@@ -324,7 +320,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         [propName]: acc
       }
     }, value)
-    keyContainer = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-deep-merge', {
+    const newKeyContainer = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-deep-merge', {
       detail: {
         ...storageDeepMergeDetail,
         target: keyContainer,
@@ -335,28 +331,27 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     })))).value
+    keyContainers.splice(keyContainers.indexOf(keyContainer), 1, newKeyContainer)
     return {
       epoch,
       modified: {
         propNames,
         value,
-        keyContainer
+        keyContainer: newKeyContainer
       },
-      keyContainers: noStorage
-        ? keyContainers
-        : await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
-            detail: {
-              key: `${this.roomNamePrefix}keys`,
-              value: keyContainers,
-              resolve
-            },
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }))).then(data => Array.isArray(data.value)
-            ? data.value
-            : []
-          )
+      keyContainers: await new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-set', {
+        detail: {
+          key: `${this.roomNamePrefix}keys`,
+          value: keyContainers,
+          resolve
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))).then(data => Array.isArray(data.value)
+        ? data.value
+        : []
+      )
     }
   }
 
@@ -471,11 +466,15 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       composed: true
     }))))
     this.#setKeyProperty(shareKeyContainer.key.epoch, 'private.shared', [{
-      publicKey: publicKey,
+      publicKey,
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }])
-    return this.#encrypt(JSON.stringify(shareKeyContainer), derivedKey)
+    const clone = structuredClone(shareKeyContainer)
+    // @ts-ignore
+    if (clone.private) delete clone.private
+    clone.disabled = false
+    return this.#encrypt(JSON.stringify(clone), derivedKey)
   }
 
   /**
@@ -506,7 +505,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     const receiveKeyContainer = JSON.parse((await this.#decrypt(encrypted, derivedKey)).text)
     this.#setKey(receiveKeyContainer, publicKey)
     this.#setKeyProperty(receiveKeyContainer.key.epoch, 'private.received', [{
-      publicKey: publicKey,
+      publicKey,
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }])
@@ -517,13 +516,22 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * Always get a container back
    * 
    * @static
-   * @param {KEY_CONTAINER | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY | any} key
+   * @param {KEY_CONTAINER | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY | any} keyContainer
    * @returns {KEY_CONTAINER | any}
    */
-  static getKeyContainer (key) {
-    return key.key?.jsonWebKey
-      ? key
-      : {key: { jsonWebKey: key}}
+  static getKeyContainer (keyContainer) {
+    if (typeof keyContainer === 'string') {
+      try {
+        keyContainer = JSON.parse(keyContainer)
+      } catch (error) {
+        return null
+      }
+    }
+    return keyContainer.key?.jsonWebKey
+      ? keyContainer
+      : keyContainer.jsonWebKey
+        ? {key: keyContainer}
+        : {key: { jsonWebKey: keyContainer}}
   }
 
   get globalEventTarget () {
