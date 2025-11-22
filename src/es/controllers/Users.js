@@ -114,6 +114,8 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
+        nickname: (await this.getNickname()).nickname,
+        publicKey: await this.getPublicKey(),
         connectedUsers: stateValueUsers.length
           ? {
             // clean all connectedUsers according to the provider status
@@ -251,7 +253,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const yMap = (await this.yMap).type
       const selfUser = yMap.get(uid)
       const nickname = event.detail.nickname
-      if (selfUser.nickname !== nickname) yMap.set(uid, { ...selfUser, nickname })
+      if (selfUser && (selfUser.nickname !== nickname)) yMap.set(uid, { ...selfUser, nickname })
       const detail = { nickname }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
@@ -263,14 +265,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     }
 
     this.getNicknameEventListener = async event => {
-      const uid = await this.uid
-      const yMap = (await this.yMap).type
-      const detail = { nickname: yMap.get(uid).nickname }
-      if (!detail.nickname) {
-        const { randomNickname, newlyGenerated } = await this.getRandomNickname()
-        detail.nickname = randomNickname
-        this.setNicknameEventListener({ detail })
-        detail.randomNickname = newlyGenerated
+      const getNicknameResult = await this.getNickname()
+      const detail = {
+        nickname: getNicknameResult.nickname,
+        randomNickname: getNicknameResult.isRandom && getNicknameResult.isNewlyGenerated
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
@@ -287,7 +285,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const yMap = (await this.yMap).type
       const selfUser = yMap.get(uid)
       const awarenessEpoch = EventDrivenYjsClass.epochDateNow
-      if (selfUser.awarenessEpoch !== awarenessEpoch) yMap.set(uid, { ...selfUser, awarenessEpoch })
+      if (selfUser && (selfUser.awarenessEpoch !== awarenessEpoch)) yMap.set(uid, { ...selfUser, awarenessEpoch })
     }
 
     /** @type {(UsersEventDetail)=>void} */
@@ -334,7 +332,6 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       cancelable: true,
       composed: true
     }))
-    this.#updatePublicKey()
     this.connectedCallbackOnce = () => {}
   }
 
@@ -352,17 +349,36 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.removeEventListener(`${this.namespace}update-awareness-epoch`, this.updateAwarenessEpochEventListener)
   }
 
-  async #updatePublicKey () {
-    const uid = await this.uid
-    const yMap = (await this.yMap).type
-    const selfUser = yMap.get(uid)
-    const publicKey = JSON.stringify(await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room-public-key`, {
+  async getPublicKey () {
+    return JSON.stringify(await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room-public-key`, {
       detail: { resolve },
       bubbles: true,
       cancelable: true,
       composed: true
     }))))
-    if (selfUser.publicKey !== publicKey) yMap.set(uid, { ...selfUser, publicKey })
+  }
+
+  /**
+   * Get the current nickname from the crdt or a random nickname
+   * 
+   * @async
+   * @returns {Promise<{ nickname: string; isRandom: boolean; isNewlyGenerated: boolean; }>}
+   */
+  async getNickname () {
+    let nickname = (await this.yMap).type.get(await this.uid)?.nickname
+    let isRandom = false
+    let isNewlyGenerated = false
+    if (!nickname) {
+      const { randomNickname, newlyGenerated } = await this.getRandomNickname()
+      nickname = randomNickname
+      isRandom = true
+      isNewlyGenerated = newlyGenerated
+    }
+    return {
+      nickname,
+      isRandom,
+      isNewlyGenerated
+    }
   }
 
   getRandomNickname () {

@@ -39,6 +39,8 @@
  * @typedef {KEY_CONTAINER[]} KEY_CONTAINERS
  */
 
+/** @typedef {{ error: true, message: string, decrypted: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED, key: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY }} RECEIVE_KEY_PARSE_ERROR */
+
 /**
  * Keys is a helper to keep all keys object at storage and forwarding the proper events helping having an overview of all participants
  *
@@ -451,8 +453,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR>}
    */
   async #shareKey (shareKeyContainer, privateKey, publicKey) {
-    /** @type {KEY_CONTAINER} */
-    const derivedKey = Keys.getKeyContainer(await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
+    const derivedKey = await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
       detail: {
         resolve,
         privateKey: privateKey || (await this.#getActiveRoomKeyPair()).privateKey,
@@ -462,7 +463,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       bubbles: true,
       cancelable: true,
       composed: true
-    }))))
+    })))
+    if (derivedKey.error) return derivedKey
     this.#setKeyProperty(shareKeyContainer.key.epoch, 'private.shared', [{
       publicKey,
       room: await (await this.roomPromise).room,
@@ -472,7 +474,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     // @ts-ignore
     if (clone.private) delete clone.private
     clone.disabled = false
-    return this.#encrypt(JSON.stringify(clone), derivedKey)
+    return this.#encrypt(JSON.stringify(clone), Keys.getKeyContainer(derivedKey))
   }
 
   /**
@@ -484,11 +486,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED} encrypted
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} privateKey
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} publicKey
-   * @returns {Promise<KEY_CONTAINER | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR>}
+   * @returns {Promise<KEY_CONTAINER | RECEIVE_KEY_PARSE_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR>}
    */
   async #receiveKey (encrypted, privateKey, publicKey) {
-    /** @type {KEY_CONTAINER} */
-    const derivedKey = Keys.getKeyContainer(await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
+    const derivedKey = await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
       detail: {
         resolve,
         privateKey: privateKey || (await this.#getActiveRoomKeyPair()).privateKey,
@@ -498,16 +499,31 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       bubbles: true,
       cancelable: true,
       composed: true
-    }))))
+    })))
+    if (derivedKey.error) return derivedKey
+    /** @type {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED} */
     // @ts-ignore
-    const receiveKeyContainer = JSON.parse((await this.#decrypt(encrypted, derivedKey)).text)
-    this.#setKey(receiveKeyContainer, publicKey)
-    this.#setKeyProperty(receiveKeyContainer.key.epoch, 'private.received', [{
+    const decrypted = await this.#decrypt(encrypted, Keys.getKeyContainer(derivedKey))
+    // @ts-ignore
+    if (decrypted.error) return decrypted
+    let receivedKeyContainer
+    try {
+      receivedKeyContainer = JSON.parse(decrypted.text)
+    } catch (error) {
+      return {
+        error: true,
+        message: `Error decrypted message could not be JSON parsed: ${error}`,
+        decrypted,
+        key: derivedKey,
+      }
+    }
+    this.#setKey(receivedKeyContainer, publicKey)
+    this.#setKeyProperty(receivedKeyContainer.key.epoch, 'private.received', [{
       publicKey,
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }])
-    return receiveKeyContainer
+    return receivedKeyContainer
   }
 
   /**
