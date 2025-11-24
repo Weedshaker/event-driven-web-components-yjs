@@ -16,8 +16,8 @@
  *  key: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
  *  disabled: boolean,
  *  private: {
- *    name?: string,
- *    origin?: {
+ *    name: string,
+ *    origin: {
  *      room: string,
  *      publicKey?: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
  *      timestamp: number
@@ -42,7 +42,7 @@
  *      timestamp: number
  *    }[]
  *  },
- *  public: {name?: string},
+ *  public: {name: string},
  * }} KEY_CONTAINER
  */
 
@@ -221,8 +221,16 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   async #setKey (keyContainer, publicKey = null) {
     let allKeyContainers
     if ((allKeyContainers = await this.#getKeys()).some(allKeyContainer => allKeyContainer.key.epoch === keyContainer.key.epoch)) return allKeyContainers
+    if (keyContainer.disabled === undefined) keyContainer.disabled = false
+    // @ts-ignore
+    if (!keyContainer.public) keyContainer.public = {}
+    if (!keyContainer.public.name) keyContainer.public.name = Keys.randomName
+    // @ts-ignore
     if (!keyContainer.private) keyContainer.private = {}
-    if (!keyContainer.private.origin) keyContainer.private.origin = { room: '', timestamp: Date.now()}
+    if (!keyContainer.private.name) keyContainer.private.name = keyContainer.public.name
+    // @ts-ignore
+    if (!keyContainer.private.origin) keyContainer.private.origin = {}
+    if (!keyContainer.private.origin.timestamp) keyContainer.private.origin.timestamp = Date.now()
     // when foreign received key check the validity of the jsonWebKey by converting it to a cryptoKey object
     if (publicKey) {
       const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
@@ -235,9 +243,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         composed: true
       })))
       if (cryptoKey.error) return cryptoKey
-      keyContainer.private.origin.publicKey = publicKey
+      if (!keyContainer.private.origin.publicKey) keyContainer.private.origin.publicKey = publicKey
     }
-    keyContainer.private.origin.room = await (await this.roomPromise).room
+    if (!keyContainer.private.origin.room) keyContainer.private.origin.room = await (await this.roomPromise).room
     return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-merge', {
       detail: {
         key: `${this.roomNamePrefix}keys`,
@@ -307,6 +315,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @returns {Promise<KEY_CONTAINER>}
    */
   async #getNewKey () {
+    const randomName = Keys.randomName
     return {
       key: await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-generate-key', {
         detail: {
@@ -319,8 +328,14 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         composed: true
       }))),
       disabled: false,
-      private: {},
-      public: {}
+      private: {
+        name: randomName,
+        origin: {
+          room: await (await this.roomPromise).room,
+          timestamp: Date.now()
+        }
+      },
+      public: { name: randomName }
     }
   }
 
@@ -587,6 +602,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       : keyContainer.jsonWebKey
         ? {key: keyContainer}
         : {key: { jsonWebKey: keyContainer}}
+  }
+
+  static get randomName () {
+    return `no-name-${new Date().getUTCMilliseconds()}`
   }
 
   get globalEventTarget () {
