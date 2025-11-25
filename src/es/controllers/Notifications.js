@@ -1,4 +1,5 @@
 // @ts-check
+import { escapeHTML } from '../../../../event-driven-web-components-prototypes/src/helpers/Helpers.js'
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 import { urlHttpProtocol, urlRemoveProtocolRegex } from '../helpers/Utils.js'
 import { separator } from './Users.js'
@@ -555,6 +556,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }
     )
     if (notificationMutes.roomNames) roomNames = roomNames.filter(roomName => !notificationMutes.roomNames.includes(roomName))
+    roomNames = roomNames.map(roomName => escapeHTML(roomName))
     // get storage amplified providers
     notificationAmplified.hostnames?.forEach(
       /**
