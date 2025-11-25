@@ -586,6 +586,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             return false
           }
         }).map(websocketUrl => new URL(websocketUrl))
+        this.websocketUrl = websocketUrls.join(',')
         /** @type {import("./dependencies/y-websocket")} */
         const websocket = await this.importWebsocket
         websocketUrls.forEach(websocketUrl => {
@@ -644,17 +645,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           /** @type {import("./dependencies/y-webrtc")} */
           const webrtc = await this.importWebrtc
           try {
+            const webrtcUrls = this.webrtcUrl.split(',').filter(url => {
+              try {
+                new URL(url) // eslint-disable-line
+                return true
+              } catch (error) {
+                return false
+              }
+            }).map(url => self.decodeURIComponent(url))
+            this.webrtcUrl = webrtcUrls.join(',')
             // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
-            webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
+            if (webrtcUrls.length) webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
               {
-                signaling: this.webrtcUrl.split(',').filter(url => {
-                  try {
-                    new URL(url) // eslint-disable-line
-                    return true
-                  } catch (error) {
-                    return false
-                  }
-                }).map(url => self.decodeURIComponent(url))
+                signaling: webrtcUrls
               }
             ))
           } catch (error) {}

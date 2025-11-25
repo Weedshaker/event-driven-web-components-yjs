@@ -268,7 +268,8 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const getNicknameResult = await this.getNickname()
       const detail = {
         nickname: getNicknameResult.nickname,
-        randomNickname: getNicknameResult.isRandom && getNicknameResult.isNewlyGenerated
+        isRandom: getNicknameResult.isRandom,
+        isNewlyGenerated: getNicknameResult.isNewlyGenerated
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}nickname`, {
