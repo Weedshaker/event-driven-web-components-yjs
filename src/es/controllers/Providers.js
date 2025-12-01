@@ -553,7 +553,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         // @ts-ignore
         url = new URL(url)
       } catch (error) {}
-      this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
+      if (Array.isArray(result.providerFallbacks)) this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
         detail: {
           providerFallbacks: {
             // @ts-ignore
