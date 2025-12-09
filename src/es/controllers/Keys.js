@@ -20,7 +20,8 @@
  *    origin: {
  *      room: string,
  *      publicKey?: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
- *      timestamp: number
+ *      timestamp: number,
+ *      self: boolean
  *    },
  *    shared?: {
  *      room: string,
@@ -231,6 +232,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     // @ts-ignore
     if (!keyContainer.private.origin) keyContainer.private.origin = {}
     if (!keyContainer.private.origin.timestamp) keyContainer.private.origin.timestamp = Date.now()
+    if (keyContainer.private.origin.self === undefined) keyContainer.private.origin.self = false
     // when foreign received key check the validity of the jsonWebKey by converting it to a cryptoKey object
     if (publicKey) {
       const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
@@ -332,7 +334,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         name: randomName,
         origin: {
           room: await (await this.roomPromise).room,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          self: true
         }
       },
       public: { name: randomName }
