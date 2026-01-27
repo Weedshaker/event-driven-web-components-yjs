@@ -155,16 +155,17 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   }
 
   /**
+   * @async
    * @param {(any)=>void} resolve
    * @param {string|undefined} name
    * @param {any} detail
-   * @return {void | any}
+   * @return {Promise<void | any>}
    */
-  respond (resolve, name, detail) {
+  async respond (resolve, name, detail) {
     if (typeof resolve === 'function') return resolve(detail)
     if (typeof name === 'string') {
       this.dispatchEvent(new CustomEvent(name, {
-        detail,
+        detail: await detail,
         bubbles: true,
         cancelable: true,
         composed: true
@@ -304,10 +305,12 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * from the storage [chat-keys][?]
    * 
    * @async
+   * @param {string} epoch
+   * @param {KEY_CONTAINERS} [keyContainers=undefined]
    * @returns {Promise<KEY_CONTAINER|undefined>}
    */
-  async #getKey (epoch) {
-    return (await this.#getKeys()).find(keyContainer => keyContainer.key.epoch === epoch)
+  async #getKey (epoch, keyContainers) {
+    return (keyContainers || await this.#getKeys()).find(keyContainer => keyContainer.key.epoch === epoch)
   }
 
   /**
@@ -356,7 +359,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   async #setKeyProperty (epoch, propNames, value, storageDeepMergeDetail = {}) {
     const keyContainers = await this.#getKeys()
     /** @type {KEY_CONTAINER|any} */
-    const keyContainer = keyContainers.find(keyContainer => keyContainer.key.epoch === epoch)
+    const keyContainer = await this.#getKey(epoch, keyContainers)
     if (!keyContainer) return false
     // set value to the keyContainer
     value = propNames.split('.').reduceRight((acc, propName) => {
@@ -618,7 +621,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   }
 
   static get randomName () {
-    return `no-name-${new Date().getUTCMilliseconds()}`
+    return `no-key-name-${new Date().getUTCMilliseconds()}`
   }
 
   get globalEventTarget () {
