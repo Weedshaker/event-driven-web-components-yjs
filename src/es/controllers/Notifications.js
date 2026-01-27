@@ -129,6 +129,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
      * @param {any & {detail: SubscribeNotificationsEventDetail}} event
      */
     this.subscribeNotificationsEventListener = async event => {
+      if (!self.Notification) return event.detail.resolve(false)
       const result = await self.Notification.requestPermission()
       if (result === 'granted') {
         this.subscribeNotificationsEventListenerOnce()
@@ -183,6 +184,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
      * @param {any & {detail: SendNotificationEventDetail}} event
      */
     this.sendNotificationEventListener = event => {
+      if (!self.Notification) return event.detail.resolve(false)
       self.Notification.requestPermission(async (result) => {
         if (result === 'granted' && this.serviceWorkerRegistration) {
           this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
