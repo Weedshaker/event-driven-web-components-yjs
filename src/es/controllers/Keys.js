@@ -20,17 +20,23 @@
  *    origin: {
  *      room: string,
  *      publicKey?: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
+ *      uid?: string | null,
+ *      nickname?: string,
  *      timestamp: number,
  *      self: boolean
  *    },
  *    shared?: {
  *      room: string,
  *      publicKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
+ *      uid: string | null,
+ *      nickname: string,
  *      timestamp: number
  *    }[],
  *    received?: {
  *      room: string,
  *      publicKey: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY,
+ *      uid: string | null,
+ *      nickname: string,
  *      timestamp: number
  *    }[],
  *    encrypted?: {
@@ -39,7 +45,8 @@
  *    }[],
  *    decrypted?: {
  *      room: string,
- *      uid?: string,
+ *      uid?: string | null,
+ *      nickname?: string,
  *      timestamp: number
  *    }[]
  *  },
@@ -74,6 +81,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     // keep track of key shared, received, encrypted and decrypted for each maximum 100
     this.maxLength = this.getAttribute('max-length') || 100
     this.encryptMaxLength = this.getAttribute('encrypt-max-length') || 20
+    this.labelNoNickname = 'nickname not found!'
     // filter for unique objects by uid
     this.arrayUidFilterFunction = (element, index, array) => {
       const arrIndex = array.findIndex(arrElement => arrElement !== element && arrElement.uid === element.uid)
@@ -246,7 +254,20 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         composed: true
       })))
       if (cryptoKey.error) return cryptoKey
-      if (!keyContainer.private.origin.publicKey) keyContainer.private.origin.publicKey = publicKey
+      if (!keyContainer.private.origin.publicKey) {
+        keyContainer.private.origin.publicKey = publicKey
+        const user = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
+          detail: {
+            resolve,
+            publicKey
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        })))).user
+        keyContainer.private.origin.uid = user?.uid || null
+        keyContainer.private.origin.nickname = user?.nickname || this.labelNoNickname
+      }
     }
     if (!keyContainer.private.origin.room) keyContainer.private.origin.room = await (await this.roomPromise).room
     return new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-merge', {
@@ -475,6 +496,17 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   async #decrypt (encrypted, keyContainer, uid = null, setKeyProperty = true) {
     if (setKeyProperty) this.#setKeyProperty(keyContainer.key.epoch, 'private.decrypted', [{
       uid,
+      nickname: uid
+        ? (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
+          detail: {
+            resolve,
+            uid
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        })))).user?.nickname || this.labelNoNickname
+        : this.labelNoNickname,
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }], {
@@ -519,8 +551,19 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       composed: true
     })))
     if (derivedKey.error) return derivedKey
+    const user = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
+      detail: {
+        resolve,
+        publicKey
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))).user
     const setKeyPropertyResult = await this.#setKeyProperty(shareKeyContainer.key.epoch, 'private.shared', [{
       publicKey,
+      uid: user?.uid || null,
+      nickname: user?.nickname || this.labelNoNickname,
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }], {
@@ -583,8 +626,19 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       }
     }
     const keyContainers = await this.#setKey(receivedKeyContainer, publicKey)
+    const user = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
+      detail: {
+        resolve,
+        publicKey
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))).user
     this.#setKeyProperty(receivedKeyContainer.key.epoch, 'private.received', [{
       publicKey,
+      uid: user?.uid || null,
+      nickname: user?.nickname || this.labelNoNickname,
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }], {

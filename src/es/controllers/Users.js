@@ -24,7 +24,8 @@ import("../EventDrivenYjs").InitialUserValue & {
     isSelf: boolean,
     mutuallyConnectedUsers: ConnectedUsers,
     mutuallyConnectedUsersCount: number,
-    nickname?: string
+    nickname?: string,
+    publicKey?: string
   }
 } User
 */
@@ -236,6 +237,23 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       }))
     }
 
+    this.getUserEventListener = async event => {
+      const allUsers = (await (await this.usersEventDetail).getData()).allUsers
+      const detail = {
+        user: event.detail.uid
+        ? allUsers.get(event.detail.uid)
+        : Array.from(allUsers.values()).find(user => user.publicKey === event.detail.publicKey)
+      }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+      this.dispatchEvent(new CustomEvent(`${this.namespace}user`, {
+        /** @type {{user: User|undefined}} */
+        detail,
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
     this.getUsersEventDetailEventListener = event => {
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(this.usersEventDetail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}users-event-detail`, {
@@ -313,6 +331,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-user`, this.getUserEventListener)
     this.addEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
     this.addEventListener(`${this.namespace}set-nickname`, this.setNicknameEventListener)
     this.addEventListener(`${this.namespace}get-nickname`, this.getNicknameEventListener)
@@ -344,6 +363,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
     this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-user`, this.getUserEventListener)
     this.removeEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
     this.removeEventListener(`${this.namespace}set-nickname`, this.setNicknameEventListener)
     this.removeEventListener(`${this.namespace}get-nickname`, this.getNicknameEventListener)
