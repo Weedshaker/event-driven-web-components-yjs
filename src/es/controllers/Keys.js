@@ -167,7 +167,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @param {(any)=>void} resolve
    * @param {string|undefined} name
    * @param {any} detail
-   * @return {Promise<void | any>}
+   * @return {Promise<any | false>}
    */
   async respond (resolve, name, detail) {
     if (typeof resolve === 'function') return resolve(detail)
@@ -178,7 +178,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         cancelable: true,
         composed: true
       }))
+      return detail
     }
+    return false
   }
 
   /**
