@@ -71,6 +71,16 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       }))
     }
 
+    this.getSpecificRoomEventListener = async event => {
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve((await this.getRooms()).value[event.detail.roomName])
+      this.dispatchEvent(new CustomEvent(`${this.namespace}specific-room`, {
+        detail: (await this.getRooms()).value[event.detail.roomName],
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
+    }
+
     this.getActiveRoomEventListener = async event => {
       if (event && event.detail && event.detail.resolve) return event.detail.resolve((await this.getRooms()).value[await (await this.roomPromise).room])
       this.dispatchEvent(new CustomEvent(`${this.namespace}active-room`, {
@@ -177,6 +187,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.addEventListener('yjs-chat-update', this.chatUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-specific-room`, this.getSpecificRoomEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-active-room`, this.getActiveRoomEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}merge-active-room`, this.mergeActiveRoomEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}merge-room`, this.mergeRoomEventListener)
@@ -213,6 +224,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     this.globalEventTarget.removeEventListener('yjs-chat-update', this.chatUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-specific-room`, this.getSpecificRoomEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room`, this.getActiveRoomEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}merge-active-room`, this.mergeActiveRoomEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}merge-room`, this.mergeRoomEventListener)
