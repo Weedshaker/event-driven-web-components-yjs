@@ -72,9 +72,13 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     }
 
     this.getSpecificRoomEventListener = async event => {
-      if (event && event.detail && event.detail.resolve) return event.detail.resolve((await this.getRooms()).value[event.detail.roomName])
+      const detail = {
+        room: (await this.getRooms()).value[event.detail.roomName],
+        isActiveRoom: await (await this.roomPromise).room === event.detail.roomName
+      }
+      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}specific-room`, {
-        detail: (await this.getRooms()).value[event.detail.roomName],
+        detail,
         bubbles: true,
         cancelable: true,
         composed: true
