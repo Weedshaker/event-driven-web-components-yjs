@@ -123,7 +123,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   connectedCallback () {
     this.globalEventTarget.addEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
-    this.globalEventTarget.addEventListener(`${this.namespace}get-new-key`, this.setNewKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}set-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-private-name`, this.setKeyPrivateNameEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-public-name`, this.setKeyPublicNameEventListener)
@@ -151,7 +151,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   disconnectedCallback () {
     this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
-    this.globalEventTarget.removeEventListener(`${this.namespace}get-new-key`, this.setNewKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}set-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-private-name`, this.setKeyPrivateNameEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-public-name`, this.setKeyPublicNameEventListener)
@@ -294,7 +294,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @returns {Promise<{keyContainers: KEY_CONTAINERS, newKey: KEY_CONTAINER}>}
    */
   async #setNewKey () {
-    const newKey = await this.#getNewKey()
+    const newKey = await this.#_getNewKey()
     return {
       newKey,
       // @ts-ignore
@@ -342,7 +342,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @async
    * @returns {Promise<KEY_CONTAINER>}
    */
-  async #getNewKey () {
+  async #_getNewKey () {
     const randomName = Keys.randomName
     return {
       key: await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-generate-key', {
