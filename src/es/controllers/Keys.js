@@ -107,7 +107,18 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
     this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
-    this.setKeyPublicNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
+    this.setKeyPublicNameEventListener = async event => {
+      // also adjust the private name, if it is still random
+      if (event.detail.adjustRandomNames) {
+        const keyContainer = await this.#getKey(event.detail.epoch)
+        if (keyContainer?.private.name.includes(Keys.randomNamePrefix)) {
+          const result = await this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue)
+          // @ts-ignore
+          this.respond(undefined, `${this.namespace}key-property-modified`, result)
+        }
+      }
+      this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
+    }
     this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch))
     this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
     this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid))
@@ -676,8 +687,12 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         : {key: { jsonWebKey: keyContainer}}
   }
 
+  static get randomNamePrefix () {
+    return 'no-key-name-'
+  }
+
   static get randomName () {
-    return `no-key-name-${new Date().getUTCMilliseconds()}`
+    return `${Keys.randomNamePrefix}${new Date().getUTCMilliseconds()}`
   }
 
   get globalEventTarget () {
