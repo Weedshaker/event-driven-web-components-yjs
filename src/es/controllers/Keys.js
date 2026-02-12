@@ -60,6 +60,8 @@
 
 /** @typedef {{ error: true, message: string, decrypted: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED, key: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY }} RECEIVE_KEY_PARSE_ERROR */
 
+/** @typedef {{ error: true, message: string } & any} GENERAL_ERROR */
+
 /**
  * Keys is a helper to keep all keys object at storage and forwarding the proper events helping having an overview of all participants
  *
@@ -101,7 +103,11 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
-    this.getActiveRoomPublicKeyEventListener = async event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}active-room-public-key`, (await this.#getActiveRoomKeyPair()).publicKey)
+    this.getActiveRoomPublicKeyEventListener = async event => {
+      const keys = await this.#getActiveRoomKeyPair()
+      // @ts-ignore
+      return this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}active-room-public-key`, keys.error ? keys : keys.publicKey)
+    }
     // @ts-ignore
     this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
     this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
@@ -199,7 +205,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * each room holds an async key pair in the storage, which is also on the self.user object and gets generated, in case it does not yet exist
    * 
    * @async
-   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY_PAIR>}
+   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY_PAIR | GENERAL_ERROR>}
    */
   async #getActiveRoomKeyPair () {
     const activeRoom = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room`, {
@@ -222,6 +228,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     })))
+    // @ts-ignore
+    if (keyPair.error) return keyPair
     this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
       detail: { keyPair },
       bubbles: true,
@@ -302,14 +310,17 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * to the storage [chat-keys]
    * 
    * @async
-   * @returns {Promise<{keyContainers: KEY_CONTAINERS, newKey: KEY_CONTAINER}>}
+   * @returns {Promise<{keyContainers: KEY_CONTAINERS, newKey: KEY_CONTAINER} | GENERAL_ERROR>}
    */
   async #setNewKey () {
     const newKey = await this.#_getNewKey()
+    if (newKey.error) return newKey
+    const keyContainers = await this.#setKey(newKey)
+    // @ts-ignore
+    if (keyContainers.error) return keyContainers
     return {
       newKey,
-      // @ts-ignore
-      keyContainers: await this.#setKey(newKey)
+      keyContainers
     }
   }
 
@@ -351,21 +362,23 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * getNewKey
    * 
    * @async
-   * @returns {Promise<KEY_CONTAINER>}
+   * @returns {Promise<KEY_CONTAINER | GENERAL_ERROR>}
    */
   async #_getNewKey () {
     const randomName = Keys.randomName
+    const key = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-generate-key', {
+      detail: {
+        resolve,
+        synchronous: true,
+        jsonWebKey: true
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+    if (key.error) return key
     return {
-      key: await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-generate-key', {
-        detail: {
-          resolve,
-          synchronous: true,
-          jsonWebKey: true
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))),
+      key,
       disabled: false,
       private: {
         name: randomName,
@@ -549,7 +562,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @param {KEY_CONTAINER} shareKeyContainer
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} privateKey
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} publicKey
-   * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, shared: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR}>}
+   * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, shared: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR | GENERAL_ERROR}>}
    */
   async #shareKey (shareKeyContainer, privateKey, publicKey) {
     const derivedKey = await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
@@ -589,8 +602,11 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     // @ts-ignore
     if (clone.private) delete clone.private
     clone.disabled = false
+    const shared = await this.#encrypt(JSON.stringify(clone), Keys.getKeyContainer(derivedKey), false)
+    // @ts-ignore
+    if (shared.error) return shared
     return {
-      shared: await this.#encrypt(JSON.stringify(clone), Keys.getKeyContainer(derivedKey), false),
+      shared,
       keyContainers
     }
   }
@@ -604,7 +620,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED} encrypted
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} privateKey
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} publicKey
-   * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, received: KEY_CONTAINER | RECEIVE_KEY_PARSE_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR}>}
+   * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, received: KEY_CONTAINER | RECEIVE_KEY_PARSE_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR | GENERAL_ERROR}>}
    */
   async #receiveKey (encrypted, privateKey, publicKey) {
     const derivedKey = await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
@@ -639,6 +655,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       }
     }
     const keyContainers = await this.#setKey(receivedKeyContainer, publicKey)
+    // @ts-ignore
+    if (keyContainers.error) return keyContainers
     const user = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
       detail: {
         resolve,
