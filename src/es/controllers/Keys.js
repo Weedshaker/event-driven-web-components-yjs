@@ -125,7 +125,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       }
       this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
     }
-    this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch))
+    this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch || event.detail.epochs))
     this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
     this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid))
     this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
@@ -454,13 +454,22 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * at the storage [chat-keys][?]
    * 
    * @async
-   * @returns {Promise<false|{epoch: string, deleted: KEY_CONTAINER, keyContainers: KEY_CONTAINERS}>}
+   * @param {string|string[]} epoch
+   * @returns {Promise<{epoch: string|string[], deleted: KEY_CONTAINER[], keyContainers: KEY_CONTAINERS}>}
    */
   async #deleteKey (epoch) {
     const keyContainers = await this.#getKeys()
-    const keyIndex = keyContainers.findIndex(key => key.key.epoch === epoch)
-    if (keyIndex === -1) return false
-    const deleted = keyContainers.splice(keyIndex, 1)[0]
+    const deleted = []
+    const deleteFunc = epoch => {
+      const keyIndex = keyContainers.findIndex(key => key.key.epoch === epoch)
+      if (keyIndex === -1) return false
+      deleted.push(keyContainers.splice(keyIndex, 1)[0])
+    }
+    if (Array.isArray(epoch)) {
+      epoch.forEach(epoch => deleteFunc(epoch))
+    } else {
+      deleteFunc(epoch)
+    }
     return {
       epoch,
       deleted,
@@ -486,17 +495,18 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @prop {string} text
    * @prop {KEY_CONTAINER} keyContainer
    * @prop {boolean} [setKeyProperty=true]
-   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
+   * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, encrypted: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR}>}
    */
   async #encrypt (text, keyContainer, setKeyProperty = true) {
-    if (setKeyProperty) this.#setKeyProperty(keyContainer.key.epoch, 'private.encrypted', [{
+    let setKeyPropertyResult = null
+    if (setKeyProperty) setKeyPropertyResult = await this.#setKeyProperty(keyContainer.key.epoch, 'private.encrypted', [{
       room: await (await this.roomPromise).room,
       timestamp: Date.now()
     }], {
       concat: 'unshift',
       maxLength: this.encryptMaxLength
     })
-    return new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-encrypt', {
+    const encrypted = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-encrypt', {
       detail: {
         resolve,
         text,
@@ -507,6 +517,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     })))
+    return {
+      encrypted,
+      keyContainers: setKeyPropertyResult ? setKeyPropertyResult.keyContainers : null
+    }
   }
 
   /**
@@ -517,10 +531,11 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @prop {KEY_CONTAINER} keyContainer
    * @prop {string} [uid=null]
    * @prop {boolean} [setKeyProperty=true]
-   * @returns {Promise<import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
+   * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, decrypted: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR}>}
    */
   async #decrypt (encrypted, keyContainer, uid = null, setKeyProperty = true) {
-    if (setKeyProperty) this.#setKeyProperty(keyContainer.key.epoch, 'private.decrypted', [{
+    let setKeyPropertyResult = null
+    if (setKeyProperty) setKeyPropertyResult = await this.#setKeyProperty(keyContainer.key.epoch, 'private.decrypted', [{
       uid,
       nickname: uid
         ? (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
@@ -540,7 +555,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       maxLength: this.maxLength,
       arrayFilter: this.arrayUidFilterFunction
     })
-    return new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-decrypt', {
+    const decrypted = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-decrypt', {
       detail: {
         resolve,
         encrypted,
@@ -551,6 +566,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     })))
+    return {
+      decrypted,
+      keyContainers: setKeyPropertyResult ? setKeyPropertyResult.keyContainers : null
+    }
   }
 
   /**
