@@ -108,7 +108,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       // @ts-ignore
       return this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}active-room-public-key`, keys.error ? keys : keys.publicKey)
     }
-    // @ts-ignore
+    this.getActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}default-key`, this.#getActiveRoomDefaultKey())
+    this.setActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}default-key`, this.#setActiveRoomDefaultKey(event.detail.epoch))
+    this.getKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key`, this.#getKey(event.detail.epoch))
     this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
     this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
@@ -139,6 +141,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
 
   connectedCallback () {
     this.globalEventTarget.addEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-active-room-default-key`, this.getActiveRoomDefaultKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}set-active-room-default-key`, this.setActiveRoomDefaultKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}get-key`, this.getKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
@@ -167,6 +172,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
 
   disconnectedCallback () {
     this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room-public-key`, this.getActiveRoomPublicKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-active-room-default-key`, this.getActiveRoomDefaultKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}set-active-room-default-key`, this.setActiveRoomDefaultKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}get-key`, this.getKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-new-key`, this.setNewKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
@@ -237,6 +245,45 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       composed: true
     }))
     return keyPair
+  }
+
+  /**
+   * getActiveRoomDefaultKey
+   * each room can hold a default key, with which every message gets encrypted
+   * 
+   * @async
+   * @returns {Promise<KEY_CONTAINER|undefined>}
+   */
+  async #getActiveRoomDefaultKey () {
+    const activeRoom = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room`, {
+      detail: {
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    })))
+    return this.#getKey(activeRoom.defaultKey)
+  }
+
+  /**
+   * setActiveRoomDefaultKey
+   * each room can hold a default key, with which every message gets encrypted
+   * 
+   * @async
+   * @param {string} epoch
+   * @returns {Promise<KEY_CONTAINER|undefined>}
+   */
+  #setActiveRoomDefaultKey (epoch) {
+    this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
+      detail: {
+        defaultKey: epoch
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))
+    return this.#getKey(epoch)
   }
 
   /**
