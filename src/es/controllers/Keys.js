@@ -263,7 +263,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     })))
-    return this.#getKey(activeRoom.defaultKey)
+    return this.#getKey(activeRoom?.defaultKey)
   }
 
   /**
@@ -274,8 +274,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @param {string} epoch
    * @returns {Promise<KEY_CONTAINER|undefined>}
    */
-  #setActiveRoomDefaultKey (epoch) {
-    this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
+  async #setActiveRoomDefaultKey (epoch) {
+    const keyContainer = await this.#getKey(epoch)
+    if (keyContainer) this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
       detail: {
         defaultKey: epoch
       },
@@ -283,7 +284,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     }))
-    return this.#getKey(epoch)
+    return keyContainer
   }
 
   /**
