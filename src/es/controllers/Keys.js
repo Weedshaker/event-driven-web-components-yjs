@@ -276,7 +276,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    */
   async #setActiveRoomDefaultKey (epoch) {
     const keyContainer = await this.#getKey(epoch)
-    if (keyContainer) this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
+    if (keyContainer || epoch === '') this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
       detail: {
         defaultKey: epoch
       },
