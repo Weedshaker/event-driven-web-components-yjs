@@ -106,15 +106,15 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.getActiveRoomPublicKeyEventListener = async event => {
       const keys = await this.#getActiveRoomKeyPair()
       // @ts-ignore
-      return this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}active-room-public-key`, keys.error ? keys : keys.publicKey)
+      return this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}active-room-public-key`, keys.error ? keys : keys.publicKey)
     }
-    this.getActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}default-key`, this.#getActiveRoomDefaultKey())
-    this.setActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}default-key`, this.#setActiveRoomDefaultKey(event.detail.epoch))
-    this.getKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key`, this.#getKey(event.detail.epoch))
-    this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
-    this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
-    this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
-    this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
+    this.getActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}default-key`, this.#getActiveRoomDefaultKey())
+    this.setActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}default-key`, this.#setActiveRoomDefaultKey(event.detail.epoch))
+    this.getKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key`, this.#getKey(event.detail.epoch))
+    this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
+    this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
+    this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
+    this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
     this.setKeyPublicNameEventListener = async event => {
       // also adjust the private name, if it is still random
       if (event.detail.adjustRandomNames) {
@@ -122,16 +122,16 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         if (keyContainer?.private.name.includes(Keys.randomNamePrefix)) {
           const result = await this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue)
           // @ts-ignore
-          this.respond(undefined, `${this.namespace}key-property-modified`, result)
+          this.respond(undefined, undefined, `${this.namespace}key-property-modified`, result)
         }
       }
-      this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
+      this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
     }
-    this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch || event.detail.epochs))
-    this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
-    this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid))
-    this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
-    this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey))
+    this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch || event.detail.epochs))
+    this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
+    this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid))
+    this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
+    this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey))
 
     /** @type {(any)=>void} */
     this.roomResolve = map => map
@@ -190,12 +190,19 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
   /**
    * @async
    * @param {(any)=>void} resolve
+   * @param {boolean} dispatch
    * @param {string|undefined} name
    * @param {any} detail
    * @return {Promise<any | false>}
    */
-  async respond (resolve, name, detail) {
-    if (typeof resolve === 'function') return resolve(detail)
+  async respond (resolve, dispatch, name, detail) {
+    if (typeof resolve === 'function') {
+      if (dispatch) {
+        resolve(detail)
+      } else {
+        return resolve(detail)
+      }
+    }
     if (typeof name === 'string') {
       this.dispatchEvent(new CustomEvent(name, {
         detail: await detail,
