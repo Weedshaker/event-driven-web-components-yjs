@@ -241,8 +241,16 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const allUsers = (await (await this.usersEventDetail).getData()).allUsers
       const detail = {
         user: event.detail.uid
-        ? allUsers.get(event.detail.uid)
-        : Array.from(allUsers.values()).find(user => user.publicKey === event.detail.publicKey)
+          ? allUsers.get(event.detail.uid)
+          : event.detail.publicKey
+            ? Array.from(allUsers.values()).find(user => {
+              let eventDetailPublicKey
+              try {
+                eventDetailPublicKey = typeof event.detail.publicKey === 'string' ? event.detail.publicKey : JSON.stringify(event.detail.publicKey)
+              } catch (error) {}
+              return user.publicKey === eventDetailPublicKey
+            })
+            : Array.from(allUsers.values()).find(user => user.isSelf)
       }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatchEvent(new CustomEvent(`${this.namespace}user`, {
@@ -371,12 +379,12 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   }
 
   async getPublicKey () {
-    const publicKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room-public-key`, {
+    const publicKey = await (this._getPublicKeyPromise || (this._getPublicKeyPromise = new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room-public-key`, {
       detail: { resolve },
       bubbles: true,
       cancelable: true,
       composed: true
-    })))
+    })))))
     if (publicKey.error) return ''
     return JSON.stringify(publicKey)
   }
