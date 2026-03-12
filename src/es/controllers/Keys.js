@@ -103,6 +103,9 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     if (options.namespace) this.namespace = options.namespace
     else if (!this.namespace) this.namespace = 'yjs-'
 
+    // setKeyCache array for keeping track of newly set keys, to avoid multiple entries, since async requests may let keys be added multiple times
+    this.setKeyEpochCache = []
+
     this.getActiveRoomPublicKeyEventListener = async event => {
       const keys = await this.#getActiveRoomKeyPair()
       // @ts-ignore
@@ -306,7 +309,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    */
   async #setKey (keyContainer, publicKey = null) {
     let allKeyContainers
-    if ((allKeyContainers = await this.#getKeys()).some(allKeyContainer => allKeyContainer.key.epoch === keyContainer.key.epoch)) return allKeyContainers
+    if ((allKeyContainers = await this.#getKeys()).some(allKeyContainer => allKeyContainer.key.epoch === keyContainer.key.epoch) || this.setKeyEpochCache.includes(keyContainer.key.epoch)) return allKeyContainers
+    this.setKeyEpochCache.push(keyContainer.key.epoch)
     if (keyContainer.disabled === undefined) keyContainer.disabled = false
     // @ts-ignore
     if (!keyContainer.public) keyContainer.public = {}
@@ -519,6 +523,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       const keyIndex = keyContainers.findIndex(key => key.key.epoch === epoch)
       if (keyIndex === -1) return false
       deleted.push(keyContainers.splice(keyIndex, 1)[0])
+      let setKeyCacheIndex
+      if ((setKeyCacheIndex = this.setKeyEpochCache.indexOf(epoch)) !== -1) this.setKeyEpochCache.splice(setKeyCacheIndex, 1)
     }
     if (Array.isArray(epoch)) {
       epoch.forEach(epoch => deleteFunc(epoch))
