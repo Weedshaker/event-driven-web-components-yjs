@@ -116,6 +116,28 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.getKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key`, this.#getKey(event.detail.epoch))
     this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
     this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
+    this.setKeyEventListener = async event => {
+      let keyContainer = event.detail.keyContainer
+      try {
+        if (typeof keyContainer === 'string') keyContainer = JSON.parse(keyContainer)
+      } catch (error) {
+        return console.warn('Invalid JSON added: ', error, keyContainer)
+      }
+      const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
+        detail: {
+          resolve,
+          jsonWebKey: keyContainer.key.jsonWebKey
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      })))
+      if (cryptoKey.error) return console.warn('Invalid key added: ', { cryptoKey, keyContainer })
+      this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
+        newKey: keyContainer,
+        keyContainers: await this.#setKey(keyContainer, keyContainer.private.origin.publicKey)
+      })
+    }
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
     this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
     this.setKeyPublicNameEventListener = async event => {
@@ -149,6 +171,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.globalEventTarget.addEventListener(`${this.namespace}get-key`, this.getKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-new-key`, this.setNewKeyEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}set-key`, this.setKeyEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-private-name`, this.setKeyPrivateNameEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}set-key-public-name`, this.setKeyPublicNameEventListener)
@@ -180,6 +203,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.globalEventTarget.removeEventListener(`${this.namespace}get-key`, this.getKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-keys`, this.getKeysEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-new-key`, this.setNewKeyEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}set-key`, this.setKeyEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-disabled`, this.setKeyDisabledEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-private-name`, this.setKeyPrivateNameEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}set-key-public-name`, this.setKeyPublicNameEventListener)
