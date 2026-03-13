@@ -123,6 +123,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       } catch (error) {
         return console.warn('Invalid JSON added: ', error, keyContainer)
       }
+      if (!keyContainer?.key?.jsonWebKey) return console.warn('Invalid key added: ', keyContainer)
       const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
         detail: {
           resolve,
