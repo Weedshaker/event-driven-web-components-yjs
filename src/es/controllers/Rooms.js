@@ -96,6 +96,11 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     }
 
     this.mergeUniqueActiveRoomEventListener = async event => {
+      let resolve
+      if (event.detail.resolve) {
+        resolve = event.detail.resolve
+        delete event.detail.resolve
+      }
       this.dispatchEvent(new CustomEvent('storage-merge', {
         detail: {
           key: `${this.roomNamePrefix}rooms`,
@@ -104,7 +109,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
           },
           uniqueArray: true,
           uniqueMap: true,
-          resolve: event.detail.resolve
+          resolve
         },
         bubbles: true,
         cancelable: true,
@@ -113,13 +118,18 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
     }
 
     this.mergeActiveRoomEventListener = async event => {
+      let resolve
+      if (event.detail.resolve) {
+        resolve = event.detail.resolve
+        delete event.detail.resolve
+      }
       this.dispatchEvent(new CustomEvent('storage-merge', {
         detail: {
           key: `${this.roomNamePrefix}rooms`,
           value: {
             [await (await this.roomPromise).room]: event.detail
           },
-          resolve: event.detail.resolve
+          resolve
         },
         bubbles: true,
         cancelable: true,

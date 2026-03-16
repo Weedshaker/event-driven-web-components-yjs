@@ -115,7 +115,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.setActiveRoomDefaultKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}default-key`, this.#setActiveRoomDefaultKey(event.detail.epoch))
     this.getKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key`, this.#getKey(event.detail.epoch))
     this.getKeysEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}keys`, this.#getKeys())
-    this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey())
+    this.setNewKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, this.#setNewKey(event.detail.setActiveRoomDefaultKey))
     this.setKeyEventListener = async event => {
       let keyContainer = event.detail.keyContainer
       try {
@@ -136,7 +136,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       if (cryptoKey.error) return console.warn('Invalid key added: ', { cryptoKey, keyContainer })
       this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
         newKey: keyContainer,
-        keyContainers: await this.#setKey(keyContainer, keyContainer.private.origin.publicKey)
+        keyContainers: await this.#setKey(keyContainer, keyContainer.private.origin.publicKey, event.detail.setActiveRoomDefaultKey)
       })
     }
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
@@ -157,7 +157,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
     this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid))
     this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
-    this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey))
+    this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey, event.detail.setActiveRoomDefaultKey))
 
     /** @type {(any)=>void} */
     this.roomResolve = map => map
@@ -311,14 +311,15 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    */
   async #setActiveRoomDefaultKey (epoch) {
     const keyContainer = await this.#getKey(epoch)
-    if (keyContainer || epoch === '') this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
+    if (keyContainer || epoch === '') await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}merge-active-room`, {
       detail: {
-        defaultKey: epoch
+        defaultKey: epoch,
+        resolve
       },
       bubbles: true,
       cancelable: true,
       composed: true
-    }))
+    })))
     return keyContainer
   }
 
@@ -330,9 +331,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @async
    * @param {KEY_CONTAINER} keyContainer
    * @param {import("../../event-driven-web-components-prototypes/src/controllers/Crypto.js").KEY | null} publicKey
+   * @param {boolean} [setActiveRoomDefaultKey=false]
    * @returns {Promise<KEY_CONTAINERS|import("../../event-driven-web-components-prototypes/src/controllers/Crypto.js").JSON_WEB_KEY_TO_CRYPTOKEY_ERROR>}
    */
-  async #setKey (keyContainer, publicKey = null) {
+  async #setKey (keyContainer, publicKey = null, setActiveRoomDefaultKey = false) {
     let allKeyContainers
     if ((allKeyContainers = await this.#getKeys()).some(allKeyContainer => allKeyContainer.key.epoch === keyContainer.key.epoch) || this.setKeyEpochCache.includes(keyContainer.key.epoch)) return allKeyContainers
     this.setKeyEpochCache.push(keyContainer.key.epoch)
@@ -384,9 +386,12 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(data => Array.isArray(data.value)
-      ? data.value
-      : [])
+    }))).then(async data => {
+      if (setActiveRoomDefaultKey) await new Promise(resolve => this.setActiveRoomDefaultKeyEventListener({detail: {epoch: keyContainer.key.epoch, resolve, dispatch: true}}))
+      return Array.isArray(data.value)
+        ? data.value
+        : []
+    })
   }
 
   /**
@@ -394,12 +399,13 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * to the storage [chat-keys]
    * 
    * @async
+   * @param {boolean} setActiveRoomDefaultKey
    * @returns {Promise<{keyContainers: KEY_CONTAINERS, newKey: KEY_CONTAINER} | GENERAL_ERROR>}
    */
-  async #setNewKey () {
+  async #setNewKey (setActiveRoomDefaultKey) {
     const newKey = await this.#_getNewKey()
     if (newKey.error) return newKey
-    const keyContainers = await this.#setKey(newKey)
+    const keyContainers = await this.#setKey(newKey, undefined, setActiveRoomDefaultKey)
     // @ts-ignore
     if (keyContainers.error) return keyContainers
     return {
@@ -725,9 +731,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED} encrypted
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} privateKey
    * @param {import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').KEY} publicKey
+   * @param {boolean} setActiveRoomDefaultKey
    * @returns {Promise<{keyContainers: KEY_CONTAINERS | null, decrypted: KEY_CONTAINER} | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | RECEIVE_KEY_PARSE_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DERIVE_ERROR | GENERAL_ERROR>}
    */
-  async #receiveKey (encrypted, privateKey, publicKey) {
+  async #receiveKey (encrypted, privateKey, publicKey, setActiveRoomDefaultKey) {
     const derivedKey = await new Promise(async resolve => this.dispatchEvent(new CustomEvent('crypto-derive-key', {
       detail: {
         resolve,
@@ -754,7 +761,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         message: `Error decrypted message could not be JSON parsed: ${error}`
       }
     }
-    const keyContainers = await this.#setKey(decryptedKeyContainer, publicKey)
+    const keyContainers = await this.#setKey(decryptedKeyContainer, publicKey, setActiveRoomDefaultKey)
     // @ts-ignore
     if (keyContainers.error) return keyContainers
     const user = (await new Promise(resolve => this.dispatchEvent(new CustomEvent('yjs-get-user', {
