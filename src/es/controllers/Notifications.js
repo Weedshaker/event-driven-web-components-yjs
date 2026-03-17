@@ -369,7 +369,8 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       }))
     }
 
-    this.focusEventListener = async event => {
+    this.visibilitychangeEventListener = async event => {
+      if (document.hidden) return
       if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) { // eslint-disable-line
         this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
           if (!serviceWorkerRegistration.active) return
@@ -420,7 +421,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users`, this.usersEventListener)
     navigator.serviceWorker?.addEventListener('message', this.pushEventMessageListener)
-    self.addEventListener('focus', this.focusEventListener)
+    self.addEventListener('visibilitychange', this.visibilitychangeEventListener)
     this.serviceWorkerRegistration?.then(async serviceWorkerRegistration => {
       if (!serviceWorkerRegistration.active) return
       clearTimeout(this._requestClearNotificationsTimeoutId)
@@ -483,7 +484,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users`, this.usersEventListener)
     navigator.serviceWorker?.removeEventListener('message', this.pushEventMessageListener)
-    self.removeEventListener('focus', this.focusEventListener)
+    self.removeEventListener('visibilitychange', this.visibilitychangeEventListener)
     clearTimeout(this._requestClearNotificationsTimeoutId)
     clearInterval(this._intervalId)
     clearInterval(this._clearFailedIntervalId)

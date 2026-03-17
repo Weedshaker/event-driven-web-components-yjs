@@ -37,7 +37,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
 
     // save room name and last focused timestamp to local storage
     // dispatch from self.Environment?.router that it also works on disconnect, since the storage controller is above the router
-    this.focusEventListener = event => this.saveRoom()
+    this.visibilitychangeEventListener = event => this.saveRoom()
     this.chatUpdateEventListener = async event => {
       await event.detail.getAll()
       this.saveRoom()
@@ -194,7 +194,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   }
 
   connectedCallback () {
-    self.addEventListener('focus', this.focusEventListener)
+    self.addEventListener('visibilitychange', this.visibilitychangeEventListener)
     this.globalEventTarget.addEventListener('yjs-chat-update', this.chatUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)
@@ -230,7 +230,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
   }
 
   disconnectedCallback () {
-    self.removeEventListener('focus', this.focusEventListener)
+    self.removeEventListener('visibilitychange', this.visibilitychangeEventListener)
     this.globalEventTarget.removeEventListener('yjs-chat-update', this.chatUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-rooms`, this.getRoomsEventListener)

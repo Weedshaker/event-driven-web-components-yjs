@@ -528,7 +528,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
     // set the last known local state on focus, connected
-    this.focusEventListener = async event => {
+    this.visibilitychangeEventListener = async event => {
+      if (document.hidden) return
       await (await this.yjs).providers
       this.awarenesses.forEach((awareness, i) => {
         if (this.awarenessLocalStates[i] && !awareness.getLocalState()) awareness.setLocalState(this.awarenessLocalStates[i])
@@ -884,8 +885,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.addEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.addEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
-    this.focusEventListener()
-    self.addEventListener('focus', this.focusEventListener)
+    this.visibilitychangeEventListener()
+    self.addEventListener('visibilitychange', this.visibilitychangeEventListener)
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
     self.addEventListener('beforeunload', this.beforeunloadEventListener)
     self.addEventListener('popstate', this.popstateEventListener)
@@ -933,7 +934,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.removeEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
     this.blurEventListener()
-    self.removeEventListener('focus', this.focusEventListener)
+    self.removeEventListener('visibilitychange', this.visibilitychangeEventListener)
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
     self.removeEventListener('beforeunload', this.beforeunloadEventListener)
     self.removeEventListener('popstate', this.popstateEventListener)
