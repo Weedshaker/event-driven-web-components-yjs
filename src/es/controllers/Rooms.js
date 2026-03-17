@@ -157,13 +157,18 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
       if (event.detail.name) {
         if (rooms.value[event.detail.name]) {
           delete rooms.value[event.detail.name]
+          self.indexedDB.deleteDatabase(event.detail.name)
         } else {
           // bug fix, it was possible to add rooms with double quotes " which escaped the attribute, see Line 481 (delete="${key.replace(/"/g, "'")}")
           // this fix can be removed after a while
           delete rooms.value[event.detail.name.replace(/'/g, '"')]
+          self.indexedDB.deleteDatabase(event.detail.name.replace(/'/g, '"'))
         }
       } else if (event.detail.names.length) {
-        event.detail.names.forEach(name => delete rooms.value[name])
+        event.detail.names.forEach(name => {
+          delete rooms.value[name]
+          self.indexedDB.deleteDatabase(name)
+      })
       }
       this.dispatchEvent(new CustomEvent('storage-set', {
         detail: {

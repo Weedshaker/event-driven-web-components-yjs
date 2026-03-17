@@ -437,6 +437,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.dispatch(`${this.namespace}providers`, detail)
     }
 
+    let indexeddbPersistence
     /**
      * @param {any & {detail: LoadIndexeddbEventDetail}} event
      * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
@@ -444,11 +445,12 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     this.loadIndexeddbEventListener = async (event, doc) => {
       if (!doc) doc = (await this.yjs).doc
-
+      // destroy previous, older persistence
+      if (indexeddbPersistence) indexeddbPersistence.destroy()
       /** @type {import("./dependencies/y-indexeddb")} */
       const indexeddb = await this.importIndexeddb
       /** @type {import("./dependencies/y-indexeddb").IndexeddbPersistence} */
-      const indexeddbPersistence = new indexeddb.IndexeddbPersistence(await this.room, doc)
+      indexeddbPersistence = new indexeddb.IndexeddbPersistence(await this.room, doc)
       indexeddbPersistence.whenSynced.then(data => {
         /** @type {IndexeddbSyncedEventDetail} */
         const detail = {
@@ -459,6 +461,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         }
         if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
         this.dispatch(`${this.namespace}indexeddb-synced`, detail)
+        this.setAttribute('indexeddb', '')
       })
     }
 
@@ -905,6 +908,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     }
     this.reconnectAllProviders()
     this.fixUrlSearchParams()
+    // make sure, that indexeddb did not get deleted in the meantime, otherwise make a new indexeddbPersistence
+    if (this.hasAttribute('indexeddb'))  {
+      Promise.all([self.indexedDB.databases(), this.room]).then(([databases, roomName]) => {
+        // delay indexeddb updates until the document and its docEventListeners are ready
+        if (!databases.map(database => database.name).includes(roomName)) this.yjs.then(({ doc }) => this.loadIndexeddbEventListener(undefined, doc))
+      })
+    }
   }
 
   /**
