@@ -697,7 +697,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             }
             if (roomName === activeRoom && activeRoomMessageTimestamps.includes(notification.timestamp)) {
               return false
-            } else if(storageMessagesTimestamps.includes(notification.timestamp)) {
+            } else if (storageMessagesTimestamps.includes(notification.timestamp)) {
               return false
             } else if (rooms[roomName].enteredProviders?.[notification.hostname]) {
               return notification.timestamp > rooms[roomName].enteredProviders[notification.hostname][0]

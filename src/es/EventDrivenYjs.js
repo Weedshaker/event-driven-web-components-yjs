@@ -599,7 +599,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           } else {
             const provider = new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc)
             try {
-              new URL(provider.url)
+              const url = new URL(provider.url) // eslint-disable-line
               // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
               websocketMap.set(websocketUrl.href, provider)
             } catch (error) {
@@ -659,11 +659,13 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             }).map(url => self.decodeURIComponent(url))
             this.webrtcUrl = webrtcUrls.join(',')
             // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
-            if (webrtcUrls.length) webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
-              {
-                signaling: webrtcUrls
-              }
-            ))
+            if (webrtcUrls.length) {
+              webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
+                {
+                  signaling: webrtcUrls
+                }
+              ))
+            }
           } catch (error) {}
         }
         webrtcMap.forEach(
@@ -723,7 +725,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      */
     const awarenessAddEventListener = (provider, name, url) => {
       if (provider) {
-        if(this.awarenesses.includes(provider.awareness)) return
+        if (this.awarenesses.includes(provider.awareness)) return
         this.awarenesses.push(provider.awareness)
       }
       /** @type {AwarenessUpdateChangeEventDetail} */
@@ -910,7 +912,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.reconnectAllProviders()
     this.fixUrlSearchParams()
     // make sure, that indexeddb did not get deleted in the meantime, otherwise make a new indexeddbPersistence
-    if (this.hasAttribute('indexeddb'))  {
+    if (this.hasAttribute('indexeddb')) {
       Promise.all([self.indexedDB.databases(), this.room]).then(([databases, roomName]) => {
         // delay indexeddb updates until the document and its docEventListeners are ready
         if (!databases.map(database => database.name).includes(roomName)) this.yjs.then(({ doc }) => this.loadIndexeddbEventListener(undefined, doc))
@@ -1039,7 +1041,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
   /**
    * TODO: P2pt is not yet working... see task add/make new providers
-   * 
+   *
    * @name (get) importIndexeddb
    * @returns {Promise<import("./dependencies/y-p2pt.js")> | import("./dependencies/y-p2pt.js")}
    */

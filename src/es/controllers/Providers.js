@@ -5,6 +5,7 @@ import { urlHttpProtocol } from '../helpers/Utils.js'
 
 /* global CustomEvent */
 /* global Image */
+/* global self */
 
 // https://github.com/yjs
 /**
@@ -250,7 +251,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   /**
    * Grab all providers from all possible sources
-   * 
+   *
    * @param {GetDataResult} data
    * @returns {Promise<CompleteProvidersContainer>}
    */
@@ -553,20 +554,22 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         // @ts-ignore
         url = new URL(url)
       } catch (error) {}
-      if (Array.isArray(result.providerFallbacks)) this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
-        detail: {
-          providerFallbacks: {
+      if (Array.isArray(result.providerFallbacks)) {
+        this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
+          detail: {
+            providerFallbacks: {
             // @ts-ignore
-            [url.hostname ? url.hostname : url]: {
-              name: 'websocket',
-              urls: Array.from(new Map(result.providerFallbacks))
+              [url.hostname ? url.hostname : url]: {
+                name: 'websocket',
+                urls: Array.from(new Map(result.providerFallbacks))
+              }
             }
-          }
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))
+      }
       return result
       // @ts-ignore
     }).catch(error => console.error(error) || { error })).get(url)

@@ -168,7 +168,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
         event.detail.names.forEach(name => {
           delete rooms.value[name]
           self.indexedDB.deleteDatabase(name)
-      })
+        })
       }
       this.dispatchEvent(new CustomEvent('storage-set', {
         detail: {

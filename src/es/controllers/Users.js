@@ -120,10 +120,10 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         connectedUsers: stateValueUsers.length
           ? {
             // clean all connectedUsers according to the provider status
-            [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider)
-              ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
-              : []
-          }
+              [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider)
+                ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
+                : []
+            }
           : [],
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
@@ -391,7 +391,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
 
   /**
    * Get the current nickname from the crdt or a random nickname
-   * 
+   *
    * @async
    * @returns {Promise<{ nickname: string; isRandom: boolean; isNewlyGenerated: boolean; }>}
    */
@@ -421,9 +421,11 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       cancelable: true,
       composed: true
     }))).then(room => {
-      if (room?.randomNickname) return {
-        randomNickname: room.randomNickname,
-        newlyGenerated: false
+      if (room?.randomNickname) {
+        return {
+          randomNickname: room.randomNickname,
+          newlyGenerated: false
+        }
       }
       const randomNickname = `no-name-${new Date().getUTCMilliseconds()}`
       this.dispatchEvent(new CustomEvent('yjs-merge-active-room', {
