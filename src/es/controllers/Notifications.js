@@ -350,6 +350,15 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       })
     }
 
+    this.delayNotificationFetchingEventListener = event => {
+      const origin = urlHttpProtocol(event.detail.origin)
+      if (origin) {
+        this.failedGetNotificationsOrigins.set(origin, { error: event.detail.error || 'delay notification' })
+        const index = this.succeededGetNotificationsOrigins.indexOf(origin)
+        if (index !== -1) this.succeededGetNotificationsOrigins.splice(index, 1)
+      }
+    }
+
     this.getNotificationsSettingsEventListener = async event => {
       const result = new Promise(resolve => this.dispatchEvent(new CustomEvent('storage-get', {
         detail: {
@@ -417,6 +426,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.addEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}mute-notifications`, this.muteNotificationsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}unmute-notifications`, this.unmuteNotificationsEventListener)
+    this.globalEventTarget.addEventListener(`${this.namespace}delay-notification-fetching`, this.delayNotificationFetchingEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-notifications-settings`, this.getNotificationsSettingsEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users`, this.usersEventListener)
@@ -480,6 +490,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.globalEventTarget.removeEventListener(`${this.namespace}request-notifications`, this.requestNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}mute-notifications`, this.muteNotificationsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}unmute-notifications`, this.unmuteNotificationsEventListener)
+    this.globalEventTarget.removeEventListener(`${this.namespace}delay-notification-fetching`, this.delayNotificationFetchingEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-notifications-settings`, this.getNotificationsSettingsEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}providers-update`, this.providersUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users`, this.usersEventListener)
