@@ -206,7 +206,7 @@ class NotificationServiceWorker {
     })
   }
 }
-// TODO: Start the worker
+// Start the worker
 //const ServiceWorker = new NotificationServiceWorker() // eslint-disable-line
 
 // web storage is not available in service worker and cache only allows requests to be stored, below is a key value abstraction of indexedDB, which works smooth im service workers
