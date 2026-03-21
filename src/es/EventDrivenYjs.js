@@ -71,7 +71,7 @@ import * as Y from './dependencies/yjs.js'
  @typedef {{
   provider: ProviderTypes | null,
   providers: Providers,
-  isProviderConnected: (ProviderTypes) => boolean,
+  isProviderConnected: (ProviderTypes, string) => boolean,
   name: ProviderNames | null,
   url: URL | string,
   awareness: any,
@@ -85,7 +85,7 @@ import * as Y from './dependencies/yjs.js'
  * outgoing event
  @typedef {{
   providers: Providers,
-  isProviderConnected: (ProviderTypes) => boolean,
+  isProviderConnected: (ProviderTypes, string) => boolean,
   websocketUrl: string,
   webrtcUrl: string,
   locationHref: string
@@ -995,9 +995,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * Each provider has other flags to indicated its connection status, this function should work for all providers
    *
    * @param {ProviderTypes} provider
+   * @param {string} url
    * @returns {boolean}
    */
-  isProviderConnected = provider => {
+  isProviderConnected = (provider, url) => {
     if (!provider) return false
     // check if instanceof...
     switch (provider.constructor) {
@@ -1007,6 +1008,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         return provider.synced
       // @ts-ignore
       case this.importWebrtc.WebrtcProvider:
+        // @ts-ignore
+        if (url) return provider.signalingConns.find(signalingConn => signalingConn.url === url)?.connected
         // @ts-ignore
         return provider.signalingConns.some(signalingConn => signalingConn.connected)
       default:

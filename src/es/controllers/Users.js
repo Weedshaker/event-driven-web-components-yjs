@@ -120,7 +120,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         connectedUsers: stateValueUsers.length
           ? {
             // clean all connectedUsers according to the provider status
-              [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider)
+              [`${event.detail.name}${separator}${event.detail.url.origin || event.detail.url}`]: event.detail.isProviderConnected(event.detail.provider, event.detail.url.origin || event.detail.url)
                 ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
                 : []
             }

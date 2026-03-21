@@ -263,7 +263,7 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
         entered: [Date.now()],
         enteredProviders: Array.from(providersObj.providers?.get('websocket') || []).reduce((acc, [url, provider]) => {
           try {
-            if (providersObj.isProviderConnected(provider)) acc[new URL(url).hostname] = [Date.now()]
+            if (providersObj.isProviderConnected(provider, url)) acc[new URL(url).hostname] = [Date.now()]
           } catch (error) {}
           return acc
         }, {}),

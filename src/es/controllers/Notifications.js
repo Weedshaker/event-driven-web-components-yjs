@@ -517,8 +517,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       method: 'POST',
       body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
       headers: {
-        'Content-Type': 'application/json',
-        'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+        'Content-Type': 'application/json'
       }
     }).then(response => {
       if (response.status >= 200 && response.status <= 299) {
@@ -600,8 +599,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
       method: 'POST',
       body,
       headers: {
-        'Content-Type': 'application/json',
-        'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+        'Content-Type': 'application/json'
       },
       signal: this.abortControllersGetNotifications.get(origin).signal
     }).then(response => {

@@ -336,12 +336,14 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
         websocketUrl,
         webrtcUrl
       }
-      Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([url, provider]) => {
-        if (isProviderConnected(provider)) {
-          result.connected.push(`${providerName}${nameUrlSeparator}${url}`)
-        } else {
-          result.disconnected.push(`${providerName}${nameUrlSeparator}${url}`)
-        }
+      Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([urls, provider]) => {
+        urls.split(',').forEach(url => {
+          if (isProviderConnected(provider, url)) {
+            result.connected.push(`${providerName}${nameUrlSeparator}${url}`)
+          } else {
+            result.disconnected.push(`${providerName}${nameUrlSeparator}${url}`)
+          }
+        })
       }))
       this.dispatchEvent(new CustomEvent(`${this.namespace}merge-unique-active-room`, {
         detail: {
@@ -407,7 +409,15 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
   }
 
   static fillProvidersWithProvidersFromCrdt (providers, data, status = 'unknown') {
-    Array.from(data).forEach(([name, providersMap]) => Array.from(providersMap).forEach(([url, users]) => {
+    Array.from(data).forEach(([name, providersMap]) => Array.from(providersMap).reduce((acc, [url, users]) => {
+      // fix webrtc being handled as one string separated with ","
+      if (name === 'webrtc') {
+        acc = [...acc, ...url.split(',').map(url => [url, users])]
+      } else {
+        acc.push([url, users])
+      }
+      return acc
+    }, []).forEach(([url, users]) => {
       try {
         url = new URL(url)
       } catch (error) {
@@ -424,24 +434,27 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   static fillProvidersWithProvidersFromRooms (providers, data, separator) {
     Array.from(data).forEach(({ room, url, prop, providerFallbacks }) => {
-      let [name, realUrl] = url.split(separator)
+      let [name, realUrls] = url.split(separator)
       // incase no separator is found (fallback for old room provider array)
-      if (!realUrl) {
-        realUrl = name
+      if (!realUrls) {
+        realUrls = name
         name = 'websocket'
       }
-      try {
-        url = new URL(realUrl)
-      } catch (error) {
-        return providers
-      }
-      const status = prop === 'providers' ? 'once-established' : 'unknown'
-      providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
-        status: [status],
-        urls: new Map([[url.origin, { name, url, status, origin: room }]]),
-        origins: [room],
-        providerFallbacks: new Map(providerFallbacks[url.hostname]?.urls)
-      }))
+      // fix webrtc being handled as one string separated with ","
+      realUrls.split(',').forEach(realUrl => {
+        try {
+          url = new URL(realUrl)
+        } catch (error) {
+          return providers
+        }
+        const status = prop === 'providers' ? 'once-established' : 'unknown'
+        providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+          status: [status],
+          urls: new Map([[url.origin, { name, url, status, origin: room }]]),
+          origins: [room],
+          providerFallbacks: new Map(providerFallbacks[url.hostname]?.urls)
+        }))
+      })
     })
     return providers
   }
@@ -482,13 +495,16 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   static fillProvidersWithSessionProvidersByStatus (providers, data, separator) {
     const loopProviders = (providersArr, key) => providersArr.forEach(url => {
-      const [name, realUrl] = url.split(separator)
-      url = new URL(realUrl)
-      providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
-        status: [key],
-        urls: new Map([[url.origin, { name, url, status: key, origin: 'session' }]]),
-        origins: ['session']
-      }))
+      const [name, realUrls] = url.split(separator)
+      // fix webrtc being handled as one string separated with ","
+      realUrls.split(',').forEach(realUrl => {
+        url = new URL(realUrl)
+        providers.set(url.hostname, Providers.mergeProvider(providers.get(url.hostname), {
+          status: [key],
+          urls: new Map([[url.origin, { name, url, status: key, origin: 'session' }]]),
+          origins: ['session']
+        }))
+      })
     })
     // keep strictly this order, that the connected overwrites the disconnected
     loopProviders(data.disconnected, 'disconnected')
@@ -543,8 +559,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     return this.getWebsocketInfoMap.set(url, fetch(`${urlHttpProtocol(url)}/get-info`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Bypass-Tunnel-Reminder': 'yup' // https://github.com/localtunnel/localtunnel + https://github.com/localtunnel/localtunnel/issues/663
+        'Content-Type': 'application/json'
       }
     }).then(response => {
       if (response.status >= 200 && response.status <= 299) return response.json()
