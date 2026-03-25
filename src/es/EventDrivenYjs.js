@@ -590,6 +590,21 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             return false
           }
         }).map(websocketUrl => new URL(websocketUrl))
+        websocketMap.forEach(
+          /**
+           * @param {ProviderTypes} provider
+           * @param {string} url
+           */
+          (provider, url) => {
+            if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
+              provider?.disconnect()
+              this.dispatch(`${this.namespace}unsubscribe-notifications`, {
+                url: (new URL(url)).origin,
+                room
+              })
+            }
+          }
+        )
         this.websocketUrl = websocketUrls.join(',')
         /** @type {import("./dependencies/y-websocket")} */
         const websocket = await this.importWebsocket
@@ -607,21 +622,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             }
           }
         })
-        websocketMap.forEach(
-          /**
-           * @param {ProviderTypes} provider
-           * @param {string} url
-           */
-          (provider, url) => {
-            if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
-              provider?.disconnect()
-              this.dispatch(`${this.namespace}unsubscribe-notifications`, {
-                url: (new URL(url)).origin,
-                room
-              })
-            }
-          }
-        )
       } else {
         websocketMap.forEach(
           /**
@@ -643,6 +643,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // @ts-ignore
       const webrtcMap = this.providers.get('webrtc')
       if (this.webrtcUrl) {
+        webrtcMap.forEach(
+          /**
+           * @param {ProviderTypes} provider
+           * @param {string} url
+           */
+          (provider, url) => {
+            if (this.webrtcUrl !== url) {
+              // @ts-ignore
+              provider?.destroy()
+              webrtcMap.delete(url)
+            }
+          }
+        )
         if (webrtcMap.has(this.webrtcUrl)) {
           webrtcMap.get(this.webrtcUrl)?.connect()
         } else {
@@ -668,21 +681,16 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             }
           } catch (error) {}
         }
-        webrtcMap.forEach(
-          /**
-           * @param {ProviderTypes} provider
-           * @param {string} url
-           */
-          (provider, url) => {
-            if (this.webrtcUrl !== url) provider?.disconnect()
-          }
-        )
       } else {
         webrtcMap.forEach(
           /**
            * @param {ProviderTypes} provider
            */
-          provider => provider?.disconnect()
+          (provider, url) => {
+            // @ts-ignore
+            provider?.destroy()
+            webrtcMap.delete(url)
+          }
         )
       }
     }

@@ -338,10 +338,12 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
       }
       Array.from(providers).forEach(([providerName, providerMap]) => Array.from(providerMap).forEach(([urls, provider]) => {
         urls.split(',').forEach(url => {
+          const providerNameUrl = `${providerName}${nameUrlSeparator}${url}`
+          if (result.connected.includes(providerNameUrl) || result.disconnected.includes(providerNameUrl)) return
           if (isProviderConnected(provider, url)) {
-            result.connected.push(`${providerName}${nameUrlSeparator}${url}`)
+            result.connected.push(providerNameUrl)
           } else {
-            result.disconnected.push(`${providerName}${nameUrlSeparator}${url}`)
+            result.disconnected.push(providerNameUrl)
           }
         })
       }))
@@ -359,6 +361,7 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
 
   /**
    * Get rooms from local storage and grab all reported providers
+   * webrtc is split ","
    *
    * @returns {Promise<{room: string, url: string, prop: 'allProviders' | 'providers' | 'connectedProviders'}[]>}
    */

@@ -549,7 +549,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           }
           try {
             // @ts-ignore
-            acc.push(new URL(realUrl))
+            if (name === 'websocket') acc.push(new URL(realUrl))
           } catch (error) {}
         })
       }
