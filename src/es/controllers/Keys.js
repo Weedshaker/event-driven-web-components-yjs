@@ -155,7 +155,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     }
     this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch || event.detail.epochs))
     this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
-    this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid))
+    this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid, event.detail.setActiveRoomDefaultKey))
     this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
     this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey, event.detail.setActiveRoomDefaultKey))
 
@@ -287,7 +287,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * each room can hold a default key, with which every message gets encrypted
    *
    * @async
-   * @returns {Promise<KEY_CONTAINER|undefined>}
+   * @returns {Promise<KEY_CONTAINER|undefined|''>}
    */
   async #getActiveRoomDefaultKey () {
     const activeRoom = await new Promise(resolve => this.dispatchEvent(new CustomEvent(`${this.namespace}get-active-room`, {
@@ -298,7 +298,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       cancelable: true,
       composed: true
     })))
-    return this.#getKey(activeRoom?.defaultKey)
+    return activeRoom?.defaultKey === '' ? '' : this.#getKey(activeRoom?.defaultKey)
   }
 
   /**
@@ -627,9 +627,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @prop {KEY_CONTAINER} keyContainer
    * @prop {string} [uid=null]
    * @prop {boolean} [setKeyProperty=true]
+   * @param {boolean} [setActiveRoomDefaultKey=true]
    * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, decrypted: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').DECRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR}>}
    */
-  async #decrypt (encrypted, keyContainer, uid = null, setKeyProperty = true) {
+  async #decrypt (encrypted, keyContainer, uid = null, setKeyProperty = true, setActiveRoomDefaultKey = true) {
     let setKeyPropertyResult = null
     if (setKeyProperty) {
       setKeyPropertyResult = await this.#setKeyProperty(keyContainer.key.epoch, 'private.decrypted', [{
@@ -663,7 +664,10 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       bubbles: true,
       cancelable: true,
       composed: true
-    })))
+    }))).then(async decrypted => {
+      if (setActiveRoomDefaultKey && await new Promise(resolve => this.getActiveRoomDefaultKeyEventListener({ detail: { resolve } })) === undefined) await new Promise(resolve => this.setActiveRoomDefaultKeyEventListener({ detail: { epoch: keyContainer.key.epoch, resolve, dispatch: true } }))
+      return decrypted
+    })
     return {
       decrypted,
       keyContainers: setKeyPropertyResult ? setKeyPropertyResult.keyContainers : null
