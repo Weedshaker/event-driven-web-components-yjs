@@ -40,11 +40,11 @@ export default [{
   ]
 },
 {
-  input: './src/y-p2pt/src/es/y-p2pt.js',
+  input: './src/y-webrtc-trystero/src/y-webrtc-trystero.js',
   external: id => /^(\.\/yjs\.js|yjs)/.test(id),
   output: {
-    name: 'Y-P2PT',
-    file: './src/es/dependencies/y-p2pt.js',
+    name: 'Y-WEBRTC-TRYSTERO',
+    file: './src/es/dependencies/y-webrtc-trystero.js',
     format: 'es',
     sourcemap: false
   },
@@ -56,10 +56,12 @@ export default [{
       preventAssignment: true
     }),
     commonjs(),
-    nodeResolve()
+    nodeResolve({
+      mainFields: ['module', 'browser', 'main']
+    })
   ],
   watch: {
-    include: './src/y-p2pt/src/es/y-p2pt.js'
+    include: './src/y-webrtc-trystero/src/y-webrtc-trystero.js'
   }
 },
 {

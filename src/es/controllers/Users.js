@@ -334,10 +334,8 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   connectedCallback () {
     this.globalEventTarget.addEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
-    this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}websocket-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}webrtc-awareness-update`, this.awarenessUpdateEventListener)
-    this.globalEventTarget.addEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.globalEventTarget.addEventListener(`${this.namespace}get-user`, this.getUserEventListener)
     this.addEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)
@@ -366,10 +364,8 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
   disconnectedCallback () {
     this.globalEventTarget.removeEventListener(`${this.namespace}websocket-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-change`, this.awarenessChangeEventListener)
-    this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-change`, this.awarenessChangeEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}websocket-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}webrtc-awareness-update`, this.awarenessUpdateEventListener)
-    this.globalEventTarget.removeEventListener(`${this.namespace}p2pt-awareness-update`, this.awarenessUpdateEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}users-observe`, this.usersObserveEventListener)
     this.globalEventTarget.removeEventListener(`${this.namespace}get-user`, this.getUserEventListener)
     this.removeEventListener(`${this.namespace}get-users-event-detail`, this.getUsersEventDetailEventListener)

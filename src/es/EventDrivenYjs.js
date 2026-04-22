@@ -20,20 +20,20 @@ import * as Y from './dependencies/yjs.js'
 
 /**
  * Different Providers
- @typedef {import("./dependencies/y-websocket").WebsocketProvider | import("./dependencies/y-webrtc").WebrtcProvider | import("./dependencies/y-p2pt").P2ptProvider} ProviderTypes
+ @typedef {import("./dependencies/y-websocket").WebsocketProvider | import("./dependencies/y-webrtc").WebrtcProvider | import("./dependencies/y-webrtc-trystero").TrysteroProvider} ProviderTypes
 */
 
 /**
  * Provider names
  @typedef {
-  'websocket' | 'webrtc' | 'p2pt'
+  'websocket' | 'webrtc'
  } ProviderNames
 */
 
 /**
  * Provider attribute names
  @typedef {
-  'websocket-url' | 'webrtc-url' | 'p2pt'
+  'websocket-url' | 'webrtc-url'
  } ProviderAttributeNames
 */
 
@@ -227,7 +227,6 @@ import * as Y from './dependencies/yjs.js'
 // Supported attributes:
 // Attribute {websocket-url} string comma separated list of all websocket urls
 // Attribute {webrtc-url} string comma separated list of all webrtc urls
-// Attribute {p2pt} has use p2pt
 // Attribute {indexeddb} has use indexeddb
 // Attribute {no-history} has don't write to the url with history.replaceState
 // Attribute {no-url-params} has don't use the url params
@@ -266,7 +265,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.providers = new Map()
     this.providers.set('websocket', new Map())
     this.providers.set('webrtc', new Map())
-    this.providers.set('p2pt', new Map()) // NOTE: the p2pt provider is not ready yet and only for test purposes here
     this.hasProvider = (providers = this.providers) => Array.from(providers).some(([name, providerMap]) => providerMap.size)
     /**
      * keep track of all awareness to which we have an event listener
@@ -590,6 +588,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             return false
           }
         }).map(websocketUrl => new URL(websocketUrl))
+        this.websocketUrl = websocketUrls.join(',')
         websocketMap.forEach(
           /**
            * @param {ProviderTypes} provider
@@ -597,6 +596,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            */
           (provider, url) => {
             if (!websocketUrls.some(websocketUrl => (websocketUrl.href === url))) {
+              // @ts-ignore
               provider?.disconnect()
               this.dispatch(`${this.namespace}unsubscribe-notifications`, {
                 url: (new URL(url)).origin,
@@ -605,20 +605,23 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             }
           }
         )
-        this.websocketUrl = websocketUrls.join(',')
         /** @type {import("./dependencies/y-websocket")} */
         const websocket = await this.importWebsocket
         websocketUrls.forEach(websocketUrl => {
           if (websocketMap.has(websocketUrl.href)) {
+            // @ts-ignore
             websocketMap.get(websocketUrl.href)?.connect()
           } else {
-            const provider = new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc)
+            let provider
             try {
+              provider = new websocket.WebsocketProvider(self.decodeURIComponent(websocketUrl.origin), `${room}${websocketUrl.search}`, doc)
               const url = new URL(provider.url) // eslint-disable-line
               // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
               websocketMap.set(websocketUrl.href, provider)
             } catch (error) {
-              provider.destroy()
+              provider?.destroy()
+              console.warn('Websocket overloaded!')
+              this.dispatch('has-problems', { type: 'websocket' })
             }
           }
         })
@@ -628,6 +631,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
            * @param {ProviderTypes} provider
            */
           (provider, url) => {
+            // @ts-ignore
             provider?.disconnect()
             this.dispatch(`${this.namespace}unsubscribe-notifications`, {
               url: (new URL(url)).origin,
@@ -640,46 +644,80 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
 
     if (!name || name === 'webrtc-url') {
       /** @type {Map<string, ProviderTypes>} */
+      // webrtcMap hold only two items: 1. webrtcTrysteroUrl, 2. webrtcUrl without webrtc-trystero
       // @ts-ignore
       const webrtcMap = this.providers.get('webrtc')
       if (this.webrtcUrl) {
+        let webrtcTrysteroUrl = ''
+        let webrtcUrls = this.webrtcUrl.split(',').filter(url => {
+          try {
+            new URL(url) // eslint-disable-line
+            if (url.includes('webrtc-trystero')) webrtcTrysteroUrl = url
+            return true
+          } catch (error) {
+            return false
+          }
+        }).map(url => self.decodeURIComponent(url))
+        this.webrtcUrl = webrtcUrls.join(',')
+        const webrtcUrl = (webrtcUrls = webrtcUrls.filter(url => {
+          if (url.includes('webrtc-trystero')) return false
+          return true
+        })).join(',')
+        // destroy
         webrtcMap.forEach(
           /**
            * @param {ProviderTypes} provider
            * @param {string} url
            */
           (provider, url) => {
-            if (this.webrtcUrl !== url) {
+            if (url.includes('webrtc-trystero') ? !this.webrtcUrl.includes('webrtc-trystero') : webrtcUrl !== url) {
               // @ts-ignore
               provider?.destroy()
+              if (url.includes('webrtc-trystero')) this._importWebrtcTrystero = null // force trystero to create a new instance with new selfId
               webrtcMap.delete(url)
             }
           }
         )
-        if (webrtcMap.has(this.webrtcUrl)) {
-          webrtcMap.get(this.webrtcUrl)?.connect()
+        if (webrtcMap.has(webrtcUrl)) {
+          // @ts-ignore
+          if (typeof webrtcMap.get(webrtcUrl)?.connect === 'function') webrtcMap.get(webrtcUrl).connect()
         } else {
-          /** @type {import("./dependencies/y-webrtc")} */
-          const webrtc = await this.importWebrtc
-          try {
-            const webrtcUrls = this.webrtcUrl.split(',').filter(url => {
-              try {
-                new URL(url) // eslint-disable-line
-                return true
-              } catch (error) {
-                return false
-              }
-            }).map(url => self.decodeURIComponent(url))
-            this.webrtcUrl = webrtcUrls.join(',')
-            // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
-            if (webrtcUrls.length) {
-              webrtcMap.set(this.webrtcUrl, new webrtc.WebrtcProvider(room, doc,
+          // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
+          if (webrtcUrls.length) {
+            /** @type {import("./dependencies/y-webrtc")} */
+            const webrtc = await this.importWebrtc
+            try {
+              webrtcMap.set(webrtcUrl, new webrtc.WebrtcProvider(room, doc,
                 {
                   signaling: webrtcUrls
                 }
               ))
+            } catch (error) {
+              console.warn('WebRTC overloaded!')
+              this.dispatch('has-problems', { type: 'webrtc' })
             }
-          } catch (error) {}
+          }
+        }
+        if (webrtcMap.has(webrtcTrysteroUrl)) {
+          // @ts-ignore
+          if (typeof webrtcMap.get(webrtcTrysteroUrl)?.connect === 'function') webrtcMap.get(webrtcTrysteroUrl).connect()
+        } else {
+          // webrtc-trystero
+          if (webrtcTrysteroUrl) {
+            /** @type {import("./dependencies/y-webrtc-trystero.js")} */
+            const webrtcTrystero = await this.importWebrtcTrystero
+            // don't set it to webrtcMap, since it shall not be destroyed
+            try {
+              webrtcMap.set(webrtcTrysteroUrl, new webrtcTrystero.TrysteroProvider(room, doc,
+                {
+                  appId: 'decentral.ninja'
+                }
+              ))
+            } catch (error) {
+              console.warn('Trystero overloaded!')
+              this.dispatch('has-problems', { type: 'webrtc-trystero' })
+            }
+          }
         }
       } else {
         webrtcMap.forEach(
@@ -689,27 +727,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           (provider, url) => {
             // @ts-ignore
             provider?.destroy()
+            if (url.includes('webrtc-trystero')) this._importWebrtcTrystero = null // force trystero to create a new instance with new selfId
             webrtcMap.delete(url)
           }
         )
-      }
-    }
-
-    // TODO: P2pt is not yet working... see task add/make new providers
-    if (!name) {
-      /** @type {Map<string, ProviderTypes>} */
-      // @ts-ignore
-      const p2ptMap = this.providers.get('p2pt')
-      if (this.hasAttribute('p2pt')) {
-        if (p2ptMap.has('p2pt')) {
-          p2ptMap.get('p2pt')?.connect()
-        } else {
-          /** @type {import("./dependencies/y-p2pt")} */
-          const p2pt = await this.importP2pt
-          p2ptMap.set('p2pt', new p2pt.P2ptProvider(room, doc))
-        }
-      } else if (p2ptMap.has('p2pt')) {
-        p2ptMap.get('p2pt')?.disconnect()
       }
     }
 
@@ -841,7 +862,6 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     }
     /** @type {Map<ProviderAttributeNames, string | null>} */
     this.removedAttributes = new Map()
-    removeAttributes('p2pt', this.removedAttributes)
     removeAttributes('websocket-url', this.removedAttributes)
     removeAttributes('webrtc-url', this.removedAttributes);
     (await this.yjs).providers = this.updateProviders(undefined, undefined, 'disconnectAllProviders')
@@ -1011,15 +1031,19 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     // check if instanceof...
     switch (provider.constructor) {
       // @ts-ignore
-      case this.importWebsocket.WebsocketProvider:
+      case this._sync_importWebsocket?.WebsocketProvider:
         // @ts-ignore
         return provider.synced
       // @ts-ignore
-      case this.importWebrtc.WebrtcProvider:
+      case this._sync_importWebrtc?.WebrtcProvider:
         // @ts-ignore
         if (url) return provider.signalingConns.find(signalingConn => signalingConn.url === url)?.connected
         // @ts-ignore
         return provider.signalingConns.some(signalingConn => signalingConn.connected)
+      // @ts-ignore
+      case this._sync_importWebrtcTrystero?.TrysteroProvider:
+        // @ts-ignore
+        return provider.room.synced
       default:
         // @ts-ignore
         return provider.connected || provider.synced
@@ -1031,7 +1055,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @returns {Promise<import("./dependencies/y-indexeddb.js")> | import("./dependencies/y-indexeddb.js")}
    */
   get importIndexeddb () {
-    return this._importIndexeddb || import('./dependencies/y-indexeddb.js').then(module => (this._importIndexeddb = module))
+    return this._importIndexeddb || (this._importIndexeddb = import('./dependencies/y-indexeddb.js')).then(module => (this._sync_ImportIndexeddb = module))
   }
 
   /**
@@ -1039,7 +1063,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @returns {Promise<import("./dependencies/y-websocket")> | import("./dependencies/y-websocket")}
    */
   get importWebsocket () {
-    return this._importWebsocket || import('./dependencies/y-websocket.js').then(module => (this._importWebsocket = module))
+    return this._importWebsocket || (this._importWebsocket = import('./dependencies/y-websocket.js')).then(module => (this._sync_importWebsocket = module))
   }
 
   /**
@@ -1047,17 +1071,18 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    * @returns {Promise<import("./dependencies/y-webrtc.js")> | import("./dependencies/y-webrtc.js")}
    */
   get importWebrtc () {
-    return this._importWebrtc || import('./dependencies/y-webrtc.js').then(module => (this._importWebrtc = module))
+    return this._importWebrtc || (this._importWebrtc = import('./dependencies/y-webrtc.js')).then(module => (this._sync_importWebrtc = module))
   }
 
   /**
-   * TODO: P2pt is not yet working... see task add/make new providers
+   * webrtc-trystero https://github.com/WinstonFassett/y-webrtc-trystero
    *
    * @name (get) importIndexeddb
-   * @returns {Promise<import("./dependencies/y-p2pt.js")> | import("./dependencies/y-p2pt.js")}
+   * @returns {Promise<import("./dependencies/y-webrtc-trystero.js")> | import("./dependencies/y-webrtc-trystero.js")}
    */
-  get importP2pt () {
-    return this._importP2pt || import('./dependencies/y-p2pt.js').then(module => (this._importP2pt = module))
+  get importWebrtcTrystero () {
+    // get a new instance of trystero when this._importWebrtcTrystero got nulled, so that a new session id is disposed. else it does not properly work.
+    return this._importWebrtcTrystero || (this._importWebrtcTrystero = import(`./dependencies/y-webrtc-trystero.js?${Math.random()}`)).then(module => (this._sync_importWebrtcTrystero = module))
   }
 
   /**

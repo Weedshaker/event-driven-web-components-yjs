@@ -80,7 +80,7 @@ import { urlHttpProtocol } from '../helpers/Utils.js'
   {
     allProviders: ProvidersContainer,
     providers: ProvidersContainer,
-    pingProvider: (url: string, force: boolean) => Promise<{status: 'timeout'|'success'|'offline', event: Event}>,
+    pingProvider: (url: string, force: boolean) => Promise<{status: 'timeout'|'success'|'offline', event: Event|null}>,
     getWebsocketInfo: (url: string, force: boolean) => Promise<Response>,
     getSessionProvidersByStatus: (nameUrlSeparator: string) => Promise<GetSessionProvidersByStatusResult>,
     getCompleteProviders: () => Promise<CompleteProvidersContainer>,
@@ -598,9 +598,13 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
    *
    * @param {string} url
    * @param {boolean} [force=false]
-   * @returns {Promise<{status: 'timeout'|'success'|'offline', event: Event}>}
+   * @returns {Promise<{status: 'timeout'|'success'|'offline', event: Event|null}>}
    */
   pingProvider = (url, force = false) => {
+    if (url.includes('webrtc-trystero')) return Promise.resolve({
+        status: 'success',
+        event: null
+      })
     // @ts-ignore
     if (!force && this.pingProviderMap.has(url)) return this.pingProviderMap.get(url)
     // @ts-ignore
