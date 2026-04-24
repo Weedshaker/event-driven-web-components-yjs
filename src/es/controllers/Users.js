@@ -25,7 +25,9 @@ import("../EventDrivenYjs").InitialUserValue & {
     mutuallyConnectedUsers: ConnectedUsers,
     mutuallyConnectedUsersCount: number,
     nickname?: string,
-    publicKey?: string
+    publicKey?: string,
+    locationOrigin: string,
+    ninjaVersion: string
   }
 } User
 */
@@ -117,6 +119,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         uid: event.detail.uid,
         nickname: (await this.getNickname()).nickname,
         publicKey: await this.getPublicKey(),
+        locationOrigin: location.origin,
+        // @ts-ignore
+        ninjaVersion: `${Environment.stage} ${Environment.version}`,
         connectedUsers: stateValueUsers.length
           ? {
             // clean all connectedUsers according to the provider status
