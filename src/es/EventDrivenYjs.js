@@ -1082,7 +1082,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   get importWebrtcTrystero () {
     // get a new instance of trystero when this._importWebrtcTrystero got nulled, so that a new session id is disposed. else it does not properly work.
-    return this._importWebrtcTrystero || (this._importWebrtcTrystero = import(`./dependencies/y-webrtc-trystero.js?${Math.random()}`)).then(module => (this._sync_importWebrtcTrystero = module))
+    return this._importWebrtcTrystero || (this._importWebrtcTrystero = import(`./dependencies/y-webrtc-trystero.js?version=${Math.random()}`)).then(module => (this._sync_importWebrtcTrystero = module))
   }
 
   /**
