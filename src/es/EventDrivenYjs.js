@@ -580,14 +580,21 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // @ts-ignore
       const websocketMap = this.providers.get('websocket')
       if (this.websocketUrl) {
-        const websocketUrls = this.websocketUrl.split(',').filter(websocketUrl => {
+        const hostnames = []
+        /** @type {URL[]} */
+        // @ts-ignore
+        const websocketUrls = this.websocketUrl.split(',').map(websocketUrl => {
           try {
-            new URL(websocketUrl) // eslint-disable-line
-            return true
+            return new URL(EventDrivenYjs.replaceHost(websocketUrl))
           } catch (error) {
-            return false
+            return null
           }
-        }).map(websocketUrl => new URL(websocketUrl))
+        }).filter(websocketUrl => {
+          if (!websocketUrl) return false
+          if (hostnames.includes(websocketUrl.hostname)) return false
+          hostnames.push(websocketUrl.hostname)
+          return true
+        })
         this.websocketUrl = websocketUrls.join(',')
         websocketMap.forEach(
           /**
@@ -649,16 +656,26 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const webrtcMap = this.providers.get('webrtc')
       if (this.webrtcUrl) {
         let webrtcTrysteroUrl = ''
-        let webrtcUrls = this.webrtcUrl.split(',').filter(url => {
+        const hostnames = []
+        /** @type {string[]} */
+        // @ts-ignore
+        let webrtcUrls = this.webrtcUrl.split(',').map(url => {
           try {
-            new URL(url) // eslint-disable-line
             if (url.includes('webrtc-trystero')) webrtcTrysteroUrl = url
-            return true
+            return new URL(EventDrivenYjs.replaceHost(url))
           } catch (error) {
-            return false
+            return null
           }
-        }).map(url => self.decodeURIComponent(url))
+        }).filter(url => {
+          if (!url) return false
+          if (hostnames.includes(url.hostname)) return false
+          hostnames.push(url.hostname)
+          return true
+          // @ts-ignore
+        }).map(url => self.decodeURIComponent(url.href))
+        // this.webrtcUrl includes the webrtc-trystero url
         this.webrtcUrl = webrtcUrls.join(',')
+        // webrtcUrl is without webrtc-trystero url and used for the webrtcMap
         const webrtcUrl = (webrtcUrls = webrtcUrls.filter(url => {
           if (url.includes('webrtc-trystero')) return false
           return true
@@ -1048,6 +1065,20 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         // @ts-ignore
         return provider.connected || provider.synced
     }
+  }
+
+  /**
+   * replaces a url string with a different host
+   *
+   * @static
+   * @param {string} url
+   * @return {string}
+   */
+  static replaceHost (url) {
+    let matchedReplaceHost
+    // @ts-ignore
+    if (self.Environment?.replaceHosts && (matchedReplaceHost = self.Environment.replaceHosts.find(replaceHost => url.match(replaceHost.pattern)))) return url.replace(matchedReplaceHost.pattern, matchedReplaceHost.replacement)
+    return url
   }
 
   /**
