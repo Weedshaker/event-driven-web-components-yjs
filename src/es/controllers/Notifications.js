@@ -585,7 +585,12 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     // @ts-ignore
     roomNames = JSON.stringify(roomNames)
     if (notificationMutes.hostnames) urls = urls.filter(url => notificationMutes.hostnames.every(hostname => hostname !== url.hostname))
-    const origins = Array.from(new Set(urls.map(url => urlHttpProtocol(url.origin))))
+    const origins = Array.from(new Set(urls.map(url => urlHttpProtocol(url.origin)))).filter(origin => {
+      // providers which already got replaced by EventDrivenYjs are here filtered out, too!
+      // @ts-ignore
+      if (self.Environment?.replaceHosts && self.Environment.replaceHosts.some(replaceHost => origin.includes(replaceHost.hostname))) return false
+      return true
+    })
     // @ts-ignore
     return { fetches: await Promise.all(origins.map(origin => this._fetchNotifications(origin, roomNames))), origins }
   }
