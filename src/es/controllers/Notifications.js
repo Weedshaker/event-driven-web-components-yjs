@@ -88,7 +88,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     this.bodyClicked = false
 
     /** @type {Promise<ServiceWorkerRegistration>} */
-    this.serviceWorkerRegistration = navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../serviceWorkers/NotificationServiceWorker.js`, { scope: this.getAttribute('sw-scope') || './' })
+    this.serviceWorkerRegistration = navigator.serviceWorker?.register(this.getAttribute('sw-url') || `${this.importMetaUrl}../serviceWorkers/NotificationServiceWorker.js`, { scope: this.getAttribute('sw-scope') || './' }).then(() => navigator.serviceWorker.ready)
 
     // Notification Events
     this.subscribeNotificationsEventListenerOnce = event => {
@@ -229,7 +229,13 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
     }
 
     this.pushEventMessageListener = async event => {
-      const data = JSON.parse(event.data)
+      if (typeof event.data !== 'string') return
+      let data
+      try {
+        data = JSON.parse(event.data)
+      } catch (error) {
+        return
+      }
       if (data.key === 'notifications') {
         this.dispatchEvent(new CustomEvent(`${this.namespace}notifications`, {
           detail: await this.updateNotifications(data.notifications, data.message !== 'requestClearNotifications'),
