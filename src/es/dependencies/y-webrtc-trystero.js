@@ -3750,8 +3750,7 @@ const joinRoom = strategy({
     client.send(await createEvent(rootTopic, toJson({peerId: selfId})))
 });
 
-const defaultRelayUrls = [
-  'tracker.peerweb.site', // SST: Manually added
+const defaultRelayUrls = Environment.trackers.concat([ // SST: Manually added Environment.trackers concat
   'eu.purplerelay.com',
   'ftp.halifax.rwth-aachen.de/nostr',
   'multiplexer.huszonegy.world',
@@ -3768,7 +3767,7 @@ const defaultRelayUrls = [
   'relay.snort.social',
   'relay.verified-nostr.com',
   'yabu.me/v2'
-].map(url => 'wss://' + url);
+]).map(url => 'wss://' + url);
 
 /**
  * @module awareness-protocol
