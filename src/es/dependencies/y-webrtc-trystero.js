@@ -3751,6 +3751,7 @@ const joinRoom = strategy({
 });
 
 const defaultRelayUrls = [
+  'tracker.peerweb.site', // SST: Manually added
   'eu.purplerelay.com',
   'ftp.halifax.rwth-aachen.de/nostr',
   'multiplexer.huszonegy.world',
