@@ -1,8 +1,10 @@
 /* global self */
 /* global clients */
 
-class NotificationServiceWorker {
+const NotificationServiceWorker = (ChosenExtend = class {}) => class NotificationServiceWorker extends ChosenExtend {
   constructor () {
+    super()
+
     this.notificationsMax = 9
     localforage.config({name: 'notifications'})
     this.addNotificationclickEventListener()
@@ -207,7 +209,7 @@ class NotificationServiceWorker {
   }
 }
 // Start the worker
-//const ServiceWorker = new NotificationServiceWorker() // eslint-disable-line
+//const ServiceWorker = new (NotificationServiceWorker())() // eslint-disable-line
 
 // web storage is not available in service worker and cache only allows requests to be stored, below is a key value abstraction of indexedDB, which works smooth im service workers
 // https://localforage.github.io/localForage/#data-api-getitem
