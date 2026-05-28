@@ -764,6 +764,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     if (decrypted.error) return decrypted
     let decryptedKeyContainer
     try {
+      // @ts-ignore
       decryptedKeyContainer = JSON.parse(decrypted.text)
     } catch (error) {
       return {
