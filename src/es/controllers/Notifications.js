@@ -386,7 +386,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
 
     this.visibilitychangeEventListener = async event => {
       if (document.hidden) return
-      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room)) { // eslint-disable-line
+      if ((await this.notificationsPromise).notifications.hasOwnProperty(await (await this.roomPromise).room) && this.serviceWorkerRegistration) { // eslint-disable-line
         this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
           if (!serviceWorkerRegistration.active) return
           serviceWorkerRegistration.active.postMessage(JSON.stringify({
