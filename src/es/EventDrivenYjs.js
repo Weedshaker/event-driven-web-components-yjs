@@ -506,10 +506,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
      *
      * @param {any & {detail: SetRoomEventDetail}} event
      */
-    this.setRoomEventListener = event => {
-      this.roomResolve(event.detail.room)
+    this.setRoomEventListener = (event = undefined) => {
+      if (event?.detail?.room) this.roomResolve(event.detail.room)
       const detail = { room: this.room, locationHref: location.href }
-      if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
+      if (event?.detail?.resolve) return event.detail.resolve(detail)
       this.dispatch(`${this.namespace}room`, detail)
     }
 
@@ -522,6 +522,12 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       const detail = { room: this.room, locationHref: location.href }
       if (event && event.detail && event.detail.resolve) return event.detail.resolve(detail)
       this.dispatch(`${this.namespace}room`, detail)
+    }
+
+    // snapshot is going to be added as magnet and cid param to url
+    this.takeSnapshotEventListener = event => {
+      if (event.detail.resolve) return this.takeSnapshot().then(() => event.detail.resolve())
+      this.takeSnapshot()
     }
 
     // https://docs.yjs.dev/api/about-awareness#awareness-crdt-api
@@ -559,6 +565,49 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
    */
   async init () {
     const doc = new Y.Doc()
+    // load torrent and ipfs if url params are available
+    if (this.url.searchParams.has('magnet')) {
+      const room = await this.room
+      new Promise(resolve => this.dispatchEvent(new CustomEvent('webtorrent-add', {
+        detail: {
+          room,
+          torrentId: `${this.url.searchParams.get('magnet')}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
+          resolve
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))).then(({torrent, streamToServerReadyPromise, error}) => {
+        if (error) return
+        // if service worker is running
+        if (streamToServerReadyPromise.done) {
+          const applyUpdate = async () => {
+            if (!torrent.files?.[0]) return
+            Y.applyUpdate(doc, new Uint8Array(await torrent.files[0].arrayBuffer()))
+          }
+          if (torrent.ready) {
+            applyUpdate()
+          } else {
+            torrent.on('ready', applyUpdate)
+          }
+        } else {
+          new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-cat', {
+            detail: {
+              torrent,
+              room,
+              cid: this.url.searchParams.get('cid'),
+              resolve
+            },
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }))).then(async result => {
+            if (!result.files?.[0]) return
+            Y.applyUpdate(doc, new Uint8Array(await result.files[0].arrayBuffer()))
+          })
+        }
+      })
+    }
     const providers = this.updateProviders(doc, undefined, 'init')
     return { doc, providers }
   }
@@ -932,6 +981,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.addEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.addEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.addEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
+    this.addEventListener(`${this.namespace}take-snapshot`, this.takeSnapshotEventListener)
     this.visibilitychangeEventListener()
     self.addEventListener('visibilitychange', this.visibilitychangeEventListener)
     if (!this.hasAttribute('no-blur')) self.addEventListener('blur', this.blurEventListener)
@@ -980,6 +1030,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     this.removeEventListener(`${this.namespace}set-local-state-field`, this.setLocalStateFieldEventListener)
     this.removeEventListener(`${this.namespace}set-room`, this.setRoomEventListener)
     this.removeEventListener(`${this.namespace}get-room`, this.getRoomEventListener)
+    this.removeEventListener(`${this.namespace}take-snapshot`, this.takeSnapshotEventListener)
     this.blurEventListener()
     self.removeEventListener('visibilitychange', this.visibilitychangeEventListener)
     if (!this.hasAttribute('no-blur')) self.removeEventListener('blur', this.blurEventListener)
@@ -998,6 +1049,45 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.replaceState(name, newValue)
       this.roomResolve(newValue)
     }
+  }
+  
+  /**
+   * create or destory providers as required
+   *
+   * @param {import("./dependencies/yjs").Doc | any} [doc=this.yjs.doc]
+   * @param {string} [room=undefined]
+   * @return {Promise<void>}
+   */
+  async takeSnapshot (doc, room) {
+    if (!doc) doc = (await this.yjs).doc
+    if (!room) room = await this.room
+    const files = [new File(
+      [Y.encodeStateAsUpdate(doc)],
+      `${room}.yjs`,
+      { type: 'application/octet-stream' }
+    )]
+    return new Promise(resolve => this.dispatchEvent(new CustomEvent('webtorrent-seed', {
+      detail: {
+        room,
+        input: files,
+        resolve
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))).then(({torrent}) => new Promise(resolveCid => this.dispatchEvent(new CustomEvent('ipfs-seed', {
+      detail: {
+        torrent,
+        input: files,
+        resolveCid
+      },
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    }))).then(({cid}) => [torrent, cid])).then(([torrent, cid]) => {
+      this.replaceState('magnet', torrent.magnetURI)
+      this.replaceState('cid', cid)
+    })
   }
 
   /**
