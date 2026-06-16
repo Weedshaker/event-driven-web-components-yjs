@@ -571,7 +571,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       new Promise(resolve => this.dispatchEvent(new CustomEvent('webtorrent-add', {
         detail: {
           room,
-          torrentId: `${this.url.searchParams.get('magnet')}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
+          // @ts-ignore
+          torrentId: `${decodeURIComponent(this.url.searchParams.get('magnet'))}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
           resolve
         },
         bubbles: true,
@@ -1085,7 +1086,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       cancelable: true,
       composed: true
     }))).then(({cid}) => [torrent, cid])).then(([torrent, cid]) => {
-      this.replaceState('magnet', torrent.magnetURI)
+      // TODO: remove bug fix after July 2026
+      // fix bug not using encodeURIComponent which populated the chat urls with prop: tr and dn
+      if (this.url.searchParams.has('tr')) this.url.searchParams.delete('tr')
+      if (this.url.searchParams.has('tr')) this.url.searchParams.delete('dn')
+      this.replaceState('magnet', encodeURIComponent(torrent.magnetURI))
       this.replaceState('cid', cid)
     })
   }
