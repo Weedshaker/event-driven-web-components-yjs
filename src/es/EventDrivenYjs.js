@@ -583,7 +583,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
         // if service worker is running
         if (streamToServerReadyPromise.done) {
           const applyUpdate = async () => {
-            if (!torrent.files?.[0]) return
+            if (!torrent.files?.[0] || !torrent.files[0].name?.includes(room)) return
+            // other rooms cid would get applied but has no effect on the actual room running according to tests
             Y.applyUpdate(doc, new Uint8Array(await torrent.files[0].arrayBuffer()))
           }
           if (torrent.ready) {
@@ -591,7 +592,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           } else {
             torrent.on('ready', applyUpdate)
           }
-        } else {
+        } else if(this.url.searchParams.has('cid')) {
           new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-cat', {
             detail: {
               torrent,
@@ -603,7 +604,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             cancelable: true,
             composed: true
           }))).then(async result => {
-            if (!result.files?.[0]) return
+            if (!result.files?.[0] || !result.files[0].name?.includes(room)) return
+            // other rooms cid would get applied but has no effect on the actual room running according to tests
             Y.applyUpdate(doc, new Uint8Array(await result.files[0].arrayBuffer()))
           })
         }
@@ -1089,7 +1091,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       // TODO: remove bug fix after July 2026
       // fix bug not using encodeURIComponent which populated the chat urls with prop: tr and dn
       if (this.url.searchParams.has('tr')) this.url.searchParams.delete('tr')
-      if (this.url.searchParams.has('tr')) this.url.searchParams.delete('dn')
+      if (this.url.searchParams.has('dn')) this.url.searchParams.delete('dn')
       this.replaceState('magnet', encodeURIComponent(torrent.magnetURI))
       this.replaceState('cid', cid)
     })
