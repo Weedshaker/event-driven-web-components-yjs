@@ -571,6 +571,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       new Promise(resolve => this.dispatchEvent(new CustomEvent('webtorrent-add', {
         detail: {
           room,
+          resetResume: true,
           // @ts-ignore
           torrentId: `${decodeURIComponent(this.url.searchParams.get('magnet'))}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
           resolve
