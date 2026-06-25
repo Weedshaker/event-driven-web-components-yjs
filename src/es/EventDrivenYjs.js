@@ -594,6 +594,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             torrent.on('ready', applyUpdate)
           }
         } else if(this.url.searchParams.has('cid')) {
+          // NOTE: !streamToServerReadyPromise.done is only when sw is not running. We could src/controllers/Webtorrent.js:382 (this.webtorrentSeedEventListener) feed the files back through webtorrent-seed but at this stage it is regarded unnecessary.
           new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-cat', {
             detail: {
               torrent,
