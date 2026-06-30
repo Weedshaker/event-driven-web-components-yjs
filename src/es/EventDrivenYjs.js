@@ -567,51 +567,65 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
     const doc = new Y.Doc()
     // load torrent and ipfs if url params are available
     if (this.url.searchParams.has('magnet')) {
-      const room = await this.room
-      new Promise(resolve => this.dispatchEvent(new CustomEvent('webtorrent-add', {
-        detail: {
-          room,
-          resetResume: true,
-          // @ts-ignore
-          torrentId: `${decodeURIComponent(this.url.searchParams.get('magnet'))}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
-          resolve
-        },
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }))).then(({torrent, streamToServerReadyPromise, error}) => {
-        if (error) return
-        // if service worker is running
-        if (streamToServerReadyPromise.done) {
-          const applyUpdate = async () => {
-            if (!torrent.files?.[0] || !torrent.files[0].name?.includes(room)) return
-            // other rooms cid would get applied but has no effect on the actual room running according to tests
-            Y.applyUpdate(doc, new Uint8Array(await torrent.files[0].arrayBuffer()))
+      const loadAndApplyUpdate = async () => {
+        const room = await this.room
+        new Promise(resolve => this.dispatchEvent(new CustomEvent('webtorrent-add', {
+          detail: {
+            room,
+            resetResume: true,
+            // @ts-ignore
+            torrentId: `${decodeURIComponent(this.url.searchParams.get('magnet'))}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
+            resolve
+          },
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }))).then(({torrent, streamToServerReadyPromise, error}) => {
+          if (error) return
+          // if service worker is running
+          if (streamToServerReadyPromise.done) {
+            const applyUpdate = async () => {
+              if (!torrent.files?.[0] || !torrent.files[0].name?.includes(room)) return
+              // other rooms cid would get applied but has no effect on the actual room running according to tests
+              Y.applyUpdate(doc, new Uint8Array(await torrent.files[0].arrayBuffer()))
+            }
+            if (torrent.ready) {
+              applyUpdate()
+            } else {
+              torrent.on('ready', applyUpdate)
+            }
+          } else if(this.url.searchParams.has('cid')) {
+            // NOTE: !streamToServerReadyPromise.done is only when sw is not running. We could src/controllers/Webtorrent.js:382 (this.webtorrentSeedEventListener) feed the files back through webtorrent-seed but at this stage it is regarded unnecessary.
+            new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-cat', {
+              detail: {
+                torrent,
+                room,
+                cid: this.url.searchParams.get('cid'),
+                resolve
+              },
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }))).then(async result => {
+              if (!result.files?.[0] || !result.files[0].name?.includes(room)) return
+              // other rooms cid would get applied but has no effect on the actual room running according to tests
+              Y.applyUpdate(doc, new Uint8Array(await result.files[0].arrayBuffer()))
+            })
           }
-          if (torrent.ready) {
-            applyUpdate()
+        })
+      }
+      if (document.body.hasAttribute('webtorrent-ready')) {
+        loadAndApplyUpdate()
+      } else {
+        const webtorrentReadyEventListener = event => {
+          if (event.detail.ready) {
+            loadAndApplyUpdate()
           } else {
-            torrent.on('ready', applyUpdate)
+            document.body.addEventListener('webtorrent-ready', webtorrentReadyEventListener, {once: true})
           }
-        } else if(this.url.searchParams.has('cid')) {
-          // NOTE: !streamToServerReadyPromise.done is only when sw is not running. We could src/controllers/Webtorrent.js:382 (this.webtorrentSeedEventListener) feed the files back through webtorrent-seed but at this stage it is regarded unnecessary.
-          new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-cat', {
-            detail: {
-              torrent,
-              room,
-              cid: this.url.searchParams.get('cid'),
-              resolve
-            },
-            bubbles: true,
-            cancelable: true,
-            composed: true
-          }))).then(async result => {
-            if (!result.files?.[0] || !result.files[0].name?.includes(room)) return
-            // other rooms cid would get applied but has no effect on the actual room running according to tests
-            Y.applyUpdate(doc, new Uint8Array(await result.files[0].arrayBuffer()))
-          })
         }
-      })
+        document.body.addEventListener('webtorrent-ready', webtorrentReadyEventListener, {once: true})
+      }
     }
     const providers = this.updateProviders(doc, undefined, 'init')
     return { doc, providers }
