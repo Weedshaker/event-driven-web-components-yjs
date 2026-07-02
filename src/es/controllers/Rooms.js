@@ -180,6 +180,18 @@ export const Rooms = (ChosenHTMLElement = HTMLElement) => class Rooms extends Ch
         cancelable: true,
         composed: true
       }))
+      if (event.detail.name || event.detail.names.length) this.dispatchEvent(new CustomEvent(`${this.namespace}deleted-room`, {
+        detail: {
+          rooms: event.detail.name
+            ? [event.detail.name]
+            : event.detail.names.length
+            ? event.detail.names
+            : []
+        },
+        bubbles: true,
+        cancelable: true,
+        composed: true
+      }))
     }
 
     /** @type {(any)=>void} */
