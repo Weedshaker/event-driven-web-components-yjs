@@ -573,6 +573,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           detail: {
             room,
             resetResume: true,
+            isSelf: true,
             // @ts-ignore
             torrentId: `${decodeURIComponent(this.url.searchParams.get('magnet'))}${this.url.searchParams.has('cid') ? `&cid=${this.url.searchParams.get('cid')}` : ''}`,
             resolve
