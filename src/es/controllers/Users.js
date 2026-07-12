@@ -129,7 +129,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                 ? stateValueUsers.filter(user => (user?.uid !== event.detail?.uid))
                 : []
             }
-          : [],
+          : {},
         ...(stateValueUsers.find(user => (user.uid === event.detail.uid)) || {}) // get all updates on own user
       }
       // only change the awarenessEpoch when awareness change event. the awareness update event fires regularly and would make too many changes to the user yMap.
@@ -138,7 +138,9 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         // merge the map user with the awareness user
         const selfUserFromMap = yMap.get(selfUser.uid)
         for (const key in selfUser) {
-          if (typeof selfUser[key] === 'object') selfUser[key] = { ...selfUserFromMap[key], ...selfUser[key] }
+          if (typeof selfUser[key] === 'object') selfUser[key] = key === 'connectedUsers' && Object.keys(selfUser[key]).length === 0
+            ? {}
+            : { ...selfUserFromMap[key], ...selfUser[key] }
         }
         selfUser = { ...selfUserFromMap, ...selfUser }
       }
