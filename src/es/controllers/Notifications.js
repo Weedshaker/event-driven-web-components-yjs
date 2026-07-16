@@ -102,7 +102,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
           }))
         })
         // initially inform the sw about the keepAlive
-        this.serviceWorkerRegistration.then(async serviceWorkerRegistration => {
+        this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
           if (!serviceWorkerRegistration.active) return
           serviceWorkerRegistration.active.postMessage(JSON.stringify({
             key: 'keepAlive',
@@ -110,13 +110,27 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             value: self.Environment.keepAlive
           }))
         })
-        /** @type {Promise<PushSubscription>} */
+        /** @type {Promise<PushSubscription|null>} */
         this.pushSubscription = this.serviceWorkerRegistration.then(serviceWorkerRegistration => {
           serviceWorkerRegistration.update()
           return serviceWorkerRegistration.pushManager.subscribe({
             userVisibleOnly: true,
             // https://vapidkeys.com/
-            applicationServerKey: this.getAttribute('application-server-key') || 'BITPxH2Sa4eoGRCqJtvmOnGFCZibh_ZaUFNmzI_f3q-t2FwA3HkgMqlOqN37L2vwm_RBlwmbcmVSOjPeZCW6YI4'
+            // @ts-ignore
+            applicationServerKey: self.Environment.notificationPublicKey || this.getAttribute('application-server-key') || 'BHIMJ_jr9km6VYKudv5yZ4CXlWpHSZApTtCR6GmLdvsax31E-tpm4VOJeAD6SAe76oqkDaMZ_h4g1EhIoAKvXYc'
+          }).catch(async error => {
+            if (error.name === 'InvalidStateError') {
+              const existing = await serviceWorkerRegistration.pushManager.getSubscription()
+              if (existing) await existing.unsubscribe()
+              return serviceWorkerRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                // https://vapidkeys.com/
+                // @ts-ignore
+                applicationServerKey: self.Environment.notificationPublicKey || this.getAttribute('application-server-key') || 'BHIMJ_jr9km6VYKudv5yZ4CXlWpHSZApTtCR6GmLdvsax31E-tpm4VOJeAD6SAe76oqkDaMZ_h4g1EhIoAKvXYc'
+              })
+            }
+            console.warn(error)
+            return null
           })
         })
         this.subscribeNotificationsEventListenerOnce = () => {}
@@ -519,19 +533,22 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
   setNotification (url, route, room) {
     if (!this.pushSubscription) return Promise.resolve()
     // Subscribe for notifications
-    return this.pushSubscription.then(pushSubscription => fetch(`${urlHttpProtocol(url)}/${route}`, {
-      method: 'POST',
-      body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    }).then(response => {
-      if (response.status >= 200 && response.status <= 299) {
-        return response.text()
-      }
-      throw new Error(response.statusText)
-    // @ts-ignore
-    }).then(text => console.info('notification subscription', { this: this, text, url })).catch(error => console.error(error)))
+    return this.pushSubscription.then(pushSubscription => {
+      if (!pushSubscription) return
+      return fetch(`${urlHttpProtocol(url)}/${route}`, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign(JSON.parse(JSON.stringify(pushSubscription)), { room })),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(response => {
+        if (response.status >= 200 && response.status <= 299) {
+          return response.text()
+        }
+        throw new Error(response.statusText)
+      // @ts-ignore
+      }).then(text => console.info('notification subscription', { this: this, text, url })).catch(error => console.error(error))
+    })
   }
 
   /**
