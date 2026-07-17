@@ -114,6 +114,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       let selfUser = {
         epoch: event.detail.epoch,
         fingerprint: event.detail.fingerprint,
+        userAgent: event.detail.userAgent,
         localEpoch: event.detail.localEpoch,
         sessionEpoch: event.detail.sessionEpoch,
         uid: event.detail.uid,
@@ -423,14 +424,14 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(room => {
+    }))).then(async room => {
       if (room?.randomNickname) {
         return {
           randomNickname: room.randomNickname,
           newlyGenerated: false
         }
       }
-      const randomNickname = `no-name-${new Date().getUTCMilliseconds()}`
+      const randomNickname = `no-name-${new Date().getUTCMilliseconds()} [${await this.getClientInfo()}]`
       this.dispatchEvent(new CustomEvent('yjs-merge-active-room', {
         detail: { randomNickname },
         bubbles: true,
@@ -442,6 +443,21 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         newlyGenerated: true
       }
     })
+  }
+
+  async getClientInfo (userAgent = navigator.userAgent) {
+    let browser = 'no-brand'
+    // @ts-ignore
+    if (navigator.brave && await navigator.brave.isBrave()) browser = 'Brave'
+    else if (/Edg\//.test(userAgent)) browser = 'Edge'
+    else if (/OPR\//.test(userAgent)) browser = 'Opera'
+    else if (/SamsungBrowser/.test(userAgent)) browser = 'Samsung Internet'
+    else if (/Firefox\//.test(userAgent)) browser = 'Firefox'
+    else if (/CriOS\//.test(userAgent)) browser = 'Chrome'
+    else if (/Chrome\//.test(userAgent)) browser = 'Chrome'
+    else if (/Safari\//.test(userAgent)) browser = 'Safari'
+    const platform = userAgent.match(/\(([^)]+)\)/)?.[1] || 'no-platform'
+    return `${browser} - ${platform}`
   }
 
   /**
