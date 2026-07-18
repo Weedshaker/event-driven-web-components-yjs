@@ -169,7 +169,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
       const getData = async () => {
         if (getDataResult) return getDataResult
         // @ts-ignore
-        return (getDataResult = await this.webWorker((type, uid) => {
+        return (getDataResult = await this.webWorker((type, uid, separator) => {
           type = new Map(type)
           /** @type {UsersContainer} */
           const users = new Map()
@@ -189,9 +189,19 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                   connectedUser.isSelf = connectedUser.uid === uid
                   // look for the user on the yjs type map and check if it also contains this user in its connectedUsers
                   let connectedUserType
-                  if ((connectedUserType = type.get(connectedUser.uid)) && connectedUserType.connectedUsers[url]?.find(connectedUser => (connectedUser?.uid === user.uid))) {
-                    user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
-                    mutuallyConnectedUsersCount++
+                  if ((connectedUserType = type.get(connectedUser.uid))) {
+                    let connectedUsersArray = connectedUserType.connectedUsers[url]
+                    if (!connectedUsersArray) {
+                      // match without wss:// or ws:// to cover edge case
+                      Object.keys(connectedUserType.connectedUsers).find(key => {
+                        const [name, providerName] = key.split(separator)
+                        if (url.includes(name) && url.includes(providerName.replace(/^[a-zA-Z0-9+.-]*:\/\//, ''))) connectedUsersArray = connectedUserType.connectedUsers[key]
+                      })
+                    }
+                    if (connectedUsersArray?.find(connectedUser => (connectedUser?.uid === user.uid))) {
+                      user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
+                      mutuallyConnectedUsersCount++
+                    }
                   }
                 })
               }
@@ -225,7 +235,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
           }
           // allUsers just all ever written into the CRDT, users which have a confirmed mutual connection, usersConnectedWithSelf are directly or indirectly mutually connected
           return { allUsers: usersAll, users, usersConnectedWithSelf }
-        }, Array.from(event.detail.type).map(([key, user]) => [key, self.structuredClone(user)]), uid))
+        }, Array.from(event.detail.type).map(([key, user]) => [key, self.structuredClone(user)]), uid, separator))
       }
       /** @type {UsersEventDetail} */
       const detail = {
