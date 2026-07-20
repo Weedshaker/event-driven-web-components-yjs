@@ -121,6 +121,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       try {
         if (typeof keyContainer === 'string') keyContainer = JSON.parse(keyContainer)
       } catch (error) {
+        // todo: respond with error
         return console.warn('Invalid JSON added: ', error, keyContainer)
       }
       if (!keyContainer?.key?.jsonWebKey) return console.warn('Invalid key added: ', keyContainer)
@@ -133,10 +134,11 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         cancelable: true,
         composed: true
       })))
+      // todo: respond with error
       if (cryptoKey.error) return console.warn('Invalid key added: ', { cryptoKey, keyContainer })
       this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
         newKey: keyContainer,
-        keyContainers: await this.#setKey(keyContainer, keyContainer.private.origin.publicKey, event.detail.setActiveRoomDefaultKey)
+        keyContainers: await this.#setKey(keyContainer, keyContainer.private.origin.publicKey /* todo: check where this event is used and then change to event.detail.publicKey */, event.detail.setActiveRoomDefaultKey)
       })
     }
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
