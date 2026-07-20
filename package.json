@@ -8,7 +8,7 @@
     "websocket": "PORT=1234 node ./servers/y-websocket/bin/server.js",
     "build": "rm -rf ./src/es/dependencies && rollup -c -w && echo !!!regarding files src/es/dependencies/* replace \"import * as Y from 'yjs.js'\" with \"import * as Y from './yjs.js'\" manually!!!"
   },
-  "author": "edx.mgb@gmail.com, weedshaker@gmail.com",
+  "author": "edx.mgb@gmail.com, weedshaker@starsystems.ch",
   "license": "MIT",
   "devDependencies": {
     "five-server": "*",
