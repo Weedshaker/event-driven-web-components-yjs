@@ -121,10 +121,21 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       try {
         if (typeof keyContainer === 'string') keyContainer = JSON.parse(keyContainer)
       } catch (error) {
-        // todo: respond with error
-        return console.warn('Invalid JSON added: ', error, keyContainer)
+        this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
+          error: true,
+          message: 'Invalid JSON added: ' + error,
+          keyContainer
+        })
+        return console.warn('Invalid JSON added: ', {error, keyContainer})
       }
-      if (!keyContainer?.key?.jsonWebKey) return console.warn('Invalid key added: ', keyContainer)
+      if (!keyContainer?.key?.jsonWebKey) {
+        this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
+          error: true,
+          message: 'Invalid key added',
+          keyContainer
+        })
+        return console.warn('Invalid key added: ', keyContainer)
+      }
       const cryptoKey = await new Promise(resolve => this.dispatchEvent(new CustomEvent('crypto-get-json-web-key-to-crypto-key', {
         detail: {
           resolve,
@@ -135,11 +146,28 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         composed: true
       })))
       // todo: respond with error
-      if (cryptoKey.error) return console.warn('Invalid key added: ', { cryptoKey, keyContainer })
-      this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
-        newKey: keyContainer,
-        keyContainers: await this.#setKey(keyContainer, keyContainer.private.origin.publicKey /* todo: check where this event is used and then change to event.detail.publicKey */, event.detail.setActiveRoomDefaultKey)
-      })
+      if (cryptoKey.error) {
+        this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
+          error: true,
+          message: 'Invalid key added',
+          cryptoKey,
+          keyContainer
+        })
+        return console.warn('Invalid key added: ', { cryptoKey, keyContainer })
+      }
+      const keyContainers = await this.#setKey(keyContainer, keyContainer.private?.origin?.publicKey || event.detail.publicKey, event.detail.setActiveRoomDefaultKey)
+      // @ts-ignore
+      this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, keyContainers.error
+        ? {
+          error: true,
+          // @ts-ignore
+          message: keyContainers.message,
+          keyContainers
+        }
+        : {
+          newKey: keyContainer,
+          keyContainers
+        })
     }
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
     this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))
