@@ -765,14 +765,14 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             }
           }
         )
+        /** @type {import("./dependencies/y-webrtc")} */
+        const webrtc = await this.importWebrtc
         if (webrtcMap.has(webrtcUrl)) {
           // @ts-ignore
           if (typeof webrtcMap.get(webrtcUrl)?.connect === 'function') webrtcMap.get(webrtcUrl).connect()
         } else {
           // grab and remove query parameters from websocketUrl and add those to the room, for passing it to the websocket req.url
           if (webrtcUrls.length) {
-            /** @type {import("./dependencies/y-webrtc")} */
-            const webrtc = await this.importWebrtc
             try {
               webrtcMap.set(webrtcUrl, new webrtc.WebrtcProvider(room, doc,
                 {
