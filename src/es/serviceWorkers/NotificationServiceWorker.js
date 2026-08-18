@@ -90,11 +90,11 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       try {
         data = event.data.json() || null
       } catch (e) {
-        this.cancelNotification(event)
+        this.cancelNotification(event, true)
         return (data = null)
       }
       if (!data.room) {
-        this.cancelNotification(event)
+        this.cancelNotification(event, true)
         return (data = null)
       }
       const clientListPromise = this.clientList
@@ -113,7 +113,7 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await uidPromise || []).includes(data.uid)) {
         this.eventWaitUntil(event, this.showNotification(data, event))
       } else {
-        this.cancelNotification(event)
+        this.cancelNotification(event, true)
       }
     })
   }
@@ -129,7 +129,7 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
    * @return {void}
    */
   async showNotification (data, event) {
-    if (!data) return this.cancelNotification(event)
+    if (!data) return this.cancelNotification(event, true)
     try {
       this.eventWaitUntil(event, self.registration.showNotification(
         data.room
@@ -140,6 +140,8 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
             ? data.body || data.text
             : `There has been an update in the room: ${data.room}`,
           data,
+          tag: data.uid,
+          renotify: false,
           lang: navigator.language,
           requireInteraction: true,
           vibrate: [300, 100, 400]
@@ -160,10 +162,20 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
 
   /**
    * @param {Event} event
+   * @param {boolean} fallbackNotification
    * @return {void}
    */
-  cancelNotification (event) {
-    event.preventDefault()
+  cancelNotification (event, fallbackNotification = false) {
+    // according to chrome spam prevention, on event listener 'push' there must be a notification or our service gets flagged.
+    if (fallbackNotification) {
+      self.registration.showNotification('Update available', {
+        body: 'Open DCN to see what changed.',
+        tag: 'fallback',
+        renotify: false,
+      })
+    } else {
+      event.preventDefault()
+    }
   }
 
   /**

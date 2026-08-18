@@ -117,7 +117,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
             userVisibleOnly: true,
             // https://vapidkeys.com/
             // @ts-ignore
-            applicationServerKey: self.Environment.notificationPublicKey || this.getAttribute('application-server-key') || 'BHIMJ_jr9km6VYKudv5yZ4CXlWpHSZApTtCR6GmLdvsax31E-tpm4VOJeAD6SAe76oqkDaMZ_h4g1EhIoAKvXYc'
+            applicationServerKey: self.Environment.notificationPublicKey || this.getAttribute('application-server-key') || 'BDky-QCE7l597P075T4kcg9ctjpR2h2RLmP8gnKWSkWlB_iJCIwK9Pny6W2GEkaFSq--ugcorrDVO_Bf9HuAQes'
           }).catch(async error => {
             if (error.name === 'InvalidStateError') {
               const existing = await serviceWorkerRegistration.pushManager.getSubscription()
@@ -126,7 +126,7 @@ export const Notifications = (ChosenHTMLElement = WebWorker()) => class Notifica
                 userVisibleOnly: true,
                 // https://vapidkeys.com/
                 // @ts-ignore
-                applicationServerKey: self.Environment.notificationPublicKey || this.getAttribute('application-server-key') || 'BHIMJ_jr9km6VYKudv5yZ4CXlWpHSZApTtCR6GmLdvsax31E-tpm4VOJeAD6SAe76oqkDaMZ_h4g1EhIoAKvXYc'
+                applicationServerKey: self.Environment.notificationPublicKey || this.getAttribute('application-server-key') || 'BDky-QCE7l597P075T4kcg9ctjpR2h2RLmP8gnKWSkWlB_iJCIwK9Pny6W2GEkaFSq--ugcorrDVO_Bf9HuAQes'
               })
             }
             console.warn(error)

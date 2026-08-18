@@ -198,6 +198,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                         if (url.includes(name) && url.includes(providerName.replace(/^[a-zA-Z0-9+.-]*:\/\//, ''))) connectedUsersArray = connectedUserType.connectedUsers[key]
                       })
                     }
+                    // only users with lastTimeVisited within24h as connected
                     if (connectedUsersArray?.find(connectedUser => (connectedUser?.uid === user.uid))) {
                       user.mutuallyConnectedUsers[url] = [...user.mutuallyConnectedUsers[url] || [], connectedUser]
                       mutuallyConnectedUsersCount++
