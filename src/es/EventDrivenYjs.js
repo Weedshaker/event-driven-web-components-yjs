@@ -1106,7 +1106,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(({cid}) => [torrent, cid])).then(([torrent, cid]) => {
+    }))).then(({cid, error}) => [torrent, cid, error])).then(([torrent, cid, error]) => {
+      if (error) return
       // TODO: remove bug fix after July 2026
       // fix bug not using encodeURIComponent which populated the chat urls with prop: tr and dn
       if (this.url.searchParams.has('tr')) this.url.searchParams.delete('tr')

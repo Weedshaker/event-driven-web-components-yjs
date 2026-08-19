@@ -23,6 +23,7 @@
  *      uid?: string | null,
  *      nickname?: string,
  *      timestamp: number,
+ *      setTimeStamp?: number,
  *      self: boolean
  *    },
  *    shared?: {
@@ -145,7 +146,6 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         cancelable: true,
         composed: true
       })))
-      // todo: respond with error
       if (cryptoKey.error) {
         this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
           error: true,
@@ -379,7 +379,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     if (!keyContainer.private.name) keyContainer.private.name = keyContainer.public.name
     // @ts-ignore
     if (!keyContainer.private.origin) keyContainer.private.origin = {}
-    if (!keyContainer.private.origin.timestamp) keyContainer.private.origin.timestamp = Date.now()
+    keyContainer.private.origin.setTimeStamp = Date.now()
+    if (!keyContainer.private.origin.timestamp) keyContainer.private.origin.timestamp = keyContainer.private.origin.setTimeStamp
     if (keyContainer.private.origin.self === undefined) keyContainer.private.origin.self = false
     // when foreign received key check the validity of the jsonWebKey by converting it to a cryptoKey object
     if (publicKey) {
