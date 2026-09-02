@@ -1097,11 +1097,11 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(({ torrent }) => new Promise(resolveCid => this.dispatchEvent(new CustomEvent('ipfs-seed', {
+    }))).then(({ torrent }) => new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-seed', {
       detail: {
         torrent,
         input: files,
-        resolveCid
+        resolveCid: resolve
       },
       bubbles: true,
       cancelable: true,

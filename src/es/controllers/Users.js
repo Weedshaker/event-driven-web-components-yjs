@@ -2,6 +2,9 @@
 import { WebWorker } from '../../event-driven-web-components-prototypes/src/WebWorker.js'
 import { EventDrivenYjs } from '../EventDrivenYjs.js'
 
+/* global location */
+/* global Environment */
+
 // https://github.com/yjs
 /**
  * Constructor options
@@ -195,7 +198,7 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
                     let connectedUsersArray = connectedUserType.connectedUsers[url]
                     if (!connectedUsersArray) {
                       // match without wss:// or ws:// to cover edge case
-                      Object.keys(connectedUserType.connectedUsers).find(key => {
+                      Object.keys(connectedUserType.connectedUsers).forEach(key => {
                         const [name, providerName] = key.split(separator)
                         if (url.includes(name) && url.includes(providerName.replace(/^[a-zA-Z0-9+.-]*:\/\//, ''))) connectedUsersArray = connectedUserType.connectedUsers[key]
                       })
