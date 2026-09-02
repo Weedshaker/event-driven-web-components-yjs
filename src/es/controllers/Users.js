@@ -139,9 +139,11 @@ export const Users = (ChosenHTMLElement = WebWorker()) => class Users extends Ch
         // merge the map user with the awareness user
         const selfUserFromMap = yMap.get(selfUser.uid)
         for (const key in selfUser) {
-          if (typeof selfUser[key] === 'object') selfUser[key] = key === 'connectedUsers' && Object.keys(selfUser[key]).length === 0
-            ? {}
-            : { ...selfUserFromMap[key], ...selfUser[key] }
+          if (typeof selfUser[key] === 'object') {
+            selfUser[key] = key === 'connectedUsers' && Object.keys(selfUser[key]).length === 0
+              ? {}
+              : { ...selfUserFromMap[key], ...selfUser[key] }
+          }
         }
         selfUser = { ...selfUserFromMap, ...selfUser }
       }

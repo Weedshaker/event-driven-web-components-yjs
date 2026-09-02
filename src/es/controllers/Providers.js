@@ -277,9 +277,12 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
     }
     // providers which already got replaced by EventDrivenYjs are here filtered out, since old providers still stuck to storage, etc.
     // @ts-ignore
-    if (self.Environment?.replaceHosts) self.Environment.replaceHosts.forEach(replaceHost => {
-      if (providers.has(replaceHost.hostname)) providers.delete(replaceHost.hostname)
-    })
+    if (self.Environment?.replaceHosts) {
+      // @ts-ignore
+      self.Environment.replaceHosts.forEach(replaceHost => {
+        if (providers.has(replaceHost.hostname)) providers.delete(replaceHost.hostname)
+      })
+    }
 
     const websocketHostnames = (sessionProvidersByStatus.websocketUrl || '').split(',').map(mapHostname)
     const webrtcHostnames = (sessionProvidersByStatus.webrtcUrl || '').split(',').map(mapHostname)
@@ -607,10 +610,12 @@ export const Providers = (ChosenHTMLElement = WebWorker()) => class Providers ex
    * @returns {Promise<{status: 'timeout'|'success'|'offline', event: Event|null}>}
    */
   pingProvider = (url, force = false) => {
-    if (url.includes('webrtc-trystero')) return Promise.resolve({
+    if (url.includes('webrtc-trystero')) {
+      return Promise.resolve({
         status: 'success',
         event: null
       })
+    }
     // @ts-ignore
     if (!force && this.pingProviderMap.has(url)) return this.pingProviderMap.get(url)
     // @ts-ignore

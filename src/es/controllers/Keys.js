@@ -127,7 +127,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
           message: 'Invalid JSON added: ' + error,
           keyContainer
         })
-        return console.warn('Invalid JSON added: ', {error, keyContainer})
+        return console.warn('Invalid JSON added: ', { error, keyContainer })
       }
       if (!keyContainer?.key?.jsonWebKey) {
         this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, {
@@ -159,15 +159,15 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       // @ts-ignore
       this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}new-key`, keyContainers.error
         ? {
-          error: true,
-          // @ts-ignore
-          message: keyContainers.message,
-          keyContainers
-        }
+            error: true,
+            // @ts-ignore
+            message: keyContainers.message,
+            keyContainers
+          }
         : {
-          newKey: keyContainer,
-          keyContainers
-        })
+            newKey: keyContainer,
+            keyContainers
+          })
     }
     this.setKeyDisabledEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'disabled', event.detail.propertyValue))
     this.setKeyPrivateNameEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'private.name', event.detail.propertyValue))

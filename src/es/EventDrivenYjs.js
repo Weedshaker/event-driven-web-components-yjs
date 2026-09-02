@@ -582,7 +582,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           bubbles: true,
           cancelable: true,
           composed: true
-        }))).then(({torrent, streamToServerReadyPromise, error}) => {
+        }))).then(({ torrent, streamToServerReadyPromise, error }) => {
           if (error) return
           // if service worker is running
           if (streamToServerReadyPromise.done) {
@@ -596,7 +596,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
             } else {
               torrent.on('ready', applyUpdate)
             }
-          } else if(this.url.searchParams.has('cid')) {
+          } else if (this.url.searchParams.has('cid')) {
             // NOTE: !streamToServerReadyPromise.done is only when sw is not running. We could src/controllers/Webtorrent.js:382 (this.webtorrentSeedEventListener) feed the files back through webtorrent-seed but at this stage it is regarded unnecessary.
             new Promise(resolve => this.dispatchEvent(new CustomEvent('ipfs-cat', {
               detail: {
@@ -623,10 +623,10 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           if (event.detail.ready) {
             loadAndApplyUpdate()
           } else {
-            document.body.addEventListener('webtorrent-ready', webtorrentReadyEventListener, {once: true})
+            document.body.addEventListener('webtorrent-ready', webtorrentReadyEventListener, { once: true })
           }
         }
-        document.body.addEventListener('webtorrent-ready', webtorrentReadyEventListener, {once: true})
+        document.body.addEventListener('webtorrent-ready', webtorrentReadyEventListener, { once: true })
       }
     }
     const providers = this.updateProviders(doc, undefined, 'init')
@@ -1072,7 +1072,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       this.roomResolve(newValue)
     }
   }
-  
+
   /**
    * create or destory providers as required
    *
@@ -1097,7 +1097,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(({torrent}) => new Promise(resolveCid => this.dispatchEvent(new CustomEvent('ipfs-seed', {
+    }))).then(({ torrent }) => new Promise(resolveCid => this.dispatchEvent(new CustomEvent('ipfs-seed', {
       detail: {
         torrent,
         input: files,
@@ -1106,7 +1106,7 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
       bubbles: true,
       cancelable: true,
       composed: true
-    }))).then(({cid, error}) => [torrent, cid, error])).then(([torrent, cid, error]) => {
+    }))).then(({ cid, error }) => [torrent, cid, error])).then(([torrent, cid, error]) => {
       if (error) return
       // TODO: remove bug fix after July 2026
       // fix bug not using encodeURIComponent which populated the chat urls with prop: tr and dn
