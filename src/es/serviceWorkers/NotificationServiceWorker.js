@@ -69,10 +69,10 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       if (data.key === 'keepAlive' && data.value) {
         return localforage.setItem('keepAlive', data.value)
       }
-      if (data.visibilityState === 'hidden' && !(await localforage.getItem('uid') || []).includes(data.uid)) {
-        this.showNotification(data, event)
-      } else {
+      if (data.visibilityState !== 'hidden' || (await localforage.getItem('uid') || []).includes(data.uid)) {
         this.cancelNotification(event)
+      } else {
+        this.showNotification(data, event, false)
       }
     })
   }
@@ -90,11 +90,11 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       try {
         data = event.data.json() || null
       } catch (e) {
-        this.cancelNotification(event, true)
+        this.cancelNotification(event, undefined, true)
         return (data = null)
       }
       if (!data.room) {
-        this.cancelNotification(event, true)
+        this.cancelNotification(event, data.uid || undefined, true)
         return (data = null)
       }
       const clientListPromise = this.clientList
@@ -110,10 +110,15 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       this.eventWaitUntil(event, clientVisibilityPromise)
       const uidPromise = localforage.getItem('uid')
       this.eventWaitUntil(event, uidPromise)
-      if (await clientVisibilityPromise === 'hidden' && data.sendNotifications && !(await uidPromise || []).includes(data.uid)) {
-        this.eventWaitUntil(event, this.showNotification(data, event))
+
+      if (await clientVisibilityPromise !== 'hidden') {
+        this.cancelNotification(event)
+      } else if(!data.sendNotifications) {
+        this.cancelNotification(event, data.uid, true)
+      } else if ((await uidPromise || []).includes(data.uid)) {
+        this.cancelNotification(event, data.uid, true)
       } else {
-        this.cancelNotification(event, true)
+        this.eventWaitUntil(event, this.showNotification(data, event, true))
       }
     })
   }
@@ -128,8 +133,8 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
    * @param {Event} event
    * @return {void}
    */
-  async showNotification (data, event) {
-    if (!data) return this.cancelNotification(event, true)
+  async showNotification (data, event, isPushEvent = false) {
+    if (!data) return this.cancelNotification(event, undefined, isPushEvent)
     try {
       this.eventWaitUntil(event, self.registration.showNotification(
         data.room
@@ -156,7 +161,7 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       }
       localforage.setItem(data.room, notifications).then(() => this.postMessageAllNotifications(undefined, 'showNotification'))
     } catch (error) {
-      this.cancelNotification(event)
+      this.cancelNotification(event, data.uid || undefined, isPushEvent)
     }
   }
 
@@ -165,13 +170,14 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
    * @param {boolean} fallbackNotification
    * @return {void}
    */
-  cancelNotification (event, fallbackNotification = false) {
+  cancelNotification (event, tag = 'fallback', fallbackNotification = false) {
     // according to chrome spam prevention, on event listener 'push' there must be a notification or our service gets flagged.
     if (fallbackNotification) {
       self.registration.showNotification('Update available', {
         body: 'Open DCN to see what changed.',
-        tag: 'fallback',
+        tag: tag,
         renotify: false,
+        silent: true
       })
     } else {
       event.preventDefault()
