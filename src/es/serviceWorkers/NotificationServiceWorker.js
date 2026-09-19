@@ -86,17 +86,6 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
       }))
       // IPHONE TEST END
       */
-      let data = null
-      try {
-        data = event.data.json() || null
-      } catch (e) {
-        this.cancelNotification(event, undefined, true)
-        return (data = null)
-      }
-      if (!data.room) {
-        this.cancelNotification(event, data.uid || undefined, true)
-        return (data = null)
-      }
       const clientListPromise = this.clientList
       this.eventWaitUntil(event, clientListPromise)
       const clientVisibilityPromise = clientListPromise.then(clientList => {
@@ -108,6 +97,17 @@ const NotificationServiceWorker = (ChosenExtend = class {}) => class Notificatio
         }
       })
       this.eventWaitUntil(event, clientVisibilityPromise)
+      let data = null
+      try {
+        data = event.data.json() || null
+      } catch (e) {
+        this.cancelNotification(event, undefined, await clientVisibilityPromise === 'hidden')
+        return (data = null)
+      }
+      if (!data.room) {
+        this.cancelNotification(event, data.uid || undefined, await clientVisibilityPromise === 'hidden')
+        return (data = null)
+      }
       const uidPromise = localforage.getItem('uid')
       this.eventWaitUntil(event, uidPromise)
 
