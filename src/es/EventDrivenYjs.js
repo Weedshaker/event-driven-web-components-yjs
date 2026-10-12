@@ -112,7 +112,8 @@ import * as Y from './dependencies/yjs.js'
   arguments: any[],
   type: any,
   id?: string,
-  room: string
+  room: string,
+  doc: Y.Doc
  }} DocResultEventDetail
 */
 
@@ -353,7 +354,8 @@ export const EventDrivenYjs = (ChosenHTMLElement = HTMLElement) => class EventDr
           arguments: event.detail.arguments,
           type,
           id: event.detail.id,
-          room: await this.room
+          room: await this.room,
+          doc: yjs.doc
         }
         if (event.detail.resolve) return event.detail.resolve(detail)
         this.dispatch(`${this.namespace}doc-result`, detail)
