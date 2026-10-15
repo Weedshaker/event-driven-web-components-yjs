@@ -184,7 +184,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
       this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-property-modified`, this.#setKeyProperty(event.detail.epoch, 'public.name', event.detail.propertyValue))
     }
     this.deleteKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}key-deleted`, this.#deleteKey(event.detail.epoch || event.detail.epochs))
-    this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key)))
+    this.encryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}encrypted`, this.#encrypt(event.detail.text, Keys.getKeyContainer(event.detail.key), event.detail.iv))
     this.decryptEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}decrypted`, this.#decrypt(event.detail.encrypted, Keys.getKeyContainer(event.detail.key), event.detail.uid, event.detail.setActiveRoomDefaultKey))
     this.shareKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}shared-key`, this.#shareKey(Keys.getKeyContainer(event.detail.key), event.detail.privateKey, event.detail.publicKey))
     this.receiveKeyEventListener = event => this.respond(event.detail?.resolve, event.detail?.dispatch, event.detail?.name || `${this.namespace}received-key`, this.#receiveKey(event.detail.encrypted, event.detail.privateKey, event.detail.publicKey, event.detail.setActiveRoomDefaultKey))
@@ -619,10 +619,11 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
    * @async
    * @prop {string} text
    * @prop {KEY_CONTAINER} keyContainer
+   * @param {Uint8Array} [iv=undefined]
    * @prop {boolean} [setKeyProperty=true]
    * @returns {Promise<{keyContainers: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR | KEY_CONTAINERS | null, encrypted: import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').ENCRYPTED_ERROR | import('../../event-driven-web-components-prototypes/src/controllers/Crypto.js').JSON_WEB_KEY_TO_CRYPTOKEY_ERROR}>}
    */
-  async #encrypt (text, keyContainer, setKeyProperty = true) {
+  async #encrypt (text, keyContainer, iv, setKeyProperty = true) {
     let setKeyPropertyResult = null
     if (setKeyProperty) {
       setKeyPropertyResult = await this.#setKeyProperty(keyContainer.key.epoch, 'private.encrypted', [{
@@ -638,7 +639,8 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
         resolve,
         text,
         key: keyContainer.key,
-        jsonWebKey: true
+        jsonWebKey: true,
+        iv
       },
       bubbles: true,
       cancelable: true,
@@ -754,7 +756,7 @@ export const Keys = (ChosenHTMLElement = HTMLElement) => class Keys extends Chos
     // @ts-ignore
     if (clone.private) delete clone.private
     clone.disabled = false
-    const encrypted = (await this.#encrypt(JSON.stringify(clone), Keys.getKeyContainer(derivedKey), false)).encrypted
+    const encrypted = (await this.#encrypt(JSON.stringify(clone), Keys.getKeyContainer(derivedKey), undefined, false)).encrypted
     // @ts-ignore
     if (encrypted.error) return encrypted
     return {
