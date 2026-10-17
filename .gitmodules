@@ -25,3 +25,6 @@
 [submodule "src/y-webrtc-trystero"]
 	path = src/y-webrtc-trystero
 	url = https://github.com/WinstonFassett/y-webrtc-trystero.git
+[submodule "servers/y-webrtc"]
+	path = servers/y-webrtc
+	url = git@github.com:decentral-ninja/y-webrtc.git
